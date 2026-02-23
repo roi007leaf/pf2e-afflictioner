@@ -5,7 +5,7 @@
       "EDITED_AFFLICTIONS_LABEL": "Manage Edited Afflictions",
       "EDITED_AFFLICTIONS_HINT": "View and manage all customized affliction definitions",
       "SHOW_INDICATORS_NAME": "Show Visual Indicators",
-      "SHOW_INDICATORS_HINT": "Display biohazard icon on tokens with active afflictions",
+      "SHOW_INDICATORS_HINT": "Display the affliction monitor panel in the corner of the screen.",
       "AUTO_DETECT_NAME": "Auto-Detect Afflictions",
       "AUTO_DETECT_HINT": "Automatically detect poison/disease/curse items and prompt for initial saves",
       "AUTO_PROMPT_SAVES_NAME": "Auto-Prompt Saves (Out of Combat)",

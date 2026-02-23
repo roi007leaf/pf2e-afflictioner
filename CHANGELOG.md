@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.10] - 2026-02-23
+
+### Added
+
+- **Token Tools button mode**: New setting "Use Token Tools Button" moves the Affliction Manager button from the Token HUD to the Scene Controls token tools sidebar. The button appears only when a token is selected, glows red with a pulsing animation when the selected token has active afflictions, and updates in real time as afflictions are added or removed.
+
+### Fixed
+
+- **Show Visual Indicators now controls the monitor panel**: The "Show Visual Indicators" setting now correctly hides the affliction monitor panel (floating corner widget) when turned off, in addition to the token tint it already controlled.
+- **Show Visual Indicators description corrected**: The setting hint now accurately describes what it controls — a red tint on afflicted tokens and the monitor panel — replacing the incorrect "biohazard icon" wording.
+
 ## [1.1.9] - 2026-02-23
 
 ### Added

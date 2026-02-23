@@ -19,6 +19,10 @@ class AfflictionMonitorIndicator {
 
   refresh() {
     if (!game.user?.isGM) return;
+    if (!game.settings.get(MODULE_ID, 'showVisualIndicators')) {
+      this.hide();
+      return;
+    }
 
     const result = this.#getAfflictedTokens();
 
