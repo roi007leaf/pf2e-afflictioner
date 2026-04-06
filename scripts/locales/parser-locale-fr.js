@@ -78,12 +78,10 @@ export const FR_PARSER_LOCALE = {
   durationDiceRegex:  /(\d+d\d+)\s+(\S+)/i,
   durationFixedRegex: /(\d+)\s+(\S+)/i,
   durationUnitMap: {
-    // French forms (singular, genitive singular, genitive plural)
-    'round':  'round',  'rounds':  'round',
-    'minute': 'minute', 'minutes':  'minute',
-    'heure':    'hour',   'heures':    'hour',
-    'jour':   'day',    'jours':     'day',
-    'semaine': 'week',   'semaines':  'week',
+    // French forms (singular, plural)
+    'heure': 'hour', 'heures': 'hour',
+    'jour': 'day', 'jours': 'day',
+    'semaine': 'week', 'semaines': 'week',
     // English fallbacks — system structured data is always English
     round: 'round', rounds: 'round',
     minute: 'minute', minutes: 'minute',
