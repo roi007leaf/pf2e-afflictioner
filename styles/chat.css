@@ -582,3 +582,57 @@
 .pf2e-afflictioner-counteract-request button i {
   margin-right: 6px;
 }
+
+/* Apply hazard affliction button — injected directly into attack roll messages */
+.pf2e-afflictioner-apply-hazard-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  padding: 9px 14px;
+  margin-top: 8px;
+  background: linear-gradient(135deg, #8b0000 0%, #a00000 100%);
+  border: 1px solid #6a0000;
+  border-bottom: 2px solid #4a0000;
+  color: white;
+  font-weight: 600;
+  font-size: 0.9em;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.18s ease;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.pf2e-afflictioner-apply-hazard-btn:hover {
+  background: linear-gradient(135deg, #a00000 0%, #b81010 100%);
+  border-color: #800000;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 12px rgba(139, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.pf2e-afflictioner-apply-hazard-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.pf2e-afflictioner-apply-hazard-btn:disabled {
+  background: linear-gradient(135deg, #3d1a1a 0%, #4a2020 100%);
+  border-color: #3a1818;
+  color: #8f6060;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+  opacity: 0.7;
+}
+
+.pf2e-afflictioner-apply-hazard-btn i {
+  font-size: 0.95em;
+  filter: drop-shadow(0 0 3px rgba(255, 80, 80, 0.3));
+}
+
+.pf2e-afflictioner-apply-hazard-btn:disabled i {
+  filter: none;
+}

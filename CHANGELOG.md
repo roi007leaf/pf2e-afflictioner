@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.3] - 2026-04-06
+
+### Added
+
+- **Hazard affliction button on attack messages**: When a hazard (e.g. Poisoned Dart Trap) lands a hit with a weapon that has an associated poison/disease/curse item, an "Apply Affliction" button is now injected directly into the attack roll chat message (alongside Damage/Critical), rather than creating a separate message. Clicking the button prompts the initial save for the targeted token.
+
 ## [2.0.2] - 2026-04-03
 
 ### Changed

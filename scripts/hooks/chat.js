@@ -162,7 +162,12 @@ async function handleAttackRoll(_message, flags) {
   if (!actor) return;
 
   const coating = WeaponCoatingStore.getCoating(actor, weapon.id);
-  if (!coating) return;
+  if (!coating) {
+    if (actor.type === 'hazard') {
+      await handleHazardAttackRoll(_message, flags, actor);
+    }
+    return;
+  }
 
   const outcome = flags.context?.outcome;
   if (!outcome) return;
@@ -311,4 +316,51 @@ async function handleAttackRoll(_message, flags) {
       });
     }
   }
+}
+
+async function handleHazardAttackRoll(message, flags, actor) {
+  const outcome = flags.context?.outcome;
+  if (outcome !== DEGREE_OF_SUCCESS.SUCCESS && outcome !== DEGREE_OF_SUCCESS.CRITICAL_SUCCESS) return;
+
+  // Find affliction items on the hazard actor (poison/disease/curse)
+  const afflictionItems = actor.items.filter(item => {
+    const traits = item.system?.traits?.value || [];
+    return traits.includes('poison') || traits.includes('disease') || traits.includes('curse');
+  });
+  if (!afflictionItems.length) return;
+
+  let afflictionData = null;
+  for (const afflictionItem of afflictionItems) {
+    const parsed = AfflictionParser.parseFromItem(afflictionItem);
+    if (parsed && !parsed.skip) {
+      afflictionData = parsed;
+      break;
+    }
+  }
+  if (!afflictionData) return;
+
+  afflictionData.originActorUuid = actor.uuid;
+
+  const contextDC = flags.context?.dc?.value;
+  if (contextDC) afflictionData.dc = contextDC;
+
+  // Resolve target from message flags, fall back to user's current targets
+  const targets = [];
+  const pf2eTarget = flags.context?.target;
+  if (pf2eTarget?.token) {
+    try {
+      const tokenDoc = await fromUuid(pf2eTarget.token);
+      if (tokenDoc) {
+        const canvasToken = canvas.tokens.get(tokenDoc.id);
+        if (canvasToken) targets.push(canvasToken);
+      }
+    } catch { /* ignore */ }
+  }
+  if (!targets.length) targets.push(...game.user.targets);
+
+  // Store data on the message so onRenderChatMessage can inject the button
+  await message.setFlag(MODULE_ID, 'hazardAffliction', {
+    afflictionData,
+    targets: targets.map(t => ({ tokenId: t.id, name: t.name }))
+  });
 }

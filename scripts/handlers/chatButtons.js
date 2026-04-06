@@ -4,6 +4,7 @@ import { registerTreatmentButtonHandlers, addTreatmentAfflictionSelection } from
 import { registerCounteractButtonHandlers, addCounteractAfflictionSelection, injectCounteractConfirmButton } from './counteractButtons.js';
 import { VishkanyaService } from '../services/VishkanyaService.js';
 import { getSystemFlags } from '../systemCompat.js';
+import { MODULE_ID } from '../constants.js';
 
 export function onRenderChatMessage(message, html) {
   const root = html?.jquery ? html[0] : html;
@@ -11,6 +12,7 @@ export function onRenderChatMessage(message, html) {
 
   injectConfirmationButton(message, root);
   injectCounteractConfirmButton(message, root);
+  injectHazardAfflictionButton(message, root);
 
   registerSaveButtonHandlers(root);
   registerAfflictionButtonHandlers(root, message);
@@ -25,6 +27,38 @@ export function onRenderChatMessage(message, html) {
   registerApplyWeaponPoisonHandler(root);
 
   injectCoatWeaponButton(message, root);
+}
+
+function injectHazardAfflictionButton(message, root) {
+  if (!game.user.isGM) return;
+  if (root.dataset.hazardAfflictionInjected === 'true') return;
+
+  const flagData = message.getFlag(MODULE_ID, 'hazardAffliction');
+  if (!flagData) return;
+
+  const { afflictionData, targets } = flagData;
+  const i = game.i18n;
+  const K = 'PF2E_AFFLICTIONER.WEAPON_COATING';
+
+  // Insert after .chat-buttons (not inside it) so PF2e system styles don't override ours
+  const chatButtons = root.querySelector('.chat-buttons');
+  const parent = chatButtons?.parentElement ?? root.querySelector('.message-content') ?? root;
+
+  for (const target of targets) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pf2e-afflictioner-apply-weapon-poison pf2e-afflictioner-apply-hazard-btn';
+    btn.dataset.targetTokenId = target.tokenId;
+    btn.dataset.afflictionData = encodeURIComponent(JSON.stringify(afflictionData));
+    btn.innerHTML = `<i class="fas fa-biohazard"></i> ${i.format(`${K}.HIT_APPLY_BTN`, { targetName: target.name })}`;
+    if (chatButtons) {
+      chatButtons.insertAdjacentElement('afterend', btn);
+    } else {
+      parent.appendChild(btn);
+    }
+  }
+
+  root.dataset.hazardAfflictionInjected = 'true';
 }
 
 function registerApplyWeaponPoisonHandler(root) {
