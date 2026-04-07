@@ -13,6 +13,7 @@ export function onRenderChatMessage(message, html) {
   injectConfirmationButton(message, root);
   injectCounteractConfirmButton(message, root);
   injectHazardAfflictionButton(message, root);
+  injectItemCardAfflictionButton(message, root);
 
   registerSaveButtonHandlers(root);
   registerAfflictionButtonHandlers(root, message);
@@ -184,6 +185,59 @@ async function injectCoatWeaponButton(message, root) {
   }
 
   root.dataset.coatWeaponInjected = 'true';
+  container.appendChild(btn);
+}
+
+async function injectItemCardAfflictionButton(message, root) {
+  if (!game.user.isGM) return;
+  if (root.dataset.itemAfflictionInjected === 'true') return;
+
+  // Only item card messages
+  if (!root.querySelector('.pf2e.item-card, .pf2e.chat-card.item-card')) return;
+
+  const flags = getSystemFlags(message);
+  const originUuid = flags?.origin?.uuid;
+  if (!originUuid) return;
+
+  let item;
+  try {
+    item = await fromUuid(originUuid);
+  } catch {
+    return;
+  }
+  if (!item) return;
+
+  const { AfflictionParser } = await import('../services/AfflictionParser.js');
+  if (!AfflictionParser.getAfflictionType(item)) return;
+
+  const afflictionData = AfflictionParser.parseFromItem(item);
+  if (!afflictionData || afflictionData.skip) return;
+
+  root.dataset.itemAfflictionInjected = 'true';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'pf2e-afflictioner-apply-item-affliction';
+  btn.innerHTML = `<i class="fas fa-biohazard"></i> ${game.i18n.localize('PF2E_AFFLICTIONER.CHAT.APPLY_AFFLICTION_BTN')}`;
+  btn.dataset.afflictionData = encodeURIComponent(JSON.stringify(afflictionData));
+
+  btn.addEventListener('click', async () => {
+    const targets = [...game.user.targets];
+    if (!targets.length) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.CHAT.APPLY_AFFLICTION_NO_TARGET'));
+      return;
+    }
+    const { AfflictionService } = await import('../services/AfflictionService.js');
+    const data = JSON.parse(decodeURIComponent(btn.dataset.afflictionData));
+    for (const target of targets) {
+      await AfflictionService.promptInitialSave(target, data);
+    }
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-check"></i> ${game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.SAVE_PROMPTED')}`;
+  });
+
+  const footer = root.querySelector('.card-footer, .chat-card footer, .item-card footer');
+  const container = footer || root.querySelector('.chat-card, .item-card') || root;
   container.appendChild(btn);
 }
 

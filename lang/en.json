@@ -539,7 +539,9 @@
       "EFFECT_INTERVAL_NO_SAVE": "No save is triggered — effects reoccur automatically.",
       "ONSET_EFFECT_INTERVAL_HEADING": "{afflictionName} - Onset Effects",
       "ONSET_EFFECT_INTERVAL_NOTE": "suffers onset effects (every {duration})",
-      "ONSET_EFFECT_INTERVAL_NO_SAVE": "No save is triggered — onset effects fire during the onset period."
+      "ONSET_EFFECT_INTERVAL_NO_SAVE": "No save is triggered — onset effects fire during the onset period.",
+      "APPLY_AFFLICTION_BTN": "Apply Affliction to Target",
+      "APPLY_AFFLICTION_NO_TARGET": "Select a target token before applying the affliction."
     }
   }
 }

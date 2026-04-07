@@ -43,13 +43,13 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
     const afflictionItems = [];
     if (this.token?.actor) {
       for (const item of this.token.actor.items) {
-        const traits = item.system?.traits?.value || [];
-        if (traits.includes('poison') || traits.includes('disease') || traits.includes('curse')) {
+        const afflictionType = AfflictionParser.getAfflictionType(item);
+        if (afflictionType) {
           afflictionItems.push({
             id: item.id,
             uuid: item.uuid,
             name: item.name,
-            type: traits.includes('poison') ? 'poison' : traits.includes('disease') ? 'disease' : 'curse',
+            type: afflictionType,
             img: item.img
           });
         }
@@ -234,8 +234,7 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
     const item = await fromUuid(data.uuid);
     if (!item) return;
 
-    const traits = item.system?.traits?.value || [];
-    if (!traits.includes('poison') && !traits.includes('disease') && !traits.includes('curse')) {
+    if (!AfflictionParser.getAfflictionType(item)) {
       ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.ITEM_MUST_HAVE_TRAIT_FULL'));
       return;
     }

@@ -2,15 +2,32 @@ import { PF2E_CONDITIONS, DURATION_MULTIPLIERS } from '../constants.js';
 import { getParserLocale, getEnParserLocale, withLocale } from '../locales/parser-locales.js';
 
 export class AfflictionParser {
-  static parseFromItem(item) {
+  static extractAfflictionTypeFromDescription(description) {
+    const traitsMatch = description.match(/<section[^>]*class="[^"]*traits[^"]*"[^>]*>([\s\S]*?)<\/section>/i);
+    if (!traitsMatch) return null;
+    const traitsHtml = traitsMatch[1].toLowerCase();
+    if (traitsHtml.includes('poison')) return 'poison';
+    if (traitsHtml.includes('disease')) return 'disease';
+    if (traitsHtml.includes('curse')) return 'curse';
+    return null;
+  }
+
+  static getAfflictionType(item) {
     const traits = item.system?.traits?.value || [];
-    const type = traits.includes('poison') ? 'poison' :
+    const fromTraits = traits.includes('poison') ? 'poison' :
       traits.includes('disease') ? 'disease' :
         traits.includes('curse') ? 'curse' : null;
+    if (fromTraits) return fromTraits;
+    const description = item.system?.description?.value || '';
+    return this.extractAfflictionTypeFromDescription(description);
+  }
+
+  static parseFromItem(item) {
+    const type = this.getAfflictionType(item);
 
     if (!type) return null;
 
-    const isVirulent = traits.includes('virulent');
+    const isVirulent = (item.system?.traits?.value || []).includes('virulent');
 
     if (item.system?.stage) {
       return this.parseStructuredAffliction(item);

@@ -390,6 +390,14 @@ export class AfflictionChatService {
       ? `<div style="margin-top:6px;padding:5px 8px;background:rgba(0,0,0,0.3);border-left:3px solid #4a9c2a;border-radius:3px;font-size:0.85em;color:#f5f5f5;"><i class="fas fa-bolt" style="margin-right:4px;"></i>${game.i18n.format('PF2E_AFFLICTIONER.FEATS.FAST_RECOVERY_STAGE_CHANGE', { tokenName: entityName, afflictionName: affliction.name, stages: oldStage - newStage })}</div>`
       : '';
 
+    const hasDamage = (newStageData?.damage?.length > 0) ||
+      (newStageData?.effects ? /\d+d\d+|damage/i.test(newStageData.effects) : false);
+    const tokenIdAttr = token ? `data-token-id="${token.id}"` : '';
+    const actorIdAttr = (token?.document?.actorLink && token?.actor) || (!token && actor) ? `data-actor-id="${actor.id}"` : '';
+    const targetButton = hasDamage
+      ? `<hr><button class="affliction-target-token" ${tokenIdAttr} ${actorIdAttr} style="width: 100%; padding: 8px; margin-top: 10px; background: #2a4a7c; border: 2px solid #3a5a8c; color: white; border-radius: 6px; cursor: pointer;"><i class="fas fa-crosshairs"></i> ${game.i18n.format('PF2E_AFFLICTIONER.CHAT.TARGET_ACTOR', { actorName: entityName })}</button>`
+      : '';
+
     const content = `
       <div class="pf2e-afflictioner-stage-change" style="border-left: 5px solid ${stageColor}; padding: 12px; background: ${bgColor}; border-radius: 4px; margin: 8px 0;">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
@@ -402,6 +410,7 @@ export class AfflictionChatService {
         ${effectsSummary}
         ${newStageData && newStageData.effects ? `<div style="margin: 8px 0; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; font-style: italic; color: #f5f5f5; font-size: 0.9em; border-left: 3px solid ${stageColor}; padding-left: 10px;">${newStageData.effects}</div>` : ''}
         ${fastRecoveryNote}
+        ${targetButton}
       </div>
     `;
 
