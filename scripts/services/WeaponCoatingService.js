@@ -758,6 +758,13 @@ export class WeaponCoatingService {
     return true;
   }
 
+  static async _removeCoatingFromActor(actorId, weaponId) {
+    const actor = game.actors.get(actorId);
+    if (!actor) return false;
+    await WeaponCoatingStore.removeCoating(actor, weaponId);
+    return true;
+  }
+
   /**
    * Routes coating application through GM socket if the current user doesn't own the actor.
    */
@@ -770,6 +777,18 @@ export class WeaponCoatingService {
       return SocketService.requestApplyWeaponCoating(actor.id, weaponId, coatingParams);
     }
     console.error('PF2e Afflictioner | socketlib is required for coating weapons on unowned actors');
+    return false;
+  }
+
+  static async removeCoatingWithPermission(actor, weaponId) {
+    if (actor.isOwner) {
+      return this._removeCoatingFromActor(actor.id, weaponId);
+    }
+    const { SocketService } = await import('./SocketService.js');
+    if (SocketService.socket) {
+      return SocketService.requestRemoveWeaponCoating(actor.id, weaponId);
+    }
+    console.error('PF2e Afflictioner | socketlib is required for removing coatings on unowned actors');
     return false;
   }
 

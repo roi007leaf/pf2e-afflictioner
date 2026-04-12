@@ -36,6 +36,19 @@
           {{/each}}
         </div>
       {{/if}}
+
+      {{#if savedCustomAfflictions.length}}
+        <h4>{{localize 'PF2E_AFFLICTIONER.DIALOG.SAVED_CUSTOM_ITEMS'}}</h4>
+        <div class="item-grid">
+          {{#each savedCustomAfflictions}}
+            <button type="button" class="item-button" data-action="addSavedCustom" data-key="{{key}}">
+              <img src="{{img}}" alt="{{name}}" />
+              <span class="item-name">{{name}}</span>
+              <span class="item-type">{{type}} • DC {{dc}} • {{stageCount}} stage{{#unless (eq stageCount 1)}}s{{/unless}}</span>
+            </button>
+          {{/each}}
+        </div>
+      {{/if}}
     </div>
   {{else}}
     <p class="no-items">{{localize 'PF2E_AFFLICTIONER.DIALOG.NO_ITEMS'}}</p>

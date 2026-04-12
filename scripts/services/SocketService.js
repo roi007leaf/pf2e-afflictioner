@@ -48,6 +48,7 @@ export class SocketService {
     this.socket.register('syncButtonState', this.handleSyncButtonState.bind(this));
     this.socket.register('gmPromptCoatingDuration', this.gmPromptCoatingDuration.bind(this));
     this.socket.register('gmApplyWeaponCoating', this.gmApplyWeaponCoating.bind(this));
+    this.socket.register('gmRemoveWeaponCoating', this.gmRemoveWeaponCoating.bind(this));
 
     Hooks.on('pf2e.preReroll', this.onPf2ePreReroll.bind(this));
     Hooks.on('pf2e.reroll', this.onPf2eReroll.bind(this));
@@ -65,6 +66,22 @@ export class SocketService {
       return await this.socket.executeAsGM('gmApplyWeaponCoating', actorId, weaponId, coatingParams);
     } catch (error) {
       console.error('PF2e Afflictioner | Error requesting weapon coating application:', error);
+      return false;
+    }
+  }
+
+  static async gmRemoveWeaponCoating(actorId, weaponId) {
+    if (!game.user.isGM) return false;
+    const { WeaponCoatingService } = await import('./WeaponCoatingService.js');
+    return WeaponCoatingService._removeCoatingFromActor(actorId, weaponId);
+  }
+
+  static async requestRemoveWeaponCoating(actorId, weaponId) {
+    if (!this.socket) return false;
+    try {
+      return await this.socket.executeAsGM('gmRemoveWeaponCoating', actorId, weaponId);
+    } catch (error) {
+      console.error('PF2e Afflictioner | Error requesting weapon coating removal:', error);
       return false;
     }
   }

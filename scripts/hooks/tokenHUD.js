@@ -2,10 +2,11 @@ import * as AfflictionStore from '../stores/AfflictionStore.js';
 import { MODULE_ID } from '../constants.js';
 
 export function onRenderTokenHUD(app, html) {
-  if (!game.user.isGM) return;
-  if (game.settings.get(MODULE_ID, 'useTokenToolsButton')) return;
-
   const token = app.object;
+  const allowPlayer = game.settings.get(MODULE_ID, 'allowPlayerWeaponCoatingAccess');
+  const canUse = game.user.isGM || (allowPlayer && token?.actor?.isOwner);
+  if (!canUse) return;
+  if (game.settings.get(MODULE_ID, 'useTokenToolsButton')) return;
   if (!token) return;
 
   const root = html?.jquery ? html[0] : html;
@@ -30,7 +31,11 @@ export function onRenderTokenHUD(app, html) {
   buttonElement.className = hasAfflictions ? 'control-icon active' : 'control-icon';
   buttonElement.style.display = 'flex';
   buttonElement.setAttribute('data-action', 'pf2e-afflictioner-manage');
-  buttonElement.setAttribute('data-tooltip', game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.MANAGE_AFFLICTIONS_TOOLTIP'));
+  buttonElement.setAttribute('data-tooltip', game.i18n.localize(
+    game.user.isGM
+      ? 'PF2E_AFFLICTIONER.MANAGER.MANAGE_AFFLICTIONS_TOOLTIP'
+      : 'PF2E_AFFLICTIONER.MANAGER.MANAGE_WEAPON_COATINGS_TOOLTIP'
+  ));
   buttonElement.innerHTML = '<i class="fas fa-biohazard"></i>';
 
   buttonElement.addEventListener('click', async (event) => {

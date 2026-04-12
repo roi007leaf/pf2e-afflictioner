@@ -105,6 +105,15 @@ export const DEFAULT_SETTINGS = {
     config: true,
     restricted: true
   },
+  'allowPlayerWeaponCoatingAccess': {
+    name: 'PF2E_AFFLICTIONER.SETTINGS.ALLOW_PLAYER_WEAPON_COATING_ACCESS_NAME',
+    hint: 'PF2E_AFFLICTIONER.SETTINGS.ALLOW_PLAYER_WEAPON_COATING_ACCESS_HINT',
+    scope: 'world',
+    type: Boolean,
+    default: false,
+    config: true,
+    restricted: true
+  },
   'editedAfflictions': {
     name: 'PF2E_AFFLICTIONER.SETTINGS.EDITED_AFFLICTIONS_STORE_NAME',
     hint: 'PF2E_AFFLICTIONER.SETTINGS.EDITED_AFFLICTIONS_STORE_HINT',

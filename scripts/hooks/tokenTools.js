@@ -3,7 +3,8 @@ import * as AfflictionStore from '../stores/AfflictionStore.js';
 
 
 export function onGetSceneControlButtons(controls) {
-  if (!game.user.isGM) return;
+  const allowPlayer = game.settings.get(MODULE_ID, 'allowPlayerWeaponCoatingAccess');
+  if (!game.user.isGM && !allowPlayer) return;
   if (!game.settings.get(MODULE_ID, 'useTokenToolsButton')) return;
 
   const groups = Array.isArray(controls) ? controls : Object.values(controls || {});
@@ -35,7 +36,8 @@ export function onGetSceneControlButtons(controls) {
 }
 
 export function onRenderSceneControls() {
-  if (!game.user?.isGM) return;
+  const allowPlayer = game.settings.get(MODULE_ID, 'allowPlayerWeaponCoatingAccess');
+  if (!game.user?.isGM && !allowPlayer) return;
   if (!game.settings.get(MODULE_ID, 'useTokenToolsButton')) return;
 
   const toolEl = document.querySelector('[data-tool="pf2e-afflictioner-manage"]');
@@ -43,6 +45,11 @@ export function onRenderSceneControls() {
 
   const selected = canvas?.tokens?.controlled ?? [];
   if (!selected.length) {
+    toolEl.style.display = 'none';
+    return;
+  }
+
+  if (!game.user.isGM && !selected[0]?.actor?.isOwner) {
     toolEl.style.display = 'none';
     return;
   }

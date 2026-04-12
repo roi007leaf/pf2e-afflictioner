@@ -1,10 +1,10 @@
 {
   "id": "pf2e-afflictioner",
   "title": "PF2e Afflictioner",
-  "version": "2.0.4",
+  "version": "3.0.0",
   "compatibility": {
     "minimum": "13",
-    "verified": "13"
+    "verified": "14"
   },
   "authors": [
     {
@@ -23,7 +23,7 @@
         "type": "system",
         "compatibility": {
           "minimum": "7.0.0",
-          "verified": "7.10.1"
+          "verified": "8.0.1"
         }
       },
       {
@@ -31,7 +31,7 @@
         "type": "system",
         "compatibility": {
             "minimum": "0.0.8",
-            "verified": "0.0.8"
+            "verified": "1.0.1"
         }
       }
     ],

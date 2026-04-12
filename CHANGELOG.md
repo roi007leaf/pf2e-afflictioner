@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-04-12
+
+### Added
+
+- **Foundry V14 support**: Updated module compatibility and verified support for Foundry VTT v14.
+- **Reusable saved custom afflictions**: Custom/manual afflictions saved through the editor now appear in the Add Affliction dialog under a dedicated "Saved Custom Afflictions" section, allowing them to be reapplied without recreating them from scratch.
+- **Apply saved custom afflictions from manager**: The Edited Afflictions manager now includes a direct "Apply to Controlled Token" action for saved definitions.
+- **Optional player access to weapon coatings**: New world setting allows players to open a limited Affliction Manager view for tokens they own, exposing the Weapon Coatings tab while keeping affliction management GM-only.
+
+### Changed
+
+- **Weapon coating permission flow**: Coating apply/remove actions now route through the same ownership-aware permission path, with socket-based GM fallback when needed.
+- **Player-facing manager entry points**: Token HUD and Token Tools access can now expose the limited weapon-coating view to owners when the new setting is enabled.
+
 ## [2.0.4] - 2026-04-07
 
 ### Added

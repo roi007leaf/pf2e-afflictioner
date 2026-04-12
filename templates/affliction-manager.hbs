@@ -1,14 +1,21 @@
 <div class="affliction-manager-content">
   <div class="affliction-manager-tabs">
+    {{#if canManageAfflictions}}
     <button type="button" class="affliction-manager-tab-btn active" data-tab="afflictions">
       <i class="fas fa-biohazard"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.TAB_AFFLICTIONS"}}
     </button>
+    {{/if}}
     <button type="button" class="affliction-manager-tab-btn" data-tab="coatings">
       <i class="fas fa-flask"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.TAB_LABEL"}}
       {{#if hasAnyCoating}}<span class="coating-badge">{{#each actorsWithWeapons}}{{#each weapons}}{{#if isCoated}}1{{/if}}{{/each}}{{/each}}</span>{{/if}}
     </button>
   </div>
 
+  {{#if playerCoatingOnly}}
+    <p class="coating-hint"><i class="fas fa-info-circle"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.PLAYER_LIMITED_HINT"}}</p>
+  {{/if}}
+
+  {{#if canManageAfflictions}}
   <div class="affliction-manager-tab-panel" data-tab="afflictions">
     {{#if hasAfflictions}}
       {{#each tokens}}
@@ -108,8 +115,9 @@
       {{/if}}
     </div>
   </div>
+  {{/if}}
 
-  <div class="affliction-manager-tab-panel" data-tab="coatings" style="display:none">
+  <div class="affliction-manager-tab-panel" data-tab="coatings" {{#if canManageAfflictions}}style="display:none"{{/if}}>
     {{#if hasWeapons}}
       {{#unless hasInjuryItems}}
         <p class="coating-hint"><i class="fas fa-info-circle"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.NO_POISONS_HINT"}}</p>
