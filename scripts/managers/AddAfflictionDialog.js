@@ -1,4 +1,5 @@
 import { AfflictionParser } from '../services/AfflictionParser.js';
+import * as AfflictionDefinitionStore from '../stores/AfflictionDefinitionStore.js';
 import { shouldSkipAffliction } from '../utils.js';
 
 export class AddAfflictionDialog extends foundry.applications.api.HandlebarsApplicationMixin(
@@ -19,7 +20,8 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
     },
     actions: {
       addFromItem: AddAfflictionDialog.addFromItem,
-      addManual: AddAfflictionDialog.addManual
+      addManual: AddAfflictionDialog.addManual,
+      addSavedCustom: AddAfflictionDialog.addSavedCustom
     },
     form: {
       handler: AddAfflictionDialog.formHandler,
@@ -57,6 +59,7 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
     }
 
     const compendiumItems = await this.getCompendiumAfflictions();
+    const savedCustomAfflictions = this.getSavedCustomAfflictions();
 
     return {
       token: {
@@ -65,8 +68,25 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
       },
       actorItems: afflictionItems,
       compendiumItems: compendiumItems,
-      hasItems: afflictionItems.length > 0 || compendiumItems.length > 0
+      savedCustomAfflictions,
+      hasItems: afflictionItems.length > 0 || compendiumItems.length > 0 || savedCustomAfflictions.length > 0
     };
+  }
+
+  getSavedCustomAfflictions() {
+    const allEdits = AfflictionDefinitionStore.getAllEditedDefinitions();
+
+    return Object.entries(allEdits)
+      .filter(([, edit]) => !edit?.sourceItemUuid)
+      .map(([key, edit]) => ({
+        key,
+        name: edit.name || 'Unknown',
+        type: edit.type || 'affliction',
+        dc: edit.dc || 15,
+        stageCount: edit.stages?.length || 0,
+        img: 'icons/svg/hazard.svg'
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async getCompendiumAfflictions() {
@@ -199,6 +219,25 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
     this.close();
 
     ui.notifications.info(game.i18n.localize('PF2E_AFFLICTIONER.DIALOG.AFFLICTION_ADDED'));
+  }
+
+  static async addSavedCustom(_event, button) {
+    const key = button.dataset.key;
+    if (!key) return;
+
+    const editedDef = AfflictionDefinitionStore.getEditedDefinition(key);
+    if (!editedDef) {
+      ui.notifications.error(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.DEFINITION_NOT_FOUND'));
+      return;
+    }
+
+    const afflictionData = foundry.utils.deepClone(editedDef);
+    delete afflictionData.editedAt;
+    delete afflictionData.editedBy;
+
+    const { AfflictionService } = await import('../services/AfflictionService.js');
+    await AfflictionService.promptInitialSave(this.token, afflictionData);
+    this.close();
   }
 
   static async formHandler(_event, _form, _formData) {

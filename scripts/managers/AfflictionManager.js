@@ -13,6 +13,26 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
 ) {
   static currentInstance = null;
 
+  static _getTargetToken(options = {}) {
+    return options.filterTokenId
+      ? canvas.tokens.get(options.filterTokenId)
+      : canvas.tokens.controlled[0] || null;
+  }
+
+  static _getTargetActor(options = {}) {
+    if (options.filterActorId) return game.actors.get(options.filterActorId) || null;
+    return this._getTargetToken(options)?.actor || null;
+  }
+
+  static canOpenLimitedCoatingView(options = {}) {
+    if (game.user.isGM) return true;
+    if (!game.settings.get('pf2e-afflictioner', 'allowPlayerWeaponCoatingAccess')) return false;
+
+    const token = this._getTargetToken(options);
+    const actor = this._getTargetActor(options);
+    return !!(token?.actor?.isOwner || actor?.isOwner);
+  }
+
   static DEFAULT_OPTIONS = {
     id: 'pf2e-afflictioner-manager',
     classes: ['pf2e-afflictioner', 'affliction-manager'],
@@ -52,15 +72,17 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
   constructor(options = {}) {
     super(options);
 
-    if (!game.user.isGM) {
+    this.filterTokenId = options.filterTokenId || null;
+    this.filterActorId = options.filterActorId || null;
+    this.playerCoatingOnly = !game.user.isGM;
+
+    if (!AfflictionManager.canOpenLimitedCoatingView(options)) {
       ui.notifications.error(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.GM_ONLY_MANAGER'));
       this.close();
       return;
     }
 
-    this.filterTokenId = options.filterTokenId || null;
-    this.filterActorId = options.filterActorId || null;
-    this._activeTab = 'afflictions';
+    this._activeTab = this.playerCoatingOnly ? 'coatings' : 'afflictions';
     AfflictionManager.currentInstance = this;
     this._setupAutoRefresh();
   }
@@ -292,10 +314,13 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
   async _prepareContext(_options) {
     const tokensWithAfflictions = [];
     const seenActorIds = new Set();
+    const canManageAfflictions = !this.playerCoatingOnly;
 
-    const tokensToCheck = this.filterTokenId
+    const tokensToCheck = canManageAfflictions
+      ? (this.filterTokenId
       ? [canvas.tokens.get(this.filterTokenId)].filter(t => t)
-      : canvas.tokens.placeables;
+      : canvas.tokens.placeables)
+      : [];
 
     const combat = game.combat;
 
@@ -336,7 +361,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     }
 
     // Off-scene linked actors with afflictions (not already shown via a canvas token)
-    if (!this.filterTokenId) {
+    if (canManageAfflictions && !this.filterTokenId) {
       const actorsToCheck = this.filterActorId
         ? [game.actors.get(this.filterActorId)].filter(a => a)
         : game.actors.contents;
@@ -403,6 +428,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     const hasAnyCoating = actorsWithWeapons.some(a => a.weapons.some(w => w.isCoated));
 
     return {
+      playerCoatingOnly: this.playerCoatingOnly,
+      canManageAfflictions,
       tokens: tokensWithAfflictions,
       hasAfflictions: tokensWithAfflictions.length > 0,
       actorsWithWeapons,
@@ -578,6 +605,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
   }
 
   static async addAffliction(_event, _button) {
+    if (this.playerCoatingOnly) return;
+
     const token = canvas.tokens.controlled[0] ||
       (this.filterTokenId ? canvas.tokens.get(this.filterTokenId) : null);
 
@@ -604,6 +633,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
   }
 
   static async removeAffliction(_event, button) {
+    if (this.playerCoatingOnly) return;
+
     const afflictionId = button.dataset.afflictionId;
     const { token, actor } = AfflictionManager._resolveTarget(button);
 
@@ -644,6 +675,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
   }
 
   static async editAffliction(_event, button) {
+    if (this.playerCoatingOnly) return;
+
     const afflictionId = button.dataset.afflictionId;
     const { token, actor } = AfflictionManager._resolveTarget(button);
 
@@ -670,6 +703,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
   }
 
   static async clearAllAfflictions(_event, _button) {
+    if (this.playerCoatingOnly) return;
+
     const confirmed = await foundry.applications.api.DialogV2.confirm({
       title: game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.CLEAR_ALL_CONFIRM_TITLE'),
       content: `<p>${game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.CLEAR_ALL_CONFIRM_CONTENT')}</p>`,
@@ -743,6 +778,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
   }
 
   static async progressStage(_event, button) {
+    if (this.playerCoatingOnly) return;
+
     const afflictionId = button.dataset.afflictionId;
     const { token, actor } = AfflictionManager._resolveTarget(button);
     const entityName = token?.name || actor?.name || 'Unknown';
@@ -769,6 +806,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
   }
 
   static async regressStage(_event, button) {
+    if (this.playerCoatingOnly) return;
+
     const afflictionId = button.dataset.afflictionId;
     const { token, actor } = AfflictionManager._resolveTarget(button);
     const entityName = token?.name || actor?.name || 'Unknown';
@@ -792,6 +831,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
   }
 
   static async rollSave(_event, button) {
+    if (this.playerCoatingOnly) return;
+
     const afflictionId = button.dataset.afflictionId;
     const { token, actor } = AfflictionManager._resolveTarget(button);
 
@@ -808,6 +849,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
   }
 
   static async rollDamage(_event, button) {
+    if (this.playerCoatingOnly) return;
+
     const afflictionId = button.dataset.afflictionId;
     const { token, actor } = AfflictionManager._resolveTarget(button);
 
@@ -824,6 +867,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
   }
 
   static async treatAffliction(_event, button) {
+    if (this.playerCoatingOnly) return;
+
     const afflictionId = button.dataset.afflictionId;
     const { token, actor } = AfflictionManager._resolveTarget(button);
 
@@ -854,7 +899,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.ACTOR_NOT_FOUND'));
       return;
     }
-    await WeaponCoatingStore.removeCoating(actor, weaponId);
+    const removed = await WeaponCoatingService.removeCoatingWithPermission(actor, weaponId);
+    if (!removed) return;
     ui.notifications.info(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.REMOVE_SUCCESS'));
     this.render({ force: true });
   }
@@ -890,12 +936,6 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       return;
     }
 
-    // Remove existing coating (cleans up old effect) before replacing
-    const existing = WeaponCoatingStore.getCoating(actor, weaponId);
-    if (existing) {
-      await WeaponCoatingStore.removeCoating(actor, weaponId);
-    }
-
     // Prompt for coating duration (always shows on GM client)
     const expirationMode = await WeaponCoatingService.promptCoatingDuration();
     if (expirationMode === null) return;
@@ -907,22 +947,15 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     const combat = game.combat;
     const poisonImg = item.img || null;
 
-    await WeaponCoatingStore.addCoating(actor, weaponId, {
+    const applied = await WeaponCoatingService._applyCoatingWithPermission(actor, weaponId, {
       poisonItemUuid: itemUuid,
       poisonName: finalAfflictionData.name,
       weaponName,
       afflictionData: finalAfflictionData,
-      appliedRound: combat?.started ? combat.round : null,
-      appliedTimestamp: game.time.worldTime,
-      appliedCombatantId: WeaponCoatingService._findCombatantId(actor),
-      expirationMode
+      expirationMode,
+      poisonImg
     });
-
-    // Create visual coating effect on token
-    const coatingEffectUuid = await WeaponCoatingService.createCoatingEffect(actor, weaponName, finalAfflictionData.name, expirationMode, poisonImg);
-    if (coatingEffectUuid) {
-      await WeaponCoatingStore.updateCoating(actor, weaponId, { coatingEffectUuid });
-    }
+    if (!applied) return;
 
     // Consume one dose of the poison item
     const quantity = item.system?.quantity ?? 1;
@@ -937,6 +970,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
   }
 
   static async counteractAffliction(_event, button) {
+    if (this.playerCoatingOnly) return;
+
     const afflictionId = button.dataset.afflictionId;
     const { token, actor } = AfflictionManager._resolveTarget(button);
 

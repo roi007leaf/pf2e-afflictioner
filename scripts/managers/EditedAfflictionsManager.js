@@ -24,6 +24,7 @@ export class EditedAfflictionsManager extends foundry.applications.api.Handlebar
     },
     actions: {
       editDefinition: EditedAfflictionsManager.editDefinition,
+      applyDefinition: EditedAfflictionsManager.applyDefinition,
       deleteDefinition: EditedAfflictionsManager.deleteDefinition,
       resetDefinition: EditedAfflictionsManager.resetDefinition,
       exportAllEdits: EditedAfflictionsManager.exportAllEdits,
@@ -99,6 +100,33 @@ export class EditedAfflictionsManager extends foundry.applications.api.Handlebar
     }
 
     new AfflictionEditorDialog(afflictionData).render(true);
+  }
+
+  static async applyDefinition(event, button) {
+    const key = button.dataset.key;
+    const editedDef = AfflictionDefinitionStore.getEditedDefinition(key);
+    if (!editedDef) {
+      ui.notifications.error(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.DEFINITION_NOT_FOUND'));
+      return;
+    }
+
+    const token = canvas?.tokens?.controlled?.[0] || null;
+    if (!token?.actor) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.EDITED_MANAGER.APPLY_SELECT_TOKEN'));
+      return;
+    }
+
+    const afflictionData = foundry.utils.deepClone(editedDef);
+    delete afflictionData.editedAt;
+    delete afflictionData.editedBy;
+
+    const { AfflictionService } = await import('../services/AfflictionService.js');
+    await AfflictionService.promptInitialSave(token, afflictionData);
+
+    ui.notifications.info(game.i18n.format('PF2E_AFFLICTIONER.EDITED_MANAGER.APPLIED_TO_TOKEN', {
+      name: afflictionData.name || game.i18n.localize('PF2E_AFFLICTIONER.DIALOG.MANUAL_DEFAULT_NAME'),
+      tokenName: token.name
+    }));
   }
 
   static async deleteDefinition(event, button) {
