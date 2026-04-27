@@ -1,6 +1,41 @@
 import { MODULE_ID } from '../constants.js';
 import * as AfflictionStore from '../stores/AfflictionStore.js';
 
+function getItemActor(item) {
+  return item?.actor ?? (typeof item?.parent?.getActiveTokens === 'function' ? item.parent : null);
+}
+
+function getActiveTokensForActor(actor) {
+  if (!actor) return [];
+  if (typeof actor.getActiveTokens === 'function') return actor.getActiveTokens(true, false) ?? [];
+
+  const placeables = canvas?.tokens?.placeables ?? [];
+  return placeables.filter(token => token.actor?.id === actor.id);
+}
+
+function hasChangedProperty(changes, path) {
+  if (!changes || !path) return false;
+
+  if (globalThis.foundry?.utils?.hasProperty?.(changes, path)) return true;
+  if (Object.prototype.hasOwnProperty.call(changes, path)) return true;
+  if (Object.keys(changes).some(key => key.startsWith(`${path}.`))) return true;
+
+  return path.split('.').reduce((current, part) => current?.[part], changes) !== undefined;
+}
+
+function actorChangeCanAffectAfflictions(changes) {
+  return (
+    hasChangedProperty(changes, 'system') ||
+    hasChangedProperty(changes, `flags.${MODULE_ID}.afflictions`)
+  );
+}
+
+function refreshActorTokens(actor) {
+  for (const token of getActiveTokensForActor(actor)) {
+    VisualService.refreshTokenIndicator(token);
+  }
+}
+
 export class VisualService {
   static async addAfflictionIndicator(token) {
     if (!game.settings.get(MODULE_ID, 'showVisualIndicators')) return;
@@ -57,8 +92,16 @@ export class VisualService {
   }
 }
 
-Hooks.on('refreshToken', (token) => {
-  VisualService.refreshTokenIndicator(token);
+Hooks.on('createItem', (item) => refreshActorTokens(getItemActor(item)));
+Hooks.on('updateItem', (item) => refreshActorTokens(getItemActor(item)));
+Hooks.on('deleteItem', (item) => refreshActorTokens(getItemActor(item)));
+
+Hooks.on('updateActor', (actor, changes) => {
+  if (actorChangeCanAffectAfflictions(changes)) refreshActorTokens(actor);
+});
+
+Hooks.on('controlToken', (token, controlled) => {
+  if (controlled) VisualService.refreshTokenIndicator(token);
 });
 
 Hooks.on('canvasReady', () => {

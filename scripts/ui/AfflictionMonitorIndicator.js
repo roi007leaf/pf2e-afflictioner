@@ -12,9 +12,11 @@ class AfflictionMonitorIndicator {
 
   constructor() {
     this._el = null;
-    this._tooltipEl = null;
+    this._popoverEl = null;
     this._data = null;
     this._drag = { active: false, start: { x: 0, y: 0 }, offset: { x: 0, y: 0 }, moved: false };
+    this._boundDocumentMouseDown = (ev) => this.#onDocumentMouseDown(ev);
+    this._boundDocumentKeyDown = (ev) => this.#onDocumentKeyDown(ev);
   }
 
   refresh() {
@@ -31,6 +33,7 @@ class AfflictionMonitorIndicator {
     this.#ensureStyles();
     if (!this._el) this.#createElement();
     this.#updateBadge();
+    if (this._popoverEl?.isConnected) this.#renderPopoverContents();
     this._el.classList.add('pf2e-afflictioner-monitor--visible');
 
     if (result.needsAttention) {
@@ -44,7 +47,7 @@ class AfflictionMonitorIndicator {
     if (!this._el) return;
     this._el.classList.remove('pf2e-afflictioner-monitor--visible');
     this._el.classList.remove('needs-attention');
-    this.#hideTooltip();
+    this.#hidePopover();
   }
 
   #getAfflictedTokens() {
@@ -173,14 +176,11 @@ class AfflictionMonitorIndicator {
     this._boundMouseUp = (ev) => this.#onMouseUp(ev);
     el.addEventListener('mousedown', (ev) => this.#onMouseDown(ev));
 
-    el.addEventListener('mouseenter', () => this.#showTooltip());
-    el.addEventListener('mouseleave', () => this.#scheduleHideTooltip());
-
     el.addEventListener('click', async (ev) => {
       if (this._drag.moved) return;
       ev.preventDefault();
       ev.stopPropagation();
-      await this.openManager();
+      this.#togglePopover();
     });
 
     document.body.appendChild(el);
@@ -234,77 +234,83 @@ class AfflictionMonitorIndicator {
     }
   }
 
-  #showTooltip() {
-    if (!this._data?.tokens?.length) return;
-    if (this._tooltipEl?.isConnected) return;
-
-    const tip = document.createElement('div');
-    tip.className = 'pf2e-afflictioner-tooltip';
-    this._tooltipEl = tip;
-    this.#renderTooltipContents();
-
-    tip.addEventListener('mouseenter', () => {
-      if (this._hideTooltipTimeout) {
-        clearTimeout(this._hideTooltipTimeout);
-        this._hideTooltipTimeout = null;
-      }
-    });
-    tip.addEventListener('mouseleave', () => {
-      this.#scheduleHideTooltip();
-    });
-
-    document.body.appendChild(tip);
-    const rect = this._el.getBoundingClientRect();
-    tip.style.left = rect.right + 8 + 'px';
-    tip.style.top = Math.max(8, rect.top - 8) + 'px';
-  }
-
-  #scheduleHideTooltip() {
-    if (this._hideTooltipTimeout) clearTimeout(this._hideTooltipTimeout);
-    this._hideTooltipTimeout = setTimeout(() => this.#hideTooltip(), 200);
-  }
-
-  #hideTooltip() {
-    if (this._hideTooltipTimeout) {
-      clearTimeout(this._hideTooltipTimeout);
-      this._hideTooltipTimeout = null;
+  #togglePopover() {
+    if (this._popoverEl?.isConnected) {
+      this.#hidePopover();
+      return;
     }
-    if (this._tooltipEl?.parentElement) this._tooltipEl.parentElement.removeChild(this._tooltipEl);
-    this._tooltipEl = null;
+
+    this.#showPopover();
   }
 
-  #renderTooltipContents() {
-    if (!this._tooltipEl) return;
+  #showPopover() {
+    if (!this._data?.tokens?.length) return;
+
+    const popover = document.createElement('div');
+    popover.className = 'pf2e-afflictioner-popover';
+    this._popoverEl = popover;
+    this.#renderPopoverContents();
+
+    document.body.appendChild(popover);
+    document.addEventListener('mousedown', this._boundDocumentMouseDown);
+    document.addEventListener('keydown', this._boundDocumentKeyDown);
+    const rect = this._el.getBoundingClientRect();
+    popover.style.left = rect.right + 8 + 'px';
+    popover.style.top = Math.max(8, rect.top - 8) + 'px';
+  }
+
+  #hidePopover() {
+    document.removeEventListener('mousedown', this._boundDocumentMouseDown);
+    document.removeEventListener('keydown', this._boundDocumentKeyDown);
+    if (this._popoverEl?.parentElement) this._popoverEl.parentElement.removeChild(this._popoverEl);
+    this._popoverEl = null;
+  }
+
+  #onDocumentMouseDown(event) {
+    if (!this._popoverEl?.isConnected) return;
+    const target = event.target;
+    if (this._popoverEl.contains(target) || this._el?.contains(target)) return;
+    this.#hidePopover();
+  }
+
+  #onDocumentKeyDown(event) {
+    if (event.key === 'Escape') this.#hidePopover();
+  }
+
+  #formatAfflictionTime(a) {
+    const combat = game.combat;
+
+    if (a.inOnset) {
+      return game.i18n.format('PF2E_AFFLICTIONER.MANAGER.ONSET_PREFIX', { duration: AfflictionParser.formatDuration(a.onsetRemaining) });
+    }
+
+    if (a.currentStage === -1 || a.needsInitialSave) {
+      return game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.INITIAL_SAVE');
+    }
+
+    const stage = a.stages?.[a.currentStage - 1];
+    if (stage?.duration) {
+      if (combat && a.nextSaveRound) {
+        const remaining = a.nextSaveRound - combat.round;
+        return remaining <= 0 ? game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.SAVE_DUE') : game.i18n.format('PF2E_AFFLICTIONER.MONITOR.ROUNDS_UNTIL_SAVE', { rounds: remaining });
+      }
+
+      const unit = stage.duration.unit?.toLowerCase() || 'round';
+      const multiplier = DURATION_MULTIPLIERS[unit] || DURATION_MULTIPLIERS['round'];
+      const totalDuration = stage.duration.value * multiplier;
+      const elapsed = a.durationElapsed || 0;
+      const remainingSeconds = Math.max(0, totalDuration - elapsed);
+      return remainingSeconds <= 0 ? game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.SAVE_DUE') : game.i18n.format('PF2E_AFFLICTIONER.MONITOR.TIME_UNTIL_SAVE', { duration: AfflictionParser.formatDuration(remainingSeconds) });
+    }
+
+    return a.currentStage > 0 ? `${game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.STAGE')} ${a.currentStage}` : game.i18n.localize('PF2E_AFFLICTIONER.MONITOR.NO_STAGE');
+  }
+
+  #renderPopoverContents() {
+    if (!this._popoverEl) return;
 
     const tokens = this._data?.tokens || [];
-    const combat = game.combat;
     const hasSelection = canvas.tokens.controlled.length > 0;
-
-    const formatTime = (a) => {
-      if (a.inOnset) {
-        return game.i18n.format('PF2E_AFFLICTIONER.MANAGER.ONSET_PREFIX', { duration: AfflictionParser.formatDuration(a.onsetRemaining) });
-      }
-
-      if (a.currentStage === -1 || a.needsInitialSave) {
-        return game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.INITIAL_SAVE');
-      }
-
-      const stage = a.stages?.[a.currentStage - 1];
-      if (stage?.duration) {
-        if (combat && a.nextSaveRound) {
-          const remaining = a.nextSaveRound - combat.round;
-          return remaining <= 0 ? game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.SAVE_DUE') : game.i18n.format('PF2E_AFFLICTIONER.MONITOR.ROUNDS_UNTIL_SAVE', { rounds: remaining });
-        } else {
-          const unit = stage.duration.unit?.toLowerCase() || 'round';
-          const multiplier = DURATION_MULTIPLIERS[unit] || DURATION_MULTIPLIERS['round'];
-          const totalDuration = stage.duration.value * multiplier;
-          const elapsed = a.durationElapsed || 0;
-          const remainingSeconds = Math.max(0, totalDuration - elapsed);
-          return remainingSeconds <= 0 ? game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.SAVE_DUE') : game.i18n.format('PF2E_AFFLICTIONER.MONITOR.TIME_UNTIL_SAVE', { duration: AfflictionParser.formatDuration(remainingSeconds) });
-        }
-      }
-      return a.currentStage > 0 ? `${game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.STAGE')} ${a.currentStage}` : game.i18n.localize('PF2E_AFFLICTIONER.MONITOR.NO_STAGE');
-    };
 
     let content = '';
 
@@ -313,9 +319,9 @@ class AfflictionMonitorIndicator {
       for (const t of tokens) {
         for (const a of t.afflictions) {
           rows.push(`
-            <div class="tip-row">
+            <div class="tip-row clickable" data-token-id="${t.tokenId || ''}" data-actor-id="${t.actorId || ''}">
               <div class="affliction-name"><strong>${a.name}</strong> <span class="token-label">(${t.name})</span></div>
-              <div class="affliction-time">${formatTime(a)}</div>
+              <div class="affliction-time">${this.#formatAfflictionTime(a)}</div>
             </div>
           `);
         }
@@ -326,13 +332,13 @@ class AfflictionMonitorIndicator {
         const afflictions = t.afflictions.map(a => `
           <div class="affliction-item">
             <div class="affliction-name"><strong>${a.name}</strong></div>
-            <div class="affliction-time">${formatTime(a)}</div>
+            <div class="affliction-time">${this.#formatAfflictionTime(a)}</div>
           </div>
         `).join('');
 
         return `
-          <div class="tip-group">
-            <div class="token-header clickable" data-token-id="${t.tokenId || ''}" data-actor-id="${t.actorId || ''}"><i class="fas fa-user"></i> ${t.name}${!t.tokenId ? ' <span style="opacity:0.6">(off-scene)</span>' : ''}</div>
+          <div class="tip-group clickable" data-token-id="${t.tokenId || ''}" data-actor-id="${t.actorId || ''}">
+            <div class="token-header"><i class="fas fa-user"></i> ${t.name}${!t.tokenId ? ' <span style="opacity:0.6">(off-scene)</span>' : ''}</div>
             ${afflictions}
           </div>
         `;
@@ -340,23 +346,26 @@ class AfflictionMonitorIndicator {
       content = groups;
     }
 
-    this._tooltipEl.innerHTML = `
+    this._popoverEl.innerHTML = `
       <div class="tip-header">
-        <i class="fas fa-biohazard"></i> ${this._data?.count || 0} ${(this._data?.count !== 1) ? game.i18n.localize('PF2E_AFFLICTIONER.MONITOR.ACTIVE_AFFLICTIONS_PLURAL') : game.i18n.localize('PF2E_AFFLICTIONER.MONITOR.ACTIVE_AFFLICTIONS_SINGULAR')}
+        <span><i class="fas fa-biohazard"></i> ${this._data?.count || 0} ${(this._data?.count !== 1) ? game.i18n.localize('PF2E_AFFLICTIONER.MONITOR.ACTIVE_AFFLICTIONS_PLURAL') : game.i18n.localize('PF2E_AFFLICTIONER.MONITOR.ACTIVE_AFFLICTIONS_SINGULAR')}</span>
+        <button type="button" class="popover-close" aria-label="Close"><i class="fas fa-times"></i></button>
       </div>
       <div class="tip-content">
         ${content}
       </div>
-      <div class="tip-footer">
-        <div class="footer-text">${game.i18n.localize('PF2E_AFFLICTIONER.MONITOR.CLICK_TOKEN_HINT')}</div>
-      </div>
     `;
 
-    this._tooltipEl.querySelectorAll('.token-header.clickable').forEach(header => {
-      header.addEventListener('click', async (ev) => {
+    this._popoverEl.querySelector('.popover-close')?.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      this.#hidePopover();
+    });
+
+    this._popoverEl.querySelectorAll('.tip-row.clickable, .tip-group.clickable').forEach(row => {
+      row.addEventListener('click', async (ev) => {
         ev.stopPropagation();
-        const tokenId = header.dataset.tokenId || null;
-        const actorId = header.dataset.actorId || null;
+        const tokenId = row.dataset.tokenId || null;
+        const actorId = row.dataset.actorId || null;
         await this.openManager(tokenId, actorId);
       });
     });
@@ -421,7 +430,7 @@ class AfflictionMonitorIndicator {
         filter: drop-shadow(0 0 12px rgba(255, 255, 0, 1));
       }
 
-      .pf2e-afflictioner-tooltip {
+      .pf2e-afflictioner-popover {
         position: fixed;
         min-width: 300px;
         max-width: 450px;
@@ -433,73 +442,110 @@ class AfflictionMonitorIndicator {
         font-size: 12px;
         box-shadow: 0 2px 16px rgba(139, 0, 0, 0.6);
       }
-      .pf2e-afflictioner-tooltip .tip-header {
+      .pf2e-afflictioner-popover {
+        min-width: 320px;
+      }
+      .pf2e-afflictioner-popover .tip-header {
         padding: 8px;
         font-weight: 600;
         color: var(--afflictioner-primary, #8b0000);
         border-bottom: 1px solid rgba(139, 0, 0, 0.3);
       }
-      .pf2e-afflictioner-tooltip .tip-content {
+      .pf2e-afflictioner-popover .tip-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .pf2e-afflictioner-popover .popover-close {
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        margin: 0;
+        border: 1px solid rgba(139, 0, 0, 0.45);
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.25);
+        color: #d0d0d0;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .pf2e-afflictioner-popover .popover-close:hover {
+        color: #fff;
+        border-color: var(--afflictioner-primary-hover, #a00000);
+        background: rgba(139, 0, 0, 0.3);
+      }
+      .pf2e-afflictioner-popover .tip-content {
         padding: 8px;
         max-height: 300px;
         overflow-y: auto;
       }
-      .pf2e-afflictioner-tooltip .tip-row {
+      .pf2e-afflictioner-popover .tip-row {
         padding: 8px 0;
         border-top: 1px solid rgba(255, 255, 255, 0.06);
       }
-      .pf2e-afflictioner-tooltip .tip-row:first-child {
+      .pf2e-afflictioner-popover .tip-row.clickable,
+      .pf2e-afflictioner-popover .tip-group.clickable {
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background-color 0.15s ease, color 0.15s ease;
+      }
+      .pf2e-afflictioner-popover .tip-row.clickable {
+        padding: 8px;
+        margin: 0 -8px;
+      }
+      .pf2e-afflictioner-popover .tip-row.clickable:hover,
+      .pf2e-afflictioner-popover .tip-group.clickable:hover {
+        background-color: rgba(139, 0, 0, 0.3);
+      }
+      .pf2e-afflictioner-popover .tip-row:first-child {
         border-top: none;
       }
-      .pf2e-afflictioner-tooltip .affliction-name {
+      .pf2e-afflictioner-popover .affliction-name {
         font-weight: 600;
         color: #e0e0e0;
         margin-bottom: 4px;
       }
-      .pf2e-afflictioner-tooltip .token-label {
+      .pf2e-afflictioner-popover .token-label {
         font-weight: normal;
         color: #888;
         font-size: 11px;
       }
-      .pf2e-afflictioner-tooltip .affliction-time {
+      .pf2e-afflictioner-popover .affliction-time {
         color: #b0b0b0;
         font-size: 11px;
         padding-left: 20px;
       }
-      .pf2e-afflictioner-tooltip .tip-group {
+      .pf2e-afflictioner-popover .tip-group {
         margin-bottom: 12px;
       }
-      .pf2e-afflictioner-tooltip .tip-group:last-child {
+      .pf2e-afflictioner-popover .tip-group:last-child {
         margin-bottom: 0;
       }
-      .pf2e-afflictioner-tooltip .token-header {
+      .pf2e-afflictioner-popover .token-header {
         font-weight: 600;
         color: #e0e0e0;
         margin-bottom: 6px;
         padding-bottom: 4px;
         border-bottom: 1px solid rgba(139, 0, 0, 0.3);
       }
-      .pf2e-afflictioner-tooltip .token-header.clickable {
-        cursor: pointer;
-        transition: color 0.15s ease, background-color 0.15s ease;
+      .pf2e-afflictioner-popover .tip-group.clickable .token-header {
         padding: 4px 8px;
         margin: 0 -8px 6px -8px;
         border-radius: 4px;
       }
-      .pf2e-afflictioner-tooltip .token-header.clickable:hover {
+      .pf2e-afflictioner-popover .tip-group.clickable:hover .token-header {
         color: #fff;
-        background-color: rgba(139, 0, 0, 0.3);
       }
-      .pf2e-afflictioner-tooltip .affliction-item {
+      .pf2e-afflictioner-popover .affliction-item {
         padding: 4px 0 4px 16px;
       }
-      .pf2e-afflictioner-tooltip .affliction-item .affliction-name {
+      .pf2e-afflictioner-popover .affliction-item .affliction-name {
         margin-bottom: 2px;
       }
-      .pf2e-afflictioner-tooltip .affliction-item .affliction-time {
+      .pf2e-afflictioner-popover .affliction-item .affliction-time {
         padding-left: 0;
       }
-      .pf2e-afflictioner-tooltip .tip-footer {
+      .pf2e-afflictioner-popover .tip-footer {
         padding: 6px 8px;
         border-top: 1px solid rgba(139, 0, 0, 0.3);
         text-align: center;

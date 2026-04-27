@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.5] - 2026-04-27
+
+### Changed
+
+- **Affliction monitor interaction**: The floating monitor no longer opens a panel on hover. Click opens a pinned interactive popover, and clicking any token/affliction row opens the manager filtered to that token or actor.
+
+### Fixed
+
+- **Token indicator refresh performance**: Affliction indicators no longer refresh from Foundry's per-frame `refreshToken` hook during canvas movement. Indicators now update from actor/item state changes, token control, and canvas readiness, avoiding repeated store lookups and token flag writes while panning or zooming scenes with many tokens.
+
 ## [2.0.4] - 2026-04-07
 
 ### Added
