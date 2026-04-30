@@ -83,6 +83,30 @@ export class AfflictionChatService {
     }
   }
 
+  static async postImmunityNotice(token, actor, afflictionData, matchingImmunities = []) {
+    actor = actor || token?.actor;
+    if (!actor) return;
+
+    const tokenName = token?.name || actor.name || 'Unknown';
+    const gmWhisper = game.users.filter(u => u.isGM).map(u => u.id);
+    const content = `
+      <div class="pf2e-afflictioner-save-request" style="border-color: #6C757D;">
+        <h3><i class="fas fa-shield-alt"></i> ${game.i18n.localize('PF2E_AFFLICTIONER.CHAT.IMMUNITY_HEADING')}</h3>
+        <p>${game.i18n.format('PF2E_AFFLICTIONER.CHAT.IMMUNITY_NOTICE', {
+          tokenName,
+          afflictionName: afflictionData.name,
+          type: matchingImmunities.length > 0 ? matchingImmunities.join(', ') : afflictionData.type
+        })}</p>
+      </div>
+    `;
+
+    await ChatMessage.create({
+      content,
+      speaker: token ? ChatMessage.getSpeaker({ token }) : ChatMessage.getSpeaker({ actor }),
+      whisper: gmWhisper
+    });
+  }
+
   static _isAfflictionMysterious(afflictionData) {
     if (afflictionData.onset) {
       return true;

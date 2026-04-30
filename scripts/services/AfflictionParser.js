@@ -27,7 +27,8 @@ export class AfflictionParser {
 
     if (!type) return null;
 
-    const isVirulent = (item.system?.traits?.value || []).includes('virulent');
+    const traits = item.system?.traits?.value || [];
+    const isVirulent = traits.includes('virulent');
 
     if (item.system?.stage) {
       return this.parseStructuredAffliction(item);
@@ -68,6 +69,7 @@ export class AfflictionParser {
       multipleExposure: this.extractMultipleExposure(description),
       sourceItemUuid: item.uuid,
       level: item.system?.level?.value || 0,
+      traits,
     });
 
     return needsEnFallback
@@ -132,7 +134,8 @@ export class AfflictionParser {
       isVirulent: isVirulent,
       multipleExposure: this.extractMultipleExposure(description),
       sourceItemUuid: item.uuid,
-      level: item.system?.level?.value || 0
+      level: item.system?.level?.value || 0,
+      traits: itemTraits
     };
   }
 
@@ -705,6 +708,7 @@ export class AfflictionParser {
       isVirulent: traits.includes('virulent'),
       sourceItemUuid: item.uuid,
       level: item.system?.level?.value || 0,
+      traits,
       requiresManualHandling: this.detectManualHandling(strippedEffect),
     };
   }

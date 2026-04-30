@@ -493,6 +493,8 @@
       "FORTITUDE_DC_PARENS": "(DC {dc})",
       "ROLL_FORTITUDE_SAVE": "进行{saveType}豁免",
       "INITIAL_SAVE_HEADING": "{afflictionName} - 初始豁免",
+      "IMMUNITY_HEADING": "Affliction Immunity",
+      "IMMUNITY_NOTICE": "{tokenName} is immune to {afflictionName} ({type}).",
       "MAKE_FORTITUDE_RESIST": "进行一次{saveType}豁免以抵抗该苦难",
       "MUST_MAKE_FORTITUDE": "必须进行一次{saveType}豁免",
       "CURRENT_STAGE_LABEL": "当前阶段：",

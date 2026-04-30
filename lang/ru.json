@@ -510,6 +510,8 @@
       "FORTITUDE_DC_PARENS": "(КС {dc})",
       "ROLL_FORTITUDE_SAVE": "Совершить спасбросок {saveType}",
       "INITIAL_SAVE_HEADING": "{afflictionName} - Первичный спасбросок",
+      "IMMUNITY_HEADING": "Affliction Immunity",
+      "IMMUNITY_NOTICE": "{tokenName} is immune to {afflictionName} ({type}).",
       "MAKE_FORTITUDE_RESIST": "Совершите спасбросок {saveType} чтобы сопротивляться недугу",
       "MUST_MAKE_FORTITUDE": "должен совершить спасбросок {saveType}",
       "CURRENT_STAGE_LABEL": "Текущая стадия:",

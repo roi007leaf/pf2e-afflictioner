@@ -21,6 +21,12 @@ export class AfflictionService {
       afflictionData = AfflictionEditorService.applyEditedDefinition(afflictionData, editedDef);
     }
 
+    const matchingImmunities = this.getActorAfflictionImmunities(actor, afflictionData);
+    if (matchingImmunities.length > 0) {
+      await AfflictionChatService.postImmunityNotice(token, actor, afflictionData, matchingImmunities);
+      return;
+    }
+
     const existingAffliction = token
       ? this.findExistingAffliction(token, afflictionData.name)
       : this.findExistingAfflictionForActor(actor, afflictionData.name);
@@ -82,6 +88,26 @@ export class AfflictionService {
     }
 
     await AfflictionChatService.promptInitialSave(token, affliction, afflictionData, afflictionId);
+  }
+
+  static isActorImmuneToAffliction(actor, afflictionData) {
+    return this.getActorAfflictionImmunities(actor, afflictionData).length > 0;
+  }
+
+  static getActorAfflictionImmunities(actor, afflictionData) {
+    if (!actor || !afflictionData) return [];
+
+    const immunities = actor.system?.attributes?.immunities;
+    if (!Array.isArray(immunities)) return [];
+
+    const afflictionTraits = new Set([
+      afflictionData.type,
+      ...(Array.isArray(afflictionData.traits) ? afflictionData.traits : [])
+    ].filter(Boolean));
+
+    return immunities
+      .map(immunity => immunity?.type)
+      .filter(type => type && afflictionTraits.has(type));
   }
 
   static async handleInitialSave(token, affliction, saveTotal, dc, dieValue = null, actor = null) {

@@ -289,6 +289,25 @@ describe('AfflictionParser — English', () => {
     expect(result.stages).toHaveLength(2);
   });
 
+  test('preserves all item traits on parsed affliction data', () => {
+    const item = {
+      name: 'Blightburn Bomb',
+      uuid: 'test-uuid',
+      system: {
+        traits: { value: ['uncommon', 'alchemical', 'bomb', 'consumable', 'disease', 'poison', 'splash'] },
+        level: { value: 11 },
+        description: {
+          value:
+            '<p><strong>Saving Throw</strong> @Check[fortitude|dc:28]</p>' +
+            '<p><strong>Stage 1</strong> @Damage[1d6[poison]] damage (1 round)</p>',
+        },
+      },
+    };
+
+    const result = AfflictionParser.parseFromItem(item);
+    expect(result.traits).toEqual(['uncommon', 'alchemical', 'bomb', 'consumable', 'disease', 'poison', 'splash']);
+  });
+
   test('returns skip when no stages found', () => {
     const item = {
       name: 'Empty Poison',

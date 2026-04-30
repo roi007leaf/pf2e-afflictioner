@@ -526,6 +526,8 @@
       "FORTITUDE_DC_PARENS": "(DC {dc})",
       "ROLL_FORTITUDE_SAVE": "Roll {saveType} Save",
       "INITIAL_SAVE_HEADING": "{afflictionName} - Initial Save",
+      "IMMUNITY_HEADING": "Affliction Immunity",
+      "IMMUNITY_NOTICE": "{tokenName} is immune to {afflictionName} ({type}).",
       "MAKE_FORTITUDE_RESIST": "Make a {saveType} save to resist the affliction",
       "MUST_MAKE_FORTITUDE": "must make a {saveType} save",
       "CURRENT_STAGE_LABEL": "Current Stage:",

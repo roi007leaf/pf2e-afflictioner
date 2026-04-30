@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2026-04-30
+
+### Added
+
+- **Immunities support**: Added support for affliction immunities. When an affliction is applied, the module now checks if the target has any immunities that match the affliction's traits (e.g. poison immunity for a poison affliction) and prevents application if a relevant immunity is found. Immunity types are determined from the affliction item traits and matched against actor immunities.
+
 ## [3.1.0] - 2026-04-30
 
 ### Added
