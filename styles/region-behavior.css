@@ -1,0 +1,109 @@
+.pf2e-afflictioner-region-items-group {
+  align-items: stretch;
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+}
+
+.pf2e-afflictioner-region-items-group > label {
+  align-self: start;
+  padding-top: 0.45rem;
+}
+
+.pf2e-afflictioner-region-items-group > .hint,
+.pf2e-afflictioner-region-items-group > p.notes {
+  grid-column: 2;
+}
+
+.pf2e-afflictioner-region-uuid-editor {
+  align-items: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  grid-column: 2;
+  max-width: 100%;
+  width: 100%;
+}
+
+.pf2e-afflictioner-region-uuid-panel {
+  border: 1px solid rgba(191, 147, 107, 0.35);
+  border-radius: 6px;
+  padding: 0.45rem;
+}
+
+.pf2e-afflictioner-region-uuid-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pf2e-afflictioner-region-uuid-row {
+  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.pf2e-afflictioner-region-uuid-row input {
+  height: 1.9rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.pf2e-afflictioner-region-item-display {
+  min-width: 0;
+  padding: 0.2rem 0.35rem;
+}
+
+.pf2e-afflictioner-region-item-name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pf2e-afflictioner-region-item-uuid {
+  font-size: 0.75rem;
+  opacity: 0.65;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pf2e-afflictioner-region-row-actions {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.pf2e-afflictioner-region-skip-existing-label {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.25rem;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.pf2e-afflictioner-region-skip-existing-label span {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.pf2e-afflictioner-region-uuid-toolbar {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.pf2e-afflictioner-region-add,
+.pf2e-afflictioner-region-remove {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  height: 1.9rem;
+  margin: 0;
+  min-width: 1.75rem;
+  padding: 0;
+  width: 1.75rem;
+}

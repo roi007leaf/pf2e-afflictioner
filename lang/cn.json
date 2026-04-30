@@ -451,6 +451,33 @@
       "ACTIVE_AFFLICTIONS_PLURAL": "激活的苦难",
       "CLICK_TOKEN_HINT": "点击指示物名称以打开该指示物的管理器"
     },
+    "REGION_BEHAVIOR": {
+      "TYPES": {
+        "AFFLICTION": {
+          "label": "Affliction"
+        }
+      },
+      "AFFLICTION_UUIDS": {
+        "label": "Affliction Item UUIDs",
+        "hint": "Item UUIDs to apply when a token enters this region. Separate multiple UUIDs with commas or new lines."
+      },
+      "ALLOW_MULTIPLE_EXPOSURES": {
+        "label": "Allow Multiple Exposures",
+        "hint": "If enabled, entering tokens already affected by a listed affliction are exposed again. If disabled, afflictions already on the token are skipped."
+      },
+      "AFFLICTION_ITEMS_LABEL": "Affliction Items",
+      "SKIP_EXISTING_AFFLICTION_UUIDS": {
+        "label": "Skip Existing Affliction UUIDs",
+        "hint": "Internal list of region affliction item UUIDs that should be skipped when already active on the entering token."
+      },
+      "SKIP_EXISTING_LABEL": "Skip active",
+      "SKIP_EXISTING_TOOLTIP": "Skip this affliction if the token already has it. Leave unchecked to allow multiple exposure.",
+      "DROP_PLACEHOLDER": "Drop affliction items here",
+      "UUID_PLACEHOLDER": "Item UUID",
+      "ADD_ITEM": "Add affliction item",
+      "REMOVE_ITEM": "Remove affliction item",
+      "AFFLICTION_ADDED": "Added {name} to the affliction region."
+    },
     "CHAT": {
       "GM_SECRET_SAVE_TITLE": "{afflictionName} - GM 秘密初始豁免",
       "HAS_BEEN_EXPOSED_TO": "暴露于",
