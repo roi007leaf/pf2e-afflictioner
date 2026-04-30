@@ -14,14 +14,20 @@ function registerAfflictionRegionBehavior() {
   CONFIG.RegionBehavior.typeIcons[AFFLICTION_REGION_BEHAVIOR_TYPE] = 'fa-solid fa-biohazard';
 }
 
-if (typeof Hooks !== 'undefined' && Hooks.once) {
-  Hooks.once('ready', () => {
+function registerAfflictionRegionHooks(hooks = globalThis.Hooks) {
+  if (hooks?.once) {
+    hooks.once('init', () => {
+      registerAfflictionRegionBehavior();
+    });
+    hooks.once('ready', () => {
+      registerAfflictionRegionConfigDrop();
+    });
+  } else {
     registerAfflictionRegionBehavior();
     registerAfflictionRegionConfigDrop();
-  });
-} else {
-  registerAfflictionRegionBehavior();
-  registerAfflictionRegionConfigDrop();
+  }
 }
 
-export { registerAfflictionRegionBehavior };
+registerAfflictionRegionHooks();
+
+export { registerAfflictionRegionBehavior, registerAfflictionRegionHooks };

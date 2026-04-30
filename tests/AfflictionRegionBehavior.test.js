@@ -40,6 +40,12 @@ describe('AfflictionRegionBehavior', () => {
     expect(resolveTokenFromRegionEvent({ tokenId: 'token-1' })).toBe(token);
   });
 
+  test('provides no terrain effects for Foundry movement path checks', () => {
+    const behavior = new AfflictionRegionBehavior();
+
+    expect(behavior._getTerrainEffects()).toEqual([]);
+  });
+
   test('prompts initial saves for configured afflictions when a token enters', async () => {
     const token = { id: 'token-1', actor: { id: 'actor-1' } };
     const itemA = { id: 'item-a', name: 'Black Adder Venom' };

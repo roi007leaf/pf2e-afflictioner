@@ -144,4 +144,8 @@ export class AfflictionRegionBehavior extends RegionBehaviorBase {
     if (!token || !afflictionData?.name) return false;
     return !!AfflictionService.findExistingAffliction(token, afflictionData.name);
   }
+
+  _getTerrainEffects() {
+    return [];
+  }
 }
