@@ -319,7 +319,7 @@ export async function injectConfirmationButton(message, root) {
   if (root.querySelector('.affliction-confirm-save')) return;
 
   const flags = message.flags['pf2e-afflictioner'];
-  const { tokenId, afflictionId, saveType, dc } = flags;
+  const { tokenId, actorId, afflictionId, saveType, dc } = flags;
 
   const { AfflictionService } = await import('../services/AfflictionService.js');
   const roll = message.rolls?.[0];
@@ -327,7 +327,12 @@ export async function injectConfirmationButton(message, root) {
 
   const saveTotal = roll.total;
   const dieValue = AfflictionService.getDieValue(message);
-  const degreeConstant = AfflictionService.calculateDegreeOfSuccess(saveTotal, dc, dieValue);
+  const token = canvas?.tokens?.get(tokenId);
+  const actor = token?.actor || (actorId ? game.actors.get(actorId) : null);
+  const affliction = token
+    ? AfflictionStore.getAffliction(token, afflictionId)
+    : (actor ? AfflictionStore.getAfflictionForActor(actor, afflictionId) : null);
+  const degreeConstant = AfflictionService.calculateAfflictionDegreeOfSuccess(saveTotal, dc, dieValue, actor, affliction);
 
   const { DEGREE_OF_SUCCESS } = await import('../constants.js');
   const degreeMap = {
@@ -365,9 +370,7 @@ export async function injectConfirmationButton(message, root) {
   let effectiveDegree = degree;
   let blowgunPoisonerActive = false;
   if (saveType === 'initial') {
-    const token = canvas?.tokens?.get(tokenId);
-    if (token) {
-      const affliction = AfflictionStore.getAffliction(token, afflictionId);
+    if (affliction) {
       if (affliction?.blowgunPoisonerCrit) {
         const { FeatsService } = await import('../services/FeatsService.js');
         const degraded = FeatsService.degradeDegree(degree);
@@ -382,27 +385,19 @@ export async function injectConfirmationButton(message, root) {
   // Pernicious Poison: show indicator on initial saves when target succeeds
   let perniciousPoisonActive = false;
   if (saveType === 'initial' && effectiveDegree === DEGREE_OF_SUCCESS.SUCCESS) {
-    const token = canvas?.tokens?.get(tokenId);
-    if (token) {
-      const affliction = AfflictionStore.getAffliction(token, afflictionId);
-      if (affliction?.perniciousPoisonLevel > 0) {
-        perniciousPoisonActive = true;
-      }
+    if (affliction?.perniciousPoisonLevel > 0) {
+      perniciousPoisonActive = true;
     }
   }
 
   // Fast Recovery: show extra stage-reduction indicator on stage saves
   let fastRecoveryStages = 0;
   if (saveType === 'stage') {
-    const token = canvas?.tokens?.get(tokenId);
-    if (token) {
-      const affliction = AfflictionStore.getAffliction(token, afflictionId);
-      if (affliction) {
-        const { FeatsService } = await import('../services/FeatsService.js');
-        if (FeatsService.hasFastRecovery(token.actor)) {
-          const frChange = FeatsService.getFastRecoveryStageChange(degree, affliction.isVirulent);
-          if (frChange !== null) fastRecoveryStages = Math.abs(frChange);
-        }
+    if (affliction) {
+      const { FeatsService } = await import('../services/FeatsService.js');
+      if (FeatsService.hasFastRecovery(actor)) {
+        const frChange = FeatsService.getFastRecoveryStageChange(degree, affliction.isVirulent);
+        if (frChange !== null) fastRecoveryStages = Math.abs(frChange);
       }
     }
   }

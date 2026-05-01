@@ -284,7 +284,7 @@ export class SocketService {
 
     const dieValue = AfflictionService.getDieValue(message);
 
-    const degreeConstant = AfflictionService.calculateDegreeOfSuccess(saveTotal, dc, dieValue);
+    const degreeConstant = AfflictionService.calculateAfflictionDegreeOfSuccess(saveTotal, dc, dieValue, actor, affliction);
     const degree = this.degreeToString(degreeConstant);
 
     const degreeText = {
@@ -617,7 +617,14 @@ export class SocketService {
 
     const dieValue = AfflictionService.getDieValue(rollMessage);
 
-    const degreeConstant = AfflictionService.calculateDegreeOfSuccess(saveTotal, dc, dieValue);
+    const flagActorId = flags.actorId;
+    const token = this._resolveToken(tokenId, flagActorId);
+    const actor = token?.actor || (flagActorId ? game.actors.get(flagActorId) : null);
+    const affliction = token
+      ? AfflictionStore.getAffliction(token, afflictionId)
+      : (actor ? AfflictionStore.getAfflictionForActor(actor, afflictionId) : null);
+
+    const degreeConstant = AfflictionService.calculateAfflictionDegreeOfSuccess(saveTotal, dc, dieValue, actor, affliction);
     const degree = this.degreeToString(degreeConstant);
 
     const degreeText = {
@@ -635,8 +642,6 @@ export class SocketService {
     }[degree];
 
     const saveTypeLabel = saveType === 'initial' ? game.i18n.localize('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.INITIAL_SAVE') : game.i18n.localize('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.STAGE_SAVE');
-    const flagActorId = flags.actorId;
-    const token = this._resolveToken(tokenId, flagActorId);
 
     const actorIdAttr = flagActorId ? ` data-actor-id="${flagActorId}"` : '';
     const newContent = `

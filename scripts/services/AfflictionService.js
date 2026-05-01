@@ -113,7 +113,7 @@ export class AfflictionService {
   static async handleInitialSave(token, affliction, saveTotal, dc, dieValue = null, actor = null) {
     actor = actor || token?.actor;
     const entityName = token?.name || actor?.name || 'Unknown';
-    let degree = this.calculateDegreeOfSuccess(saveTotal, dc, dieValue);
+    let degree = this.calculateAfflictionDegreeOfSuccess(saveTotal, dc, dieValue, actor, affliction);
 
     if (affliction.blowgunPoisonerCrit) {
       const degraded = FeatsService.degradeDegree(degree);
@@ -286,7 +286,7 @@ export class AfflictionService {
   static async handleStageSave(token, affliction, saveTotal, dc, isManual = false, dieValue = null, actor = null) {
     actor = actor || token?.actor;
     const entityName = token?.name || actor?.name || 'Unknown';
-    const degree = this.calculateDegreeOfSuccess(saveTotal, dc, dieValue);
+    const degree = this.calculateAfflictionDegreeOfSuccess(saveTotal, dc, dieValue, actor, affliction);
     const combat = game.combat;
 
     let stageChange = 0;
@@ -1080,5 +1080,43 @@ export class AfflictionService {
     }
 
     return degree;
+  }
+
+  static calculateAfflictionDegreeOfSuccess(total, dc, dieValue = null, actor = null, affliction = null) {
+    const degree = this.calculateDegreeOfSuccess(total, dc, dieValue);
+    if (!this.shouldApplyIncapacitationUpgrade(actor, affliction)) return degree;
+    return this.upgradeDegree(degree);
+  }
+
+  static shouldApplyIncapacitationUpgrade(actor, affliction) {
+    if (!actor || !affliction) return false;
+
+    const traits = Array.isArray(affliction.traits) ? affliction.traits : [];
+    if (!traits.includes('incapacitation')) return false;
+
+    const actorLevel = this.getActorLevel(actor);
+    const afflictionLevel = Number(affliction.level);
+    if (!Number.isFinite(actorLevel) || !Number.isFinite(afflictionLevel)) return false;
+
+    return actorLevel > afflictionLevel;
+  }
+
+  static getActorLevel(actor) {
+    const rawLevel = actor?.system?.details?.level?.value ?? actor?.level;
+    const level = Number(rawLevel);
+    return Number.isFinite(level) ? level : null;
+  }
+
+  static upgradeDegree(degree) {
+    switch (degree) {
+      case DEGREE_OF_SUCCESS.CRITICAL_FAILURE:
+        return DEGREE_OF_SUCCESS.FAILURE;
+      case DEGREE_OF_SUCCESS.FAILURE:
+        return DEGREE_OF_SUCCESS.SUCCESS;
+      case DEGREE_OF_SUCCESS.SUCCESS:
+        return DEGREE_OF_SUCCESS.CRITICAL_SUCCESS;
+      default:
+        return degree;
+    }
   }
 }
