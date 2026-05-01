@@ -122,4 +122,16 @@ describe('AfflictionService incapacitation handling', () => {
     expect(AfflictionService.calculateAfflictionDegreeOfSuccess(19, 20, null, token.actor, affliction))
       .toBe(DEGREE_OF_SUCCESS.FAILURE);
   });
+
+  test('reports when incapacitation upgrades the save result', () => {
+    const token = buildToken(6);
+    const affliction = buildIncapacitationDisease();
+
+    expect(AfflictionService.calculateAfflictionDegreeResult(19, 20, null, token.actor, affliction))
+      .toEqual({
+        degree: DEGREE_OF_SUCCESS.SUCCESS,
+        rawDegree: DEGREE_OF_SUCCESS.FAILURE,
+        incapacitationApplied: true,
+      });
+  });
 });

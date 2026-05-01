@@ -1083,9 +1083,21 @@ export class AfflictionService {
   }
 
   static calculateAfflictionDegreeOfSuccess(total, dc, dieValue = null, actor = null, affliction = null) {
-    const degree = this.calculateDegreeOfSuccess(total, dc, dieValue);
-    if (!this.shouldApplyIncapacitationUpgrade(actor, affliction)) return degree;
-    return this.upgradeDegree(degree);
+    return this.calculateAfflictionDegreeResult(total, dc, dieValue, actor, affliction).degree;
+  }
+
+  static calculateAfflictionDegreeResult(total, dc, dieValue = null, actor = null, affliction = null) {
+    const rawDegree = this.calculateDegreeOfSuccess(total, dc, dieValue);
+    if (!this.shouldApplyIncapacitationUpgrade(actor, affliction)) {
+      return { degree: rawDegree, rawDegree, incapacitationApplied: false };
+    }
+
+    const degree = this.upgradeDegree(rawDegree);
+    return {
+      degree,
+      rawDegree,
+      incapacitationApplied: degree !== rawDegree
+    };
   }
 
   static shouldApplyIncapacitationUpgrade(actor, affliction) {

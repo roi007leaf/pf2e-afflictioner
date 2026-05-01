@@ -323,7 +323,8 @@
       "STAGE_SAVE": "阶段豁免",
       "AWAITING": "等待确认以应用后果...",
       "IF_REROLLED": "如果重骰，点击将使用最新结果",
-      "UPDATED_FROM_REROLL": "已根据重骰结果更新"
+      "UPDATED_FROM_REROLL": "已根据重骰结果更新",
+      "INCAPACITATION_UPGRADED": "Incapacitation upgraded the result from {from} to {to}."
     },
     "WEAPON_COATING": {
       "TAB_AFFLICTIONS": "苦难",

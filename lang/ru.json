@@ -340,7 +340,8 @@
       "STAGE_SAVE": "Спасбросок стадии",
       "AWAITING": "Ожидание подтверждения последствий...",
       "IF_REROLLED": "При перебросе будет использован последний результат",
-      "UPDATED_FROM_REROLL": "Обновлено на основании переброса"
+      "UPDATED_FROM_REROLL": "Обновлено на основании переброса",
+      "INCAPACITATION_UPGRADED": "Incapacitation upgraded the result from {from} to {to}."
     },
     "WEAPON_COATING": {
       "TAB_AFFLICTIONS": "Недуги",

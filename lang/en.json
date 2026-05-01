@@ -355,7 +355,8 @@
       "STAGE_SAVE": "Stage Save",
       "AWAITING": "Awaiting confirmation to apply consequences...",
       "IF_REROLLED": "If rerolled, click will use latest result",
-      "UPDATED_FROM_REROLL": "Updated from reroll"
+      "UPDATED_FROM_REROLL": "Updated from reroll",
+      "INCAPACITATION_UPGRADED": "Incapacitation upgraded the result from {from} to {to}."
     },
     "WEAPON_COATING": {
       "TAB_AFFLICTIONS": "Afflictions",

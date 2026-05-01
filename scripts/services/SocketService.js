@@ -28,6 +28,37 @@ export class SocketService {
     return map[degree] || DEGREE_OF_SUCCESS.FAILURE;
   }
 
+  static degreeLabel(degree) {
+    return {
+      [DEGREE_OF_SUCCESS.CRITICAL_SUCCESS]: game.i18n.localize('PF2E_AFFLICTIONER.DEGREES.CRITICAL_SUCCESS'),
+      [DEGREE_OF_SUCCESS.SUCCESS]: game.i18n.localize('PF2E_AFFLICTIONER.DEGREES.SUCCESS'),
+      [DEGREE_OF_SUCCESS.FAILURE]: game.i18n.localize('PF2E_AFFLICTIONER.DEGREES.FAILURE'),
+      [DEGREE_OF_SUCCESS.CRITICAL_FAILURE]: game.i18n.localize('PF2E_AFFLICTIONER.DEGREES.CRITICAL_FAILURE')
+    }[degree];
+  }
+
+  static degreeColor(degree) {
+    return {
+      [DEGREE_OF_SUCCESS.CRITICAL_SUCCESS]: '#4a7c2a',
+      [DEGREE_OF_SUCCESS.SUCCESS]: '#5a8c3a',
+      [DEGREE_OF_SUCCESS.FAILURE]: '#c45500',
+      [DEGREE_OF_SUCCESS.CRITICAL_FAILURE]: '#8b0000'
+    }[degree];
+  }
+
+  static incapacitationNoticeHtml(degreeResult) {
+    if (!degreeResult?.incapacitationApplied) return '';
+
+    const notice = game.i18n.format('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.INCAPACITATION_UPGRADED', {
+      from: this.degreeLabel(degreeResult.rawDegree),
+      to: this.degreeLabel(degreeResult.degree)
+    });
+
+    return `<p style="margin: 4px 0; padding: 6px 8px; font-size: 0.85em; color: #ffd166; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,209,102,0.45); border-radius: 4px;">
+          <i class="fas fa-arrow-up"></i> ${notice}
+        </p>`;
+  }
+
   static initialize() {
     if (!game.modules.get('socketlib')?.active) {
       return;
@@ -284,22 +315,11 @@ export class SocketService {
 
     const dieValue = AfflictionService.getDieValue(message);
 
-    const degreeConstant = AfflictionService.calculateAfflictionDegreeOfSuccess(saveTotal, dc, dieValue, actor, affliction);
-    const degree = this.degreeToString(degreeConstant);
-
-    const degreeText = {
-      [DEGREE_OF_SUCCESS.CRITICAL_SUCCESS]: game.i18n.localize('PF2E_AFFLICTIONER.DEGREES.CRITICAL_SUCCESS'),
-      [DEGREE_OF_SUCCESS.SUCCESS]: game.i18n.localize('PF2E_AFFLICTIONER.DEGREES.SUCCESS'),
-      [DEGREE_OF_SUCCESS.FAILURE]: game.i18n.localize('PF2E_AFFLICTIONER.DEGREES.FAILURE'),
-      [DEGREE_OF_SUCCESS.CRITICAL_FAILURE]: game.i18n.localize('PF2E_AFFLICTIONER.DEGREES.CRITICAL_FAILURE')
-    }[degree];
-
-    const degreeColor = {
-      [DEGREE_OF_SUCCESS.CRITICAL_SUCCESS]: '#4a7c2a',
-      [DEGREE_OF_SUCCESS.SUCCESS]: '#5a8c3a',
-      [DEGREE_OF_SUCCESS.FAILURE]: '#c45500',
-      [DEGREE_OF_SUCCESS.CRITICAL_FAILURE]: '#8b0000'
-    }[degree];
+    const degreeResult = AfflictionService.calculateAfflictionDegreeResult(saveTotal, dc, dieValue, actor, affliction);
+    const degree = this.degreeToString(degreeResult.degree);
+    const degreeText = this.degreeLabel(degree);
+    const degreeColor = this.degreeColor(degree);
+    const incapacitationNotice = this.incapacitationNoticeHtml(degreeResult);
 
     const saveTypeLabel = saveType === 'initial' ? game.i18n.localize('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.INITIAL_SAVE') : game.i18n.localize('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.STAGE_SAVE');
 
@@ -308,6 +328,7 @@ export class SocketService {
         <h3 style="margin: 0 0 8px 0;"><i class="fas fa-biohazard"></i> ${affliction.name} - ${saveTypeLabel}</h3>
         <p style="margin: 4px 0;"><strong>${entityName}</strong> rolled <strong>${saveTotal}</strong> vs DC ${dc}</p>
         <p style="margin: 4px 0; color: ${degreeColor}; font-weight: bold;">Result: ${degreeText}</p>
+        ${incapacitationNotice}
         <p style="margin: 8px 0 4px 0; font-size: 0.9em; font-style: italic; color: #ccc;">${game.i18n.localize('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.AWAITING')}</p>
         <p style="margin: 4px 0; font-size: 0.85em; color: #999;">${game.i18n.localize('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.IF_REROLLED')}</p>
         <button class="affliction-confirm-save"
@@ -624,22 +645,11 @@ export class SocketService {
       ? AfflictionStore.getAffliction(token, afflictionId)
       : (actor ? AfflictionStore.getAfflictionForActor(actor, afflictionId) : null);
 
-    const degreeConstant = AfflictionService.calculateAfflictionDegreeOfSuccess(saveTotal, dc, dieValue, actor, affliction);
-    const degree = this.degreeToString(degreeConstant);
-
-    const degreeText = {
-      [DEGREE_OF_SUCCESS.CRITICAL_SUCCESS]: game.i18n.localize('PF2E_AFFLICTIONER.DEGREES.CRITICAL_SUCCESS'),
-      [DEGREE_OF_SUCCESS.SUCCESS]: game.i18n.localize('PF2E_AFFLICTIONER.DEGREES.SUCCESS'),
-      [DEGREE_OF_SUCCESS.FAILURE]: game.i18n.localize('PF2E_AFFLICTIONER.DEGREES.FAILURE'),
-      [DEGREE_OF_SUCCESS.CRITICAL_FAILURE]: game.i18n.localize('PF2E_AFFLICTIONER.DEGREES.CRITICAL_FAILURE')
-    }[degree];
-
-    const degreeColor = {
-      [DEGREE_OF_SUCCESS.CRITICAL_SUCCESS]: '#4a7c2a',
-      [DEGREE_OF_SUCCESS.SUCCESS]: '#5a8c3a',
-      [DEGREE_OF_SUCCESS.FAILURE]: '#c45500',
-      [DEGREE_OF_SUCCESS.CRITICAL_FAILURE]: '#8b0000'
-    }[degree];
+    const degreeResult = AfflictionService.calculateAfflictionDegreeResult(saveTotal, dc, dieValue, actor, affliction);
+    const degree = this.degreeToString(degreeResult.degree);
+    const degreeText = this.degreeLabel(degree);
+    const degreeColor = this.degreeColor(degree);
+    const incapacitationNotice = this.incapacitationNoticeHtml(degreeResult);
 
     const saveTypeLabel = saveType === 'initial' ? game.i18n.localize('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.INITIAL_SAVE') : game.i18n.localize('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.STAGE_SAVE');
 
@@ -649,6 +659,7 @@ export class SocketService {
         <h3 style="margin: 0 0 8px 0;"><i class="fas fa-biohazard"></i> ${afflictionName} - ${saveTypeLabel}</h3>
         <p style="margin: 4px 0;"><strong>${token?.name || 'Token'}</strong> rolled <strong>${saveTotal}</strong> vs DC ${dc}</p>
         <p style="margin: 4px 0; color: ${degreeColor}; font-weight: bold;">Result: ${degreeText}</p>
+        ${incapacitationNotice}
         <p style="margin: 8px 0 4px 0; font-size: 0.9em; font-style: italic; color: #ccc;">${game.i18n.localize('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.AWAITING')}</p>
         <p style="margin: 4px 0; font-size: 0.85em; color: #ffa500;">${game.i18n.localize('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.UPDATED_FROM_REROLL')}</p>
         <button class="affliction-confirm-save"

@@ -332,7 +332,8 @@ export async function injectConfirmationButton(message, root) {
   const affliction = token
     ? AfflictionStore.getAffliction(token, afflictionId)
     : (actor ? AfflictionStore.getAfflictionForActor(actor, afflictionId) : null);
-  const degreeConstant = AfflictionService.calculateAfflictionDegreeOfSuccess(saveTotal, dc, dieValue, actor, affliction);
+  const degreeResult = AfflictionService.calculateAfflictionDegreeResult(saveTotal, dc, dieValue, actor, affliction);
+  const degreeConstant = degreeResult.degree;
 
   const { DEGREE_OF_SUCCESS } = await import('../constants.js');
   const degreeMap = {
@@ -417,6 +418,7 @@ export async function injectConfirmationButton(message, root) {
   button.dataset.rollMessageId = message.id;
   button.dataset.dc = dc;
   button.dataset.saveType = saveType;
+  if (actorId) button.dataset.actorId = actorId;
   button.style.cssText = `
     width: 100%;
     padding: 10px;
@@ -443,13 +445,16 @@ export async function injectConfirmationButton(message, root) {
   const infoHtml = blowgunPoisonerActive
     ? ` <i class="fas fa-info-circle" style="margin-left:5px;font-size:12px;opacity:0.9;pointer-events:all;" data-tooltip="${game.i18n.format('PF2E_AFFLICTIONER.FEATS.BLOWGUN_POISONER_DEGRADED_TOOLTIP', { to: degreeLabels[effectiveDegree] })}"></i>`
     : '';
+  const incapacitationInfoHtml = degreeResult.incapacitationApplied
+    ? ` <i class="fas fa-arrow-up" style="margin-left:5px;font-size:12px;opacity:0.9;pointer-events:all;color:#ffd166;" data-tooltip="${game.i18n.format('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.INCAPACITATION_UPGRADED', { from: degreeLabels[degreeResult.rawDegree], to: degreeLabels[degreeResult.degree] })}"></i>`
+    : '';
   const frInfoHtml = fastRecoveryStages > 0
     ? ` <i class="fas fa-bolt" style="margin-left:5px;font-size:12px;opacity:0.9;pointer-events:all;color:#90ee90;" data-tooltip="${game.i18n.format('PF2E_AFFLICTIONER.FEATS.FAST_RECOVERY_BUTTON_TOOLTIP', { stages: fastRecoveryStages })}"></i>`
     : '';
   const ppInfoHtml = perniciousPoisonActive
     ? ` <i class="fas fa-skull-crossbones" style="margin-left:5px;font-size:12px;opacity:0.9;pointer-events:all;color:#b19cd9;" data-tooltip="${game.i18n.localize('PF2E_AFFLICTIONER.FEATS.PERNICIOUS_POISON_BUTTON_TOOLTIP')}"></i>`
     : '';
-  button.innerHTML = `<i class="fas fa-check"></i> ${game.i18n.localize('PF2E_AFFLICTIONER.BUTTONS.APPLY_CONSEQUENCES')}${infoHtml}${frInfoHtml}${ppInfoHtml}`;
+  button.innerHTML = `<i class="fas fa-check"></i> ${game.i18n.localize('PF2E_AFFLICTIONER.BUTTONS.APPLY_CONSEQUENCES')}${infoHtml}${incapacitationInfoHtml}${frInfoHtml}${ppInfoHtml}`;
 
   button.addEventListener('mouseenter', () => {
     button.style.transform = 'translateY(-1px)';
@@ -477,13 +482,21 @@ export async function injectConfirmationButton(message, root) {
       btn.dataset.afflictionId,
       btn.dataset.rollMessageId,
       parseInt(btn.dataset.dc),
-      btn.dataset.saveType
+      btn.dataset.saveType,
+      btn.dataset.actorId
     );
 
     btn.disabled = true;
     btn.textContent = game.i18n.localize('PF2E_AFFLICTIONER.BUTTONS.APPLIED');
     btn.style.opacity = '0.5';
   });
+
+  if (degreeResult.incapacitationApplied) {
+    const note = document.createElement('p');
+    note.style.cssText = 'margin: 4px 0 8px 0; padding: 6px 8px; font-size: 0.85em; color: #ffd166; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,209,102,0.45); border-radius: 4px;';
+    note.innerHTML = `<i class="fas fa-arrow-up"></i> ${game.i18n.format('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.INCAPACITATION_UPGRADED', { from: degreeLabels[degreeResult.rawDegree], to: degreeLabels[degreeResult.degree] })}`;
+    buttonContainer.appendChild(note);
+  }
 
   buttonContainer.appendChild(button);
   messageContent.appendChild(buttonContainer);
