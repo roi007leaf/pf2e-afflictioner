@@ -1,6 +1,7 @@
 import { MODULE_ID, DEGREE_OF_SUCCESS } from '../constants.js';
 import { VisualService } from './VisualService.js';
 import { AfflictionService } from './AfflictionService.js';
+import { FeatsService } from './FeatsService.js';
 import * as AfflictionStore from '../stores/AfflictionStore.js';
 import { getSystemFlags } from '../systemCompat.js';
 
@@ -57,6 +58,78 @@ export class SocketService {
     return `<p style="margin: 4px 0; padding: 6px 8px; font-size: 0.85em; color: #ffd166; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,209,102,0.45); border-radius: 4px;">
           <i class="fas fa-arrow-up"></i> ${notice}
         </p>`;
+  }
+
+  static saveModifierNoticeHtml(icon, color, text) {
+    return `<p style="margin: 4px 0; padding: 6px 8px; font-size: 0.85em; color: ${color}; background: rgba(0,0,0,0.45); border: 1px solid ${color}; border-radius: 4px;">
+          <i class="fas ${icon}"></i> ${text}
+        </p>`;
+  }
+
+  static immediateSaveModifierNotices(actor, affliction, degreeResult, saveType) {
+    if (!affliction || !degreeResult) return [];
+
+    const notices = [];
+    if (degreeResult.incapacitationApplied) {
+      notices.push(this.incapacitationNoticeHtml(degreeResult));
+    }
+
+    if (saveType === 'initial' && affliction.blowgunPoisonerCrit) {
+      const degradedDegree = FeatsService.degradeDegree(degreeResult.degree);
+      if (degradedDegree !== degreeResult.degree) {
+        notices.push(this.saveModifierNoticeHtml(
+          'fa-info-circle',
+          '#f5f5f5',
+          game.i18n.format('PF2E_AFFLICTIONER.FEATS.BLOWGUN_POISONER_APPLIED', {
+            targetName: actor?.name || 'Unknown',
+            afflictionName: affliction.name
+          })
+        ));
+      }
+    }
+
+    if (saveType === 'stage' && FeatsService.hasFastRecovery(actor)) {
+      const fastRecoveryChange = FeatsService.getFastRecoveryStageChange(degreeResult.degree, affliction.isVirulent);
+      if (fastRecoveryChange !== null) {
+        notices.push(this.saveModifierNoticeHtml(
+          'fa-bolt',
+          '#90ee90',
+          game.i18n.format('PF2E_AFFLICTIONER.FEATS.FAST_RECOVERY_STAGE_CHANGE', {
+            tokenName: actor?.name || 'Unknown',
+            afflictionName: affliction.name,
+            stages: Math.abs(fastRecoveryChange)
+          })
+        ));
+      }
+    }
+
+    return notices;
+  }
+
+  static async postImmediateSaveModifierNotice(token, actor, affliction, degreeResult, saveType) {
+    actor = actor || token?.actor;
+    const notices = this.immediateSaveModifierNotices(actor, affliction, degreeResult, saveType);
+    if (notices.length === 0) return;
+
+    const entityName = token?.name || actor?.name || 'Unknown';
+    const saveTypeLabel = saveType === 'initial'
+      ? game.i18n.localize('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.INITIAL_SAVE')
+      : game.i18n.localize('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.STAGE_SAVE');
+    const gmWhisper = game.users.filter(u => u.isGM).map(u => u.id);
+
+    const content = `
+      <div class="pf2e-afflictioner-save-confirmation" style="border-left: 5px solid #ffd166; padding: 12px; background: rgba(0,0,0,0.1); border-radius: 4px; margin: 8px 0;">
+        <h3 style="margin: 0 0 8px 0;"><i class="fas fa-arrow-up"></i> ${affliction.name} - ${saveTypeLabel}</h3>
+        <p style="margin: 4px 0;"><strong>${entityName}</strong></p>
+        ${notices.join('')}
+      </div>
+    `;
+
+    await ChatMessage.create({
+      content,
+      speaker: token ? ChatMessage.getSpeaker({ token }) : ChatMessage.getSpeaker({ actor }),
+      whisper: gmWhisper
+    });
   }
 
   static initialize() {
@@ -180,6 +253,8 @@ export class SocketService {
       const saveTotal = await this.getCurrentRollTotal(rollMessageId);
       const dieValue = AfflictionService.getDieValue(message);
       if (saveTotal !== null) {
+        const degreeResult = AfflictionService.calculateAfflictionDegreeResult(saveTotal, dc, dieValue, actor, affliction);
+        await this.postImmediateSaveModifierNotice(token, actor, affliction, degreeResult, 'stage');
         await AfflictionService.handleStageSave(token, affliction, saveTotal, dc, false, dieValue, actor);
       } else {
         console.error('PF2e Afflictioner | Failed to read save result for immediate application');
@@ -233,6 +308,8 @@ export class SocketService {
       const saveTotal = await this.getCurrentRollTotal(rollMessageId);
       const dieValue = AfflictionService.getDieValue(message);
       if (saveTotal !== null) {
+        const degreeResult = AfflictionService.calculateAfflictionDegreeResult(saveTotal, dc, dieValue, actor, affliction);
+        await this.postImmediateSaveModifierNotice(token, actor, affliction, degreeResult, 'initial');
         await AfflictionService.handleInitialSave(token, affliction, saveTotal, dc, dieValue, actor);
       } else {
         console.error('PF2e Afflictioner | Failed to read save result for immediate application');

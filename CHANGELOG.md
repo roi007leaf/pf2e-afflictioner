@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Incapacitation affliction saves**: Initial and stage saves against incapacitation afflictions now upgrade the target's degree of success when the target's level is higher than the affliction's level. Confirmation buttons and rerolled confirmation messages now show the upgraded result used for consequences, with a chat note when incapacitation changed the result.
+- **Incapacitation affliction saves**: Initial and stage saves against incapacitation afflictions now upgrade the target's degree of success when the target's level is higher than the affliction's level. Confirmation buttons, rerolled confirmation messages, and immediate no-confirmation handling now show GM-only chat notes for supported save modifiers such as Incapacitation, Blowgun Poisoner, and Fast Recovery.
 
 ## [3.1.1] - 2026-04-30
 
