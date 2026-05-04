@@ -1,5 +1,7 @@
 import { MODULE_ID } from '../constants.js';
 
+const suppressedEffectDeletionUuids = new Set();
+
 export function getCoatings(actor) {
   return actor.getFlag(MODULE_ID, 'weaponCoatings') || {};
 }
@@ -24,14 +26,21 @@ export async function updateCoating(actor, weaponId, updates) {
 export async function removeCoating(actor, weaponId) {
   const coating = getCoating(actor, weaponId);
   if (coating?.coatingEffectUuid) {
+    suppressedEffectDeletionUuids.add(coating.coatingEffectUuid);
     try {
       const effect = await fromUuid(coating.coatingEffectUuid);
       if (effect) await effect.delete();
     } catch (e) {
       console.warn('PF2e Afflictioner | Could not remove coating effect:', e);
+    } finally {
+      suppressedEffectDeletionUuids.delete(coating.coatingEffectUuid);
     }
   }
   await actor.unsetFlag(MODULE_ID, `weaponCoatings.${weaponId}`);
+}
+
+export function isCoatingEffectDeletionSuppressed(effectUuid) {
+  return suppressedEffectDeletionUuids.has(effectUuid);
 }
 
 export function getAllCoatingsOnCanvas() {

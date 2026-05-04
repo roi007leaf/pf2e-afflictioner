@@ -16,6 +16,8 @@ export async function onDeleteItem(item, _options, _userId) {
   const coatings = WeaponCoatingStore.getCoatings(actor);
   for (const [weaponId, coating] of Object.entries(coatings)) {
     if (coating.coatingEffectUuid === item.uuid) {
+      if (WeaponCoatingStore.isCoatingEffectDeletionSuppressed(item.uuid)) return;
+
       // Remove coating data directly without calling removeCoating
       // (which would try to delete the already-deleted effect)
       await actor.unsetFlag(MODULE_ID, `weaponCoatings.${weaponId}`);
