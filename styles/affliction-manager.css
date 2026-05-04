@@ -70,6 +70,211 @@
   margin-bottom: 16px;
 }
 
+.pf2e-afflictioner .source-immunity-bypass-rule {
+  margin-bottom: 14px;
+  padding: 10px;
+  background: var(--afflictioner-bg-dark);
+  border: 1px solid var(--afflictioner-border);
+  border-left: 4px solid #5a9c8a;
+  border-radius: 6px;
+}
+
+.pf2e-afflictioner .source-rule-header,
+.pf2e-afflictioner .source-rule-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pf2e-afflictioner .source-rule-header h4 {
+  margin: 0;
+  color: var(--afflictioner-text-light);
+  font-size: 0.95em;
+}
+
+.pf2e-afflictioner .source-rule-header span,
+.pf2e-afflictioner .source-rule-footer p,
+.pf2e-afflictioner .source-rule-traits span,
+.pf2e-afflictioner .source-rule-keys span {
+  color: #aaa;
+  font-size: 0.82em;
+}
+
+.pf2e-afflictioner .source-rule-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--afflictioner-text-light);
+  white-space: nowrap;
+}
+
+.pf2e-afflictioner .source-rule-traits {
+  margin-top: 10px;
+}
+
+.pf2e-afflictioner .source-rule-traits,
+.pf2e-afflictioner .source-rule-keys {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pf2e-afflictioner .source-rule-trait-input {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+  background: var(--afflictioner-bg-medium);
+  border: 1px solid var(--afflictioner-border);
+  border-radius: 4px;
+  color: var(--afflictioner-text-light);
+  font-size: 0.84em;
+}
+
+.pf2e-afflictioner .source-rule-trait-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px;
+  background: var(--afflictioner-bg-medium);
+  border: 1px solid var(--afflictioner-border);
+  border-radius: 4px;
+}
+
+.pf2e-afflictioner .source-rule-trait-tag {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  background: rgba(125, 98, 170, 0.22);
+  border: 1px solid #7d62aa;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pf2e-afflictioner .source-rule-trait-label {
+  padding: 3px 8px;
+  color: var(--afflictioner-text-light);
+  font-size: 0.84em;
+}
+
+.pf2e-afflictioner .source-rule-trait-remove {
+  width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: none;
+  border-left: 1px solid rgba(125, 98, 170, 0.55);
+  background: transparent;
+  color: var(--afflictioner-text-light);
+  cursor: pointer;
+}
+
+.pf2e-afflictioner .source-rule-trait-remove:hover {
+  background: rgba(124, 42, 42, 0.8);
+}
+
+.pf2e-afflictioner .source-rule-trait-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 6px;
+}
+
+.pf2e-afflictioner .source-rule-trait-add {
+  width: 34px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #7d62aa;
+  border-radius: 4px;
+  background: rgba(125, 98, 170, 0.22);
+  color: var(--afflictioner-text-light);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.pf2e-afflictioner .source-rule-trait-add:hover {
+  background: rgba(125, 98, 170, 0.36);
+}
+
+.pf2e-afflictioner .source-rule-keys {
+  margin-top: 8px;
+}
+
+.pf2e-afflictioner .source-rule-key-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px;
+  background: var(--afflictioner-bg-medium);
+  border: 1px solid var(--afflictioner-border);
+  border-radius: 4px;
+}
+
+.pf2e-afflictioner .source-rule-key-tag {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  background: rgba(90, 156, 138, 0.18);
+  border: 1px solid #5a9c8a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pf2e-afflictioner .source-rule-key-open,
+.pf2e-afflictioner .source-rule-key-remove {
+  min-height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--afflictioner-text-light);
+  cursor: pointer;
+}
+
+.pf2e-afflictioner .source-rule-key-open {
+  max-width: 260px;
+  padding: 3px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pf2e-afflictioner .source-rule-key-open:hover {
+  background: rgba(90, 156, 138, 0.25);
+}
+
+.pf2e-afflictioner .source-rule-key-remove {
+  width: 24px;
+  padding: 0;
+  border-left: 1px solid rgba(90, 156, 138, 0.45);
+}
+
+.pf2e-afflictioner .source-rule-key-remove:hover {
+  background: rgba(124, 42, 42, 0.8);
+}
+
+.pf2e-afflictioner .source-rule-footer {
+  margin-top: 8px;
+}
+
+.pf2e-afflictioner .source-rule-footer p {
+  margin: 0;
+}
+
+.pf2e-afflictioner .source-rule-footer button {
+  padding: 4px 10px;
+  background: #2f695b;
+  color: #fff;
+  border: 1px solid #5a9c8a;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 .pf2e-afflictioner .coating-actor-header {
   font-weight: bold;
   font-size: 0.9em;

@@ -138,6 +138,8 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
         ui.notifications.error(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.COULD_NOT_PARSE'));
         return;
       }
+      afflictionData.originActorUuid = item.parent?.uuid || null;
+      afflictionData.originActorId = item.parent?.id || null;
 
       const { AfflictionService } = await import('../services/AfflictionService.js');
       await AfflictionService.promptInitialSave(this.token, afflictionData);
@@ -287,6 +289,8 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
       ui.notifications.error(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.COULD_NOT_PARSE'));
       return;
     }
+    afflictionData.originActorUuid = item.parent?.uuid || null;
+    afflictionData.originActorId = item.parent?.id || null;
 
     const { AfflictionService } = await import('../services/AfflictionService.js');
     await AfflictionService.promptInitialSave(this.token, afflictionData);

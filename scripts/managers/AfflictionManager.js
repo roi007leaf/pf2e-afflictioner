@@ -8,6 +8,7 @@ import { CounteractService } from '../services/CounteractService.js';
 import { AfflictionParser } from '../services/AfflictionParser.js';
 import { WeaponCoatingService } from '../services/WeaponCoatingService.js';
 import { shouldSkipAffliction } from '../utils.js';
+import * as ImmunityBypassRuleStore from '../stores/ImmunityBypassRuleStore.js';
 export class AfflictionManager extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2
 ) {
@@ -59,7 +60,12 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       counteractAffliction: AfflictionManager.counteractAffliction,
       removeCoating: AfflictionManager.removeCoating,
       addCoating: AfflictionManager.addCoating,
-      openPoisonItem: AfflictionManager.openPoisonItem
+      openPoisonItem: AfflictionManager.openPoisonItem,
+      saveSourceImmunityBypassRule: AfflictionManager.saveSourceImmunityBypassRule,
+      openSourceRuleAffliction: AfflictionManager.openSourceRuleAffliction,
+      removeSourceRuleAffliction: AfflictionManager.removeSourceRuleAffliction,
+      addSourceRuleTrait: AfflictionManager.addSourceRuleTrait,
+      removeSourceRuleTrait: AfflictionManager.removeSourceRuleTrait
     }
   };
 
@@ -129,6 +135,16 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
 
     applyTab(this._activeTab);
 
+    element.querySelectorAll('.source-rule-trait-input').forEach(input => {
+      input.addEventListener('keydown', event => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        const panel = input.closest('.source-immunity-bypass-rule');
+        this.constructor._appendTraitTag(panel, input.value);
+        input.value = '';
+      });
+    });
+
     if (this._dropHandlersInitialized) return;
     this._dropHandlersInitialized = true;
 
@@ -179,6 +195,12 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       return;
     }
 
+    const sourceRulePanel = event.target.closest('.source-immunity-bypass-rule');
+    if (sourceRulePanel) {
+      await this._addDroppedAfflictionKeyToSourceRule(data, sourceRulePanel);
+      return;
+    }
+
     const tokenSection = event.target.closest('.token-section');
     let targetTokenId = null;
 
@@ -198,6 +220,22 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       await this._applyDraggedItem(data.uuid, targetTokenId);
       return;
     }
+  }
+
+  async _addDroppedAfflictionKeyToSourceRule(data, panel) {
+    if (!game.user.isGM || data.type !== 'Item' || !data.uuid) return;
+
+    const item = await fromUuid(data.uuid);
+    if (!item || !AfflictionParser.getAfflictionType(item)) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.ITEM_MUST_HAVE_TRAIT_FULL'));
+      return;
+    }
+
+    this.constructor._appendAfflictionKeyTag(panel, {
+      key: item.uuid,
+      name: item.name,
+      uuid: item.uuid,
+    });
   }
 
   async _applyDraggedAffliction(afflictionData, _itemUuid, targetTokenId = null) {
@@ -260,6 +298,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       ui.notifications.error(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.COULD_NOT_PARSE'));
       return;
     }
+    afflictionData.originActorUuid = item.parent?.uuid || null;
+    afflictionData.originActorId = item.parent?.id || null;
 
     await this._applyDraggedAffliction(afflictionData, itemUuid);
   }
@@ -426,10 +466,26 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     }
 
     const hasAnyCoating = actorsWithWeapons.some(a => a.weapons.some(w => w.isCoated));
+    const sourceRuleActor = this.filterActorId
+      ? game.actors.get(this.filterActorId) || null
+      : controlledToken?.actor || null;
+    const sourceImmunityBypassRule = sourceRuleActor
+      ? ImmunityBypassRuleStore.getRule(sourceRuleActor)
+      : null;
+    if (sourceImmunityBypassRule) {
+      sourceImmunityBypassRule.traitTags = sourceImmunityBypassRule.traits.map(trait => ({
+        value: trait,
+        label: this.constructor._formatTraitLabel(trait)
+      })).filter(tag => this.constructor._isKnownBypassTrait(tag.value));
+      sourceImmunityBypassRule.afflictionKeyTags = await this.constructor._resolveAfflictionKeyTags(sourceImmunityBypassRule.afflictionKeys);
+    }
 
     return {
       playerCoatingOnly: this.playerCoatingOnly,
       canManageAfflictions,
+      sourceRuleActor: sourceRuleActor ? { id: sourceRuleActor.id, name: sourceRuleActor.name } : null,
+      sourceImmunityBypassRule,
+      sourceRuleTraitOptions: this.constructor._getTraitOptions(),
       tokens: tokensWithAfflictions,
       hasAfflictions: tokensWithAfflictions.length > 0,
       actorsWithWeapons,
@@ -941,7 +997,10 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     if (expirationMode === null) return;
 
     // Apply Toxicologist acid swap if applicable
-    const finalAfflictionData = WeaponCoatingService._applyToxicologistSwap(actor, afflictionData);
+    const finalAfflictionData = WeaponCoatingService._withOriginActor(
+      actor,
+      WeaponCoatingService._applyToxicologistSwap(actor, afflictionData)
+    );
 
     const weaponName = weapon?.name ?? weaponId;
     const combat = game.combat;
@@ -967,6 +1026,183 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
 
     ui.notifications.info(game.i18n.format('PF2E_AFFLICTIONER.WEAPON_COATING.COATED', { weaponName, poisonName: finalAfflictionData.name }));
     this.render({ force: true });
+  }
+
+  static _parseRuleList(value) {
+    return String(value || '')
+      .split(/[\n,]/)
+      .map(v => v.trim())
+      .filter(Boolean);
+  }
+
+  static _getTraitOptions() {
+    return ['curse', 'disease', 'poison'].map(value => ({
+      value,
+      label: this._formatTraitLabel(value),
+    }));
+  }
+
+  static _isKnownBypassTrait(trait) {
+    return this._getTraitOptions().some(option => option.value === trait);
+  }
+
+  static _formatTraitLabel(value) {
+    return String(value || '')
+      .split('-')
+      .map(part => part ? part[0].toUpperCase() + part.slice(1) : part)
+      .join(' ');
+  }
+
+  static _collectTraitTags(panel) {
+    return [...panel.querySelectorAll('.source-rule-trait-tag')]
+      .map(tag => tag.dataset.trait)
+      .filter(Boolean);
+  }
+
+  static _appendTraitTag(panel, trait) {
+    const value = String(trait || '').trim();
+    if (!value) return;
+    if (!this._isKnownBypassTrait(value)) {
+      ui.notifications.warn(game.i18n.format('PF2E_AFFLICTIONER.MANAGER.SOURCE_IMMUNITY_UNKNOWN_TRAIT', { trait: value }));
+      return;
+    }
+
+    const list = panel.querySelector('.source-rule-trait-tags');
+    if (!list) return;
+    if ([...list.querySelectorAll('.source-rule-trait-tag')].some(tag => tag.dataset.trait === value)) return;
+
+    const tag = document.createElement('span');
+    tag.className = 'source-rule-trait-tag';
+    tag.dataset.trait = value;
+
+    const label = document.createElement('span');
+    label.className = 'source-rule-trait-label';
+    label.textContent = this._formatTraitLabel(value);
+
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.dataset.action = 'removeSourceRuleTrait';
+    removeButton.className = 'source-rule-trait-remove';
+    const removeIcon = document.createElement('i');
+    removeIcon.className = 'fas fa-times';
+    removeButton.append(removeIcon);
+
+    tag.append(label, removeButton);
+    list.appendChild(tag);
+  }
+
+  static async _resolveAfflictionKeyTags(entries) {
+    const tags = [];
+    for (const entry of entries || []) {
+      const key = entry.key || entry;
+      const uuid = entry.uuid || key;
+      let name = entry.name || key;
+      let canOpen = false;
+
+      if (uuid && typeof fromUuid === 'function') {
+        try {
+          const item = await fromUuid(uuid);
+          if (item) {
+            name = item.name || name;
+            canOpen = !!item.sheet;
+          }
+        } catch { /* keep stored label */ }
+      }
+
+      tags.push({ key, uuid, name, canOpen });
+    }
+    return tags;
+  }
+
+  static _collectAfflictionKeyTags(panel) {
+    return [...panel.querySelectorAll('.source-rule-key-tag')].map(tag => ({
+      key: tag.dataset.key,
+      name: tag.dataset.name || tag.dataset.key,
+      uuid: tag.dataset.uuid || tag.dataset.key,
+    })).filter(entry => entry.key);
+  }
+
+  static _appendAfflictionKeyTag(panel, entry) {
+    const list = panel.querySelector('.source-rule-key-tags');
+    if (!list || !entry?.key) return;
+    if ([...list.querySelectorAll('.source-rule-key-tag')].some(tag => tag.dataset.key === entry.key)) return;
+
+    const tag = document.createElement('span');
+    tag.className = 'source-rule-key-tag';
+    tag.dataset.key = entry.key;
+    tag.dataset.name = entry.name || entry.key;
+    tag.dataset.uuid = entry.uuid || entry.key;
+
+    const openButton = document.createElement('button');
+    openButton.type = 'button';
+    openButton.dataset.action = 'openSourceRuleAffliction';
+    openButton.dataset.uuid = entry.uuid || entry.key;
+    openButton.className = 'source-rule-key-open';
+    const openIcon = document.createElement('i');
+    openIcon.className = 'fas fa-circle-info';
+    openButton.append(openIcon, document.createTextNode(` ${entry.name || entry.key}`));
+
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.dataset.action = 'removeSourceRuleAffliction';
+    removeButton.className = 'source-rule-key-remove';
+    const removeIcon = document.createElement('i');
+    removeIcon.className = 'fas fa-times';
+    removeButton.append(removeIcon);
+
+    tag.append(openButton, removeButton);
+    list.appendChild(tag);
+  }
+
+  static async saveSourceImmunityBypassRule(_event, button) {
+    if (!game.user.isGM) return;
+
+    const actor = game.actors.get(button.dataset.actorId);
+    if (!actor) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.ACTOR_NOT_FOUND'));
+      return;
+    }
+
+    const panel = button.closest('.source-immunity-bypass-rule');
+    if (!panel) return;
+
+    const rule = {
+      enabled: panel.querySelector('[name="sourceRule.enabled"]')?.checked === true,
+      traits: AfflictionManager._collectTraitTags(panel),
+      afflictionKeys: AfflictionManager._collectAfflictionKeyTags(panel),
+    };
+
+    const saved = await ImmunityBypassRuleStore.saveRule(actor, rule);
+    if (!saved) return;
+
+    ui.notifications.info(game.i18n.format('PF2E_AFFLICTIONER.MANAGER.SOURCE_IMMUNITY_RULE_SAVED', {
+      actorName: actor.name
+    }));
+    this.render({ force: true });
+  }
+
+  static async openSourceRuleAffliction(_event, button) {
+    const uuid = button.dataset.uuid;
+    if (!uuid) return;
+    const item = await fromUuid(uuid);
+    item?.sheet?.render(true);
+  }
+
+  static async removeSourceRuleAffliction(_event, button) {
+    button.closest('.source-rule-key-tag')?.remove();
+  }
+
+  static async addSourceRuleTrait(_event, button) {
+    const panel = button.closest('.source-immunity-bypass-rule');
+    const input = panel?.querySelector('.source-rule-trait-input');
+    if (!panel || !input) return;
+
+    AfflictionManager._appendTraitTag(panel, input.value);
+    input.value = '';
+  }
+
+  static async removeSourceRuleTrait(_event, button) {
+    button.closest('.source-rule-trait-tag')?.remove();
   }
 
   static async counteractAffliction(_event, button) {

@@ -216,6 +216,12 @@ async function handleAttackRoll(_message, flags) {
         ? { ...coating.afflictionData, blowgunPoisonerCrit: true }
         : coating.afflictionData;
 
+      buttonAfflictionData = {
+        ...buttonAfflictionData,
+        originActorUuid: buttonAfflictionData.originActorUuid || actor.uuid || null,
+        originActorId: buttonAfflictionData.originActorId || actor.id || null,
+      };
+
       // Pernicious Poison: mark affliction so success still deals flat poison damage
       if (FeatsService.hasPerniciousPoison(actor) && coating.afflictionData.level > 0) {
         buttonAfflictionData = { ...buttonAfflictionData, perniciousPoisonLevel: coating.afflictionData.level };

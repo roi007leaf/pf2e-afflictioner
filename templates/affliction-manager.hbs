@@ -9,6 +9,11 @@
       <i class="fas fa-flask"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.TAB_LABEL"}}
       {{#if hasAnyCoating}}<span class="coating-badge">{{#each actorsWithWeapons}}{{#each weapons}}{{#if isCoated}}1{{/if}}{{/each}}{{/each}}</span>{{/if}}
     </button>
+    {{#if canManageAfflictions}}
+    <button type="button" class="affliction-manager-tab-btn" data-tab="overrides">
+      <i class="fas fa-user-shield"></i> {{localize "PF2E_AFFLICTIONER.MANAGER.OVERRIDES_TAB"}}
+    </button>
+    {{/if}}
   </div>
 
   {{#if playerCoatingOnly}}
@@ -114,6 +119,72 @@
       </button>
       {{/if}}
     </div>
+  </div>
+  {{/if}}
+
+  {{#if canManageAfflictions}}
+  <div class="affliction-manager-tab-panel" data-tab="overrides" style="display:none">
+    {{#if sourceRuleActor}}
+      <div class="source-immunity-bypass-rule">
+        <div class="source-rule-header">
+          <div>
+            <h4><i class="fas fa-user-shield"></i> {{localize "PF2E_AFFLICTIONER.MANAGER.SOURCE_IMMUNITY_RULE_TITLE"}}</h4>
+            <span>{{sourceRuleActor.name}}</span>
+          </div>
+          <label class="source-rule-toggle">
+            <input type="checkbox" name="sourceRule.enabled" {{#if sourceImmunityBypassRule.enabled}}checked{{/if}} />
+            {{localize "PF2E_AFFLICTIONER.MANAGER.SOURCE_IMMUNITY_RULE_ENABLED"}}
+          </label>
+        </div>
+        <label class="source-rule-traits">
+          <span>{{localize "PF2E_AFFLICTIONER.MANAGER.SOURCE_IMMUNITY_TRAITS"}}</span>
+          <div class="source-rule-trait-tags">
+            {{#each sourceImmunityBypassRule.traitTags}}
+              <span class="source-rule-trait-tag" data-trait="{{value}}">
+                <span class="source-rule-trait-label">{{label}}</span>
+                <button type="button" class="source-rule-trait-remove" data-action="removeSourceRuleTrait" data-tooltip="{{localize 'PF2E_AFFLICTIONER.MANAGER.SOURCE_IMMUNITY_REMOVE_TRAIT'}}">
+                  <i class="fas fa-times"></i>
+                </button>
+              </span>
+            {{/each}}
+          </div>
+          <div class="source-rule-trait-entry">
+            <input type="text" class="source-rule-trait-input" list="source-rule-trait-options" placeholder="Add immunity trait..." />
+            <button type="button" class="source-rule-trait-add" data-action="addSourceRuleTrait" data-tooltip="{{localize 'PF2E_AFFLICTIONER.MANAGER.SOURCE_IMMUNITY_ADD_TRAIT'}}">
+              <i class="fas fa-plus"></i>
+            </button>
+          </div>
+          <datalist id="source-rule-trait-options">
+            {{#each sourceRuleTraitOptions}}
+              <option value="{{value}}"></option>
+            {{/each}}
+          </datalist>
+        </label>
+        <label class="source-rule-keys">
+          <span>{{localize "PF2E_AFFLICTIONER.MANAGER.SOURCE_IMMUNITY_AFFLICTION_KEYS"}}</span>
+          <div class="source-rule-key-tags">
+            {{#each sourceImmunityBypassRule.afflictionKeyTags}}
+              <span class="source-rule-key-tag" data-key="{{key}}" data-name="{{name}}" data-uuid="{{uuid}}">
+                <button type="button" class="source-rule-key-open" data-action="openSourceRuleAffliction" data-uuid="{{uuid}}" data-tooltip="{{localize 'PF2E_AFFLICTIONER.MANAGER.SOURCE_IMMUNITY_OPEN_AFFLICTION'}}">
+                  <i class="fas fa-circle-info"></i> {{name}}
+                </button>
+                <button type="button" class="source-rule-key-remove" data-action="removeSourceRuleAffliction" data-tooltip="{{localize 'PF2E_AFFLICTIONER.MANAGER.SOURCE_IMMUNITY_REMOVE_AFFLICTION'}}">
+                  <i class="fas fa-times"></i>
+                </button>
+              </span>
+            {{/each}}
+          </div>
+        </label>
+        <div class="source-rule-footer">
+          <p>{{localize "PF2E_AFFLICTIONER.MANAGER.SOURCE_IMMUNITY_RULE_HINT"}}</p>
+          <button type="button" data-action="saveSourceImmunityBypassRule" data-actor-id="{{sourceRuleActor.id}}">
+            <i class="fas fa-save"></i> {{localize "PF2E_AFFLICTIONER.MANAGER.SOURCE_IMMUNITY_RULE_SAVE"}}
+          </button>
+        </div>
+      </div>
+    {{else}}
+      <p class="no-afflictions">{{localize "PF2E_AFFLICTIONER.MANAGER.SOURCE_IMMUNITY_RULE_NO_ACTOR"}}</p>
+    {{/if}}
   </div>
   {{/if}}
 

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-05-04
+
+### Added
+
+- **Source actor immunity bypass rules**: Added a GM-only Overrides tab in the Affliction Manager where a source actor can be configured to bypass poison, disease, or curse immunity for afflictions they apply. This supports cases like Toxicologist poisons affecting poison-immune creatures without changing the target's global immunities.
+- **Named affliction bypass exceptions**: Added draggable named affliction tags to the override rule editor. Dropped affliction items resolve to clickable tags that open item details and can be removed before saving.
+- **GM bypass notice**: Added a GM-only chat notice when a source override actually bypasses a target immunity.
+
+### Changed
+
+- **Override rule UI**: Bypass categories are now limited to affliction immunity categories (`poison`, `disease`, and `curse`) and use removable tags with autocomplete instead of raw text fields.
+
 ## [3.1.2] - 2026-05-01
 
 ### Fixed

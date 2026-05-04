@@ -119,7 +119,7 @@ export class WeaponCoatingService {
     if (expirationMode === null) return;
 
     // Apply Toxicologist acid swap if applicable
-    const finalAfflictionData = this._applyToxicologistSwap(actor, afflictionData);
+    const finalAfflictionData = this._withOriginActor(actor, this._applyToxicologistSwap(actor, afflictionData));
 
     const applied = await this._applyCoatingWithPermission(actor, selected.weaponId, {
       poisonItemUuid: itemUuid,
@@ -433,7 +433,7 @@ export class WeaponCoatingService {
     if (expirationMode === null) return;
 
     // Apply Toxicologist acid swap if applicable
-    finalAfflictionData = this._applyToxicologistSwap(actor, finalAfflictionData);
+    finalAfflictionData = this._withOriginActor(actor, this._applyToxicologistSwap(actor, finalAfflictionData));
 
     const applied = await this._applyCoatingWithPermission(actor, selected.weaponId, {
       poisonItemUuid: null,
@@ -664,6 +664,15 @@ export class WeaponCoatingService {
     }
 
     return modified;
+  }
+
+  static _withOriginActor(actor, afflictionData) {
+    if (!actor || !afflictionData) return afflictionData;
+    return {
+      ...afflictionData,
+      originActorUuid: actor.uuid || afflictionData.originActorUuid || null,
+      originActorId: actor.id || afflictionData.originActorId || null,
+    };
   }
 
   /**

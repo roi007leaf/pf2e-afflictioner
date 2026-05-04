@@ -7,6 +7,7 @@ import { AfflictionEffectBuilder } from './AfflictionEffectBuilder.js';
 import { AfflictionChatService } from './AfflictionChatService.js';
 import { AfflictionTimerService } from './AfflictionTimerService.js';
 import { FeatsService } from './FeatsService.js';
+import * as ImmunityBypassRuleStore from '../stores/ImmunityBypassRuleStore.js';
 
 export class AfflictionService {
   static async promptInitialSave(token, afflictionData, actor = null) {
@@ -21,7 +22,11 @@ export class AfflictionService {
       afflictionData = AfflictionEditorService.applyEditedDefinition(afflictionData, editedDef);
     }
 
-    const matchingImmunities = this.getActorAfflictionImmunities(actor, afflictionData);
+    const immunityResult = await this.getActorAfflictionImmunityResult(actor, afflictionData);
+    const matchingImmunities = immunityResult.remaining;
+    if (immunityResult.bypassed.length > 0) {
+      await AfflictionChatService.postImmunityBypassNotice(token, actor, afflictionData, immunityResult.bypassed, immunityResult.sourceActor);
+    }
     if (matchingImmunities.length > 0) {
       await AfflictionChatService.postImmunityNotice(token, actor, afflictionData, matchingImmunities);
       return;
@@ -92,6 +97,71 @@ export class AfflictionService {
 
   static isActorImmuneToAffliction(actor, afflictionData) {
     return this.getActorAfflictionImmunities(actor, afflictionData).length > 0;
+  }
+
+  static async getEffectiveActorAfflictionImmunities(actor, afflictionData) {
+    return (await this.getActorAfflictionImmunityResult(actor, afflictionData)).remaining;
+  }
+
+  static async getActorAfflictionImmunityResult(actor, afflictionData) {
+    const matchingImmunities = this.getActorAfflictionImmunities(actor, afflictionData);
+    if (matchingImmunities.length === 0) return { remaining: [], bypassed: [], sourceActor: null };
+
+    const sourceActor = await this.resolveSourceActor(afflictionData);
+    if (!sourceActor) return { remaining: matchingImmunities, bypassed: [], sourceActor: null };
+
+    const bypassed = this.getBypassedImmunityTraits(sourceActor, afflictionData, matchingImmunities);
+    if (bypassed.length === 0) return { remaining: matchingImmunities, bypassed: [], sourceActor };
+
+    const bypassedSet = new Set(bypassed);
+    return {
+      remaining: matchingImmunities.filter(type => !bypassedSet.has(type)),
+      bypassed,
+      sourceActor,
+    };
+  }
+
+  static async resolveSourceActor(afflictionData) {
+    const sourceRef = afflictionData?.originActorUuid || afflictionData?.originActorId;
+    if (!sourceRef) return null;
+
+    if (game.actors?.get) {
+      const actorById = game.actors.get(sourceRef);
+      if (actorById) return actorById;
+    }
+
+    if (typeof fromUuid === 'function') {
+      try {
+        const actor = await fromUuid(sourceRef);
+        if (actor) return actor;
+      } catch {
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  static getBypassedImmunityTraits(sourceActor, afflictionData, matchingImmunities) {
+    const rule = ImmunityBypassRuleStore.getRule(sourceActor);
+    if (!rule.enabled) return [];
+
+    const afflictionTraits = new Set([
+      afflictionData?.type,
+      ...(Array.isArray(afflictionData?.traits) ? afflictionData.traits : [])
+    ].filter(Boolean));
+
+    const afflictionKeys = new Set([
+      afflictionData?.sourceItemUuid,
+      AfflictionDefinitionStore.generateDefinitionKey(afflictionData)
+    ].filter(Boolean));
+
+    const traitMatches = rule.traits.some(trait => afflictionTraits.has(trait));
+    const keyMatches = rule.afflictionKeys.some(entry => afflictionKeys.has(entry.key || entry));
+    if (!traitMatches && !keyMatches) return [];
+
+    const bypassedImmunities = new Set(rule.traits);
+    return matchingImmunities.filter(type => bypassedImmunities.has(type));
   }
 
   static getActorAfflictionImmunities(actor, afflictionData) {

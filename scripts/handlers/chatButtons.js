@@ -212,6 +212,8 @@ async function injectItemCardAfflictionButton(message, root) {
 
   const afflictionData = AfflictionParser.parseFromItem(item);
   if (!afflictionData || afflictionData.skip) return;
+  afflictionData.originActorUuid = item.parent?.uuid || flags.origin?.actor || null;
+  afflictionData.originActorId = item.parent?.id || message.speaker?.actor || null;
 
   root.dataset.itemAfflictionInjected = 'true';
 
