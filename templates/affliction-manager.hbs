@@ -219,6 +219,21 @@
                           data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.REMOVE_COATING'}}">
                     <i class="fas fa-times"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.REMOVE_COATING"}}
                   </button>
+                  {{#if canAddDoublePoison}}
+                    {{#if ../../hasInjuryItems}}
+                      <select class="coating-poison-select">
+                        <option value="">{{localize "PF2E_AFFLICTIONER.WEAPON_COATING.SELECT_SECOND_POISON"}}</option>
+                        {{#each ../../injuryItems}}
+                          <option value="{{uuid}}">{{name}}{{#if ownerName}} ({{ownerName}}){{/if}}</option>
+                        {{/each}}
+                      </select>
+                      <button type="button" class="coating-apply-btn" data-action="addCoating"
+                              data-actor-id="{{actorId}}" data-weapon-id="{{weaponId}}"
+                              data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.APPLY_SECOND_COATING_TOOLTIP'}}">
+                        <i class="fas fa-flask"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.ADD_SECOND_POISON_BTN"}}
+                      </button>
+                    {{/if}}
+                  {{/if}}
                 {{else}}
                   {{#if ../../hasInjuryItems}}
                     <select class="coating-poison-select">

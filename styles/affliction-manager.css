@@ -288,6 +288,7 @@
 
 .pf2e-afflictioner .weapon-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -308,7 +309,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
+  flex: 1 1 260px;
   min-width: 0;
 }
 
@@ -327,6 +328,9 @@
 }
 
 .pf2e-afflictioner .weapon-poison-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.82em;
   color: #7dbf4a;
   white-space: nowrap;
@@ -353,9 +357,12 @@
 
 .pf2e-afflictioner .weapon-coating-controls {
   display: flex;
+  flex: 1 1 260px;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
-  flex-shrink: 0;
+  min-width: 0;
 }
 
 .pf2e-afflictioner .weapon-coating-controls .coating-poison-select {
@@ -365,6 +372,7 @@
   border: 1px solid var(--afflictioner-border);
   border-radius: 4px;
   color: var(--afflictioner-text-light);
+  min-width: 140px;
   max-width: 180px;
 }
 

@@ -105,7 +105,7 @@ export class WeaponCoatingService {
 
     // Check for existing coating before replacing
     const existing = WeaponCoatingStore.getCoating(actor, selected.weaponId);
-    if (existing) {
+    if (existing && !this._shouldOfferDoublePoison(actor, existing, afflictionData)) {
       const confirmed = await foundry.applications.api.DialogV2.confirm({
         title: i.localize(`${K}.REPLACE_TITLE`),
         content: `<p>${i.format(`${K}.REPLACE_CONTENT`, { weaponName: selected.weaponName, existingPoison: existing.poisonName })}</p>`,
@@ -419,7 +419,7 @@ export class WeaponCoatingService {
 
     // Check for existing coating before replacing
     const existing = WeaponCoatingStore.getCoating(actor, selected.weaponId);
-    if (existing) {
+    if (existing && !this._shouldOfferDoublePoison(actor, existing, finalAfflictionData)) {
       const confirmed = await foundry.applications.api.DialogV2.confirm({
         title: i.localize(`${K}.REPLACE_TITLE`),
         content: `<p>${i.format(`${K}.REPLACE_CONTENT`, { weaponName: selected.weaponName, existingPoison: existing.poisonName })}</p>`,
@@ -675,6 +675,144 @@ export class WeaponCoatingService {
     };
   }
 
+  static _canUseDoublePoison(actor) {
+    return FeatsService.hasDoublePoison(actor);
+  }
+
+  static _shouldOfferDoublePoison(actor, existingCoating, afflictionData) {
+    return !!(
+      existingCoating &&
+      this._canUseDoublePoison(actor) &&
+      this._isDoublePoisonCandidate(existingCoating.afflictionData) &&
+      this._isDoublePoisonCandidate(afflictionData)
+    );
+  }
+
+  static _isDoublePoisonCandidate(afflictionData) {
+    if (!afflictionData || afflictionData.isDirectDamage) return false;
+    const traits = afflictionData.traits || [];
+    return afflictionData.type === 'poison' || traits.includes('poison');
+  }
+
+  static async _chooseDoublePoisonSaveType(firstPoison, secondPoison) {
+    const firstSave = firstPoison?.saveType || 'fortitude';
+    const secondSave = secondPoison?.saveType || 'fortitude';
+    if (firstSave === secondSave) return firstSave;
+
+    const i = game.i18n;
+    const formatSave = saveType => saveType.charAt(0).toUpperCase() + saveType.slice(1);
+
+    try {
+      return await foundry.applications.api.DialogV2.wait({
+        window: { title: i.localize(`${K}.DOUBLE_POISON_SAVE_TITLE`) },
+        content: `
+          <p>${i.format(`${K}.DOUBLE_POISON_SAVE_PROMPT`, {
+            firstPoison: firstPoison.name,
+            secondPoison: secondPoison.name,
+          })}</p>
+        `,
+        buttons: [
+          {
+            action: firstSave,
+            label: `${formatSave(firstSave)} (${firstPoison.name})`,
+            icon: 'fas fa-shield-halved',
+          },
+          {
+            action: secondSave,
+            label: `${formatSave(secondSave)} (${secondPoison.name})`,
+            icon: 'fas fa-shield-halved',
+          },
+          {
+            action: 'cancel',
+            label: i.localize('PF2E_AFFLICTIONER.DIALOG.CANCEL'),
+            icon: 'fas fa-times',
+          },
+        ],
+        rejectClose: false,
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  static _buildDoublePoisonAffliction(firstPoison, secondPoison, saveType) {
+    const first = JSON.parse(JSON.stringify(firstPoison));
+    const second = JSON.parse(JSON.stringify(secondPoison));
+    const stageCount = Math.min(first.stages?.length || 0, second.stages?.length || 0);
+    const traits = Array.from(new Set([...(first.traits || []), ...(second.traits || []), 'poison']));
+
+    return {
+      ...first,
+      name: `Double Poison: ${first.name} + ${second.name}`,
+      type: 'poison',
+      traits,
+      dc: Math.min(first.dc || second.dc || 0, second.dc || first.dc || 0),
+      saveType: saveType || first.saveType || second.saveType || 'fortitude',
+      isVirulent: !!first.isVirulent && !!second.isVirulent,
+      stages: Array.from({ length: stageCount }, (_unused, index) => {
+        const firstStage = first.stages[index];
+        const secondStage = second.stages[index];
+        return this._mergeDoublePoisonStage(firstStage, secondStage, index + 1);
+      }),
+      doublePoison: true,
+      componentPoisons: [
+        {
+          name: first.name,
+          dc: first.dc,
+          saveType: first.saveType,
+          isVirulent: !!first.isVirulent,
+          sourceItemUuid: first.sourceItemUuid || null,
+        },
+        {
+          name: second.name,
+          dc: second.dc,
+          saveType: second.saveType,
+          isVirulent: !!second.isVirulent,
+          sourceItemUuid: second.sourceItemUuid || null,
+        },
+      ],
+    };
+  }
+
+  static _mergeDoublePoisonStage(firstStage, secondStage, number) {
+    const firstEffects = firstStage.effects || firstStage.rawText || '';
+    const secondEffects = secondStage.effects || secondStage.rawText || '';
+    const effects = [firstEffects, secondEffects].filter(Boolean).join('<br>');
+    const duration = this._longerDuration(firstStage.duration, secondStage.duration);
+    const effectInterval = this._longerDuration(firstStage.effectInterval, secondStage.effectInterval);
+
+    const merged = {
+      ...firstStage,
+      number,
+      rawText: effects,
+      effects,
+      duration,
+      damage: [...(firstStage.damage || []), ...(secondStage.damage || [])],
+      conditions: [...(firstStage.conditions || []), ...(secondStage.conditions || [])],
+      weakness: [...(firstStage.weakness || []), ...(secondStage.weakness || [])],
+      requiresManualHandling: !!firstStage.requiresManualHandling || !!secondStage.requiresManualHandling,
+      isDead: !!firstStage.isDead || !!secondStage.isDead,
+    };
+
+    if (effectInterval) {
+      merged.effectInterval = effectInterval;
+    } else {
+      delete merged.effectInterval;
+    }
+
+    return merged;
+  }
+
+  static _longerDuration(firstDuration, secondDuration) {
+    if (!firstDuration) return secondDuration ? JSON.parse(JSON.stringify(secondDuration)) : null;
+    if (!secondDuration) return JSON.parse(JSON.stringify(firstDuration));
+
+    const firstSeconds = AfflictionParser.durationToSeconds(firstDuration);
+    const secondSeconds = AfflictionParser.durationToSeconds(secondDuration);
+    const longer = secondSeconds > firstSeconds ? secondDuration : firstDuration;
+    return JSON.parse(JSON.stringify(longer));
+  }
+
   /**
    * Prompts the GM to choose a Debilitating Venom debilitation before coating.
    * @returns {Promise<'none'|'hampering'|'stumbling'|null>} null means the dialog was cancelled
@@ -741,11 +879,24 @@ export class WeaponCoatingService {
     if (!actor) return false;
 
     const existing = WeaponCoatingStore.getCoating(actor, weaponId);
+    let { poisonItemUuid, poisonName, weaponName, afflictionData, expirationMode, poisonImg } = coatingParams;
+
+    if (
+      this._shouldOfferDoublePoison(actor, existing, afflictionData)
+    ) {
+      const saveType = await this._chooseDoublePoisonSaveType(existing.afflictionData, afflictionData);
+      if (!saveType || saveType === 'cancel') return false;
+
+      afflictionData = this._buildDoublePoisonAffliction(existing.afflictionData, afflictionData, saveType);
+      poisonName = afflictionData.name;
+      poisonItemUuid = null;
+      poisonImg = null;
+    }
+
     if (existing) {
       await WeaponCoatingStore.removeCoating(actor, weaponId);
     }
 
-    const { poisonItemUuid, poisonName, weaponName, afflictionData, expirationMode, poisonImg } = coatingParams;
     const combat = game.combat;
 
     await WeaponCoatingStore.addCoating(actor, weaponId, {

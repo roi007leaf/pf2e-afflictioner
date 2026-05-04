@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.1] - 2026-05-04
+
+### Added
+
+- **Double Poison feat support**: Actors with the Double Poison feat can apply a second injury poison to an already-coated weapon. The module merges the poisons into a single double poison using the lower DC and stage count, combined stage effects, longer stage intervals, and virulent only when both poisons are virulent. If the poisons use different saving throws, the GM is prompted to choose the save used by the double poison.
+
 ## [3.2.0] - 2026-05-04
 
 ### Added

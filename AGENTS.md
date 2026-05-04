@@ -1,20 +1,16 @@
 <claude-mem-context>
 # Memory Context
 
-# [pf2e-afflictioner] recent context, 2026-05-04 8:54am GMT+3
+# [pf2e-afflictioner] recent context, 2026-05-04 3:27pm GMT+3
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (16,229t read) | 522,044t work | 97% savings
+Stats: 50 obs (16,946t read) | 812,189t work | 98% savings
 
 ### Apr 23, 2026
-148 8:30a 🔵 AfflictionMonitorIndicator drag-cancel runs but fails to clear 'dragging' class
-149 " 🔴 AfflictionMonitorIndicator drag cleanup refactored into #endDrag with multi-event cancel coverage
-150 8:31a 🔴 AfflictionMonitorIndicator drag-cancel test passes after #endDrag refactor
-151 " 🟣 Added window blur drag-cancel test to AfflictionMonitorIndicator test suite
-152 " 🔴 Full test suite and lint pass after drag-cancel fix — 107 tests green, 0 lint errors
+152 8:31a 🔴 Full test suite and lint pass after drag-cancel fix — 107 tests green, 0 lint errors
 ### May 4, 2026
 854 8:00a ⚖️ Immunity Override Feature Design — Open Questions
 855 8:01a 🔵 pf2e-afflictioner Immunity Check Architecture
@@ -61,6 +57,10 @@ Stats: 50 obs (16,229t read) | 522,044t work | 97% savings
 896 8:49a 🔄 Simplification: Trait Options Reduced to ['curse', 'disease', 'poison'] Hardcoded Set
 897 " 🔵 RED Test Confirmed: _getTraitOptions Returns 15 Values, Target is 3
 898 " 🔄 _getTraitOptions Simplified to 3-Item Static Array
+959 2:30p 🔵 pf2e-afflictioner Module Architecture Mapped
+960 " 🔵 WeaponCoatingService and FeatsService Internals Mapped for Double Poison Implementation
+961 2:31p 🔵 Full Coating Hit Pipeline and UI Anatomy Confirmed for Double Poison Design
+967 " ⚖️ Double Poison Expiration Mode: Lenient (end-next-turn)
 
-Access 522k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 812k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

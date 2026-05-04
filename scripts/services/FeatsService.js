@@ -32,6 +32,11 @@ export class FeatsService {
     return this.hasFeat(actor, 'sticky-poison');
   }
 
+  /** Double Poison — Alchemist class feat */
+  static hasDoublePoison(actor) {
+    return this.hasFeat(actor, 'double-poison');
+  }
+
   /** Toxicologist — Alchemist research field that allows poison → acid damage swap */
   static hasToxicologistFieldVenom(actor) {
     if (!actor?.items) return false;
