@@ -220,4 +220,19 @@ describe('WeaponCoatingService Double Poison support', () => {
     expect(flags.weaponCoatings['weapon-1'].afflictionData.doublePoison).toBe(true);
     expect(actor.createEmbeddedDocuments).toHaveBeenCalled();
   });
+
+  test('does not offer Double Poison when the existing coating is already a double poison', () => {
+    const actor = {
+      items: [{ type: 'feat', system: { slug: 'double-poison' } }],
+    };
+    const existingCoating = {
+      afflictionData: poison({
+        name: 'Double Poison: Aconite + Belladonna',
+        doublePoison: true,
+      }),
+    };
+
+    expect(WeaponCoatingService._shouldOfferDoublePoison(actor, existingCoating, poison())).toBe(false);
+    expect(WeaponCoatingService._canAddSecondPoison(actor, existingCoating)).toBe(false);
+  });
 });

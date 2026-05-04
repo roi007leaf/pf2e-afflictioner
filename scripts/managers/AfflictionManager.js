@@ -447,7 +447,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
             poisonName: coating?.poisonName || null,
             poisonItemUuid: coating?.poisonItemUuid || null,
             coatingTooltip: coating ? this.constructor._formatCoatingTooltip(coating.afflictionData) : null,
-            canAddDoublePoison: !!coating && WeaponCoatingService._canUseDoublePoison(actor)
+            canAddDoublePoison: WeaponCoatingService._canAddSecondPoison(actor, coating)
           });
         }
         actorsWithWeapons.push(entry);

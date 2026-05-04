@@ -39,4 +39,23 @@ describe('Affliction Manager template', () => {
     expect(template).toContain('ADD_SECOND_POISON_BTN');
     expect(template).toContain('APPLY_SECOND_COATING_TOOLTIP');
   });
+
+  test('bases second poison controls on service double poison eligibility', async () => {
+    global.foundry = {
+      applications: {
+        api: {
+          ApplicationV2: class {},
+          HandlebarsApplicationMixin: Base => Base,
+        },
+      },
+    };
+
+    const { AfflictionManager } = await import('../scripts/managers/AfflictionManager.js');
+    const source = AfflictionManager.prototype._prepareContext.toString();
+
+    expect(source).toContain('WeaponCoatingService._canAddSecondPoison(actor, coating');
+    expect(source).not.toContain('canAddDoublePoison: !!coating && WeaponCoatingService._canUseDoublePoison(actor)');
+
+    delete global.foundry;
+  });
 });

@@ -681,15 +681,22 @@ export class WeaponCoatingService {
 
   static _shouldOfferDoublePoison(actor, existingCoating, afflictionData) {
     return !!(
+      this._canAddSecondPoison(actor, existingCoating) &&
+      this._isDoublePoisonCandidate(afflictionData)
+    );
+  }
+
+  static _canAddSecondPoison(actor, existingCoating) {
+    return !!(
       existingCoating &&
       this._canUseDoublePoison(actor) &&
-      this._isDoublePoisonCandidate(existingCoating.afflictionData) &&
-      this._isDoublePoisonCandidate(afflictionData)
+      this._isDoublePoisonCandidate(existingCoating.afflictionData)
     );
   }
 
   static _isDoublePoisonCandidate(afflictionData) {
     if (!afflictionData || afflictionData.isDirectDamage) return false;
+    if (afflictionData.doublePoison) return false;
     const traits = afflictionData.traits || [];
     return afflictionData.type === 'poison' || traits.includes('poison');
   }
