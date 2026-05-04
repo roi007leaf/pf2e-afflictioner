@@ -82,6 +82,10 @@ describe('WeaponCoatingService Double Poison support', () => {
     expect(merged.stages[1].duration).toEqual({ value: 10, unit: 'minute', isDice: false });
     expect(merged.stages[0].effects).toContain('Aconite stage 1');
     expect(merged.stages[0].effects).toContain('Belladonna stage 1');
+    expect(merged.stages[0].componentEffects).toEqual([
+      { poisonName: 'Aconite', effects: 'Aconite stage 1' },
+      { poisonName: 'Belladonna', effects: 'Belladonna stage 1' },
+    ]);
     expect(merged.stages[0].damage).toEqual([{ formula: '1d6', type: 'poison' }]);
     expect(merged.stages[0].conditions).toEqual([{ name: 'sickened', value: 1 }]);
   });

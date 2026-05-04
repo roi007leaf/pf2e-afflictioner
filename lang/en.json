@@ -414,6 +414,8 @@
       "TOOLTIP_ONSET": "Onset: {value} {unit}(s)",
       "TOOLTIP_MAX_DURATION": "Max Duration: {value} {unit}(s)",
       "TOOLTIP_STAGE": "Stage {number}: {effects}",
+      "TOOLTIP_DOUBLE_STAGE": "Stage {number}:",
+      "TOOLTIP_DOUBLE_COMPONENT": "{poisonName}: {effects}",
       "TOOLTIP_NO_EFFECTS": "No effects",
       "COAT_WEAPON_DONE": "Weapon Coated",
       "DURATION_TITLE": "Coating Duration",

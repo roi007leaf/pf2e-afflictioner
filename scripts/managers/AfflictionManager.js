@@ -577,6 +577,14 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     if (aff.maxDuration) lines.push(i.format('PF2E_AFFLICTIONER.WEAPON_COATING.TOOLTIP_MAX_DURATION', { value: aff.maxDuration.value, unit: aff.maxDuration.unit }));
     if (aff.stages?.length) {
       for (const stage of aff.stages) {
+        if (aff.doublePoison && stage.componentEffects?.length) {
+          lines.push(i.format('PF2E_AFFLICTIONER.WEAPON_COATING.TOOLTIP_DOUBLE_STAGE', { number: stage.number }));
+          for (const component of stage.componentEffects) {
+            const effects = this.cleanTooltipText(component.effects) || i.localize('PF2E_AFFLICTIONER.WEAPON_COATING.TOOLTIP_NO_EFFECTS');
+            lines.push(i.format('PF2E_AFFLICTIONER.WEAPON_COATING.TOOLTIP_DOUBLE_COMPONENT', { poisonName: component.poisonName, effects }));
+          }
+          continue;
+        }
         const effects = this.cleanTooltipText(stage.effects) || i.localize('PF2E_AFFLICTIONER.WEAPON_COATING.TOOLTIP_NO_EFFECTS');
         lines.push(i.format('PF2E_AFFLICTIONER.WEAPON_COATING.TOOLTIP_STAGE', { number: stage.number, effects }));
       }

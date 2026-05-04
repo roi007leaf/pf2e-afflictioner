@@ -759,7 +759,7 @@ export class WeaponCoatingService {
       stages: Array.from({ length: stageCount }, (_unused, index) => {
         const firstStage = first.stages[index];
         const secondStage = second.stages[index];
-        return this._mergeDoublePoisonStage(firstStage, secondStage, index + 1);
+        return this._mergeDoublePoisonStage(firstStage, secondStage, index + 1, first.name, second.name);
       }),
       doublePoison: true,
       componentPoisons: [
@@ -781,7 +781,7 @@ export class WeaponCoatingService {
     };
   }
 
-  static _mergeDoublePoisonStage(firstStage, secondStage, number) {
+  static _mergeDoublePoisonStage(firstStage, secondStage, number, firstPoisonName, secondPoisonName) {
     const firstEffects = firstStage.effects || firstStage.rawText || '';
     const secondEffects = secondStage.effects || secondStage.rawText || '';
     const effects = [firstEffects, secondEffects].filter(Boolean).join('<br>');
@@ -793,6 +793,10 @@ export class WeaponCoatingService {
       number,
       rawText: effects,
       effects,
+      componentEffects: [
+        { poisonName: firstPoisonName, effects: firstEffects },
+        { poisonName: secondPoisonName, effects: secondEffects },
+      ].filter(component => component.effects),
       duration,
       damage: [...(firstStage.damage || []), ...(secondStage.damage || [])],
       conditions: [...(firstStage.conditions || []), ...(secondStage.conditions || [])],
