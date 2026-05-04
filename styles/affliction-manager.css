@@ -365,6 +365,33 @@
   min-width: 0;
 }
 
+.pf2e-afflictioner .double-poison-checkbox {
+  flex-shrink: 0;
+}
+
+.pf2e-afflictioner .double-poison-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  color: var(--afflictioner-text-light);
+  font-size: 0.82em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pf2e-afflictioner .double-poison-controls {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pf2e-afflictioner .double-poison-checkbox:checked ~ .double-poison-controls {
+  display: flex;
+}
+
 .pf2e-afflictioner .weapon-coating-controls .coating-poison-select {
   font-size: 0.82em;
   padding: 3px 6px;

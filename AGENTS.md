@@ -1,30 +1,16 @@
 <claude-mem-context>
 # Memory Context
 
-# [pf2e-afflictioner] recent context, 2026-05-04 3:34pm GMT+3
+# [pf2e-afflictioner] recent context, 2026-05-04 3:54pm GMT+3
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (16,946t read) | 812,189t work | 98% savings
+Stats: 50 obs (16,158t read) | 716,458t work | 98% savings
 
-### Apr 23, 2026
-152 8:31a 🔴 Full test suite and lint pass after drag-cancel fix — 107 tests green, 0 lint errors
 ### May 4, 2026
-854 8:00a ⚖️ Immunity Override Feature Design — Open Questions
-855 8:01a 🔵 pf2e-afflictioner Immunity Check Architecture
-856 " 🔵 originActorUuid Already Exists on afflictionData; Toxicologist Swap Lives in WeaponCoatingService
-857 " ⚖️ Affliction Immunity Override Feature Design Discussion
-858 8:06a 🔵 pf2e-afflictioner Affliction Editor + Definition Store Architecture
-860 " ⚖️ Immunity Bypass Rule Owned by Source Actor, Not Affliction Definition
-859 " 🔵 AfflictionEditorDialog Save Flow + Live Affliction Propagation
-861 8:08a ⚖️ Immunity Bypass Rule Configured in Affliction Manager UI
-862 " ⚖️ Immunity Bypass Rule Scope: Selectable Traits AND Named Afflictions
-863 " ⚖️ Bypass Rule Matching Uses OR Logic Between Traits and Named Afflictions
-864 " 🔵 DEFAULT_SETTINGS Structure — New immunityBypassRules Setting Needed
-865 8:10a 🟣 Immunity Bypass Feature Implementation Plan Formalized
-866 " 🔵 AfflictionParser Returns traits Array — Bypass Check Can Match Directly
+866 8:10a 🔵 AfflictionParser Returns traits Array — Bypass Check Can Match Directly
 867 " 🟣 TDD: Three Failing Tests Written for Immunity Bypass Feature
 868 " 🟣 Immunity Bypass Feature — Full Implementation Complete
 869 8:20a 🔵 Source Immunity Bypass UI Missing Dedicated "Overrides" Tab
@@ -61,6 +47,19 @@ Stats: 50 obs (16,946t read) | 812,189t work | 98% savings
 960 " 🔵 WeaponCoatingService and FeatsService Internals Mapped for Double Poison Implementation
 961 2:31p 🔵 Full Coating Hit Pipeline and UI Anatomy Confirmed for Double Poison Design
 967 " ⚖️ Double Poison Expiration Mode: Lenient (end-next-turn)
+968 " 🔵 Double Poison merge dialog not triggering in live Foundry — second poison replaces first
+969 3:43p 🔵 Root cause: Flayleaf is effect-only (no stages) — _isDoublePoisonCandidate must exclude isEffectOnly afflictions
+970 " 🟣 Defensive validation: "Add Second Poison" warns instead of replacing when selected item is invalid merge candidate
+971 3:44p 🔴 _isDoublePoisonCandidate now excludes stage-less afflictions; _getPreparedCoatingAfflictionData extracted
+972 " 🔵 RTK stale cache served identical failing test results (chunk 1f377d) after patches applied
+973 3:45p 🔴 AfflictionManagerDoublePoisonInvalid test: actor.items must be array not Map — FeatsService.hasFeat calls .some()
+974 3:46p 🔴 AfflictionManagerDoublePoisonInvalid test fixed: actor.items uses Object.assign array pattern for dual .some()/.get() support
+975 " 🟣 Test coverage: componentPoisons array on merged double poison now asserted with sourceItemUuid
+976 " 🟣 New UI: componentPoisonLinks — info buttons for each component poison in double-poison coating display
+977 " 🔵 Test run confirms: componentPoisons assertion passes; componentPoisonLinks template block missing
+978 3:47p 🟣 componentPoisonLinks implemented: context builder + HBS template block for per-component info buttons
+979 " 🟣 Double Poison / Poisoner's Twist implementation complete: 21/21 tests pass, ESLint pending
+980 " 🟣 New PF2e rule: Double Poison requires both poisons be at least 2 levels below actor level
 
-Access 812k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 716k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

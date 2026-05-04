@@ -682,7 +682,9 @@ export class WeaponCoatingService {
   static _shouldOfferDoublePoison(actor, existingCoating, afflictionData) {
     return !!(
       this._canAddSecondPoison(actor, existingCoating) &&
-      this._isDoublePoisonCandidate(afflictionData)
+      this._isDoublePoisonCandidate(afflictionData) &&
+      this._isPoisonLowEnoughForDoublePoison(actor, existingCoating.afflictionData) &&
+      this._isPoisonLowEnoughForDoublePoison(actor, afflictionData)
     );
   }
 
@@ -697,8 +699,30 @@ export class WeaponCoatingService {
   static _isDoublePoisonCandidate(afflictionData) {
     if (!afflictionData || afflictionData.isDirectDamage) return false;
     if (afflictionData.doublePoison) return false;
+    if (!Array.isArray(afflictionData.stages) || afflictionData.stages.length === 0) return false;
     const traits = afflictionData.traits || [];
     return afflictionData.type === 'poison' || traits.includes('poison');
+  }
+
+  static _isPoisonLowEnoughForDoublePoison(actor, afflictionData) {
+    const actorLevel = Number(actor?.system?.details?.level?.value ?? actor?.level);
+    const poisonLevel = Number(afflictionData?.level ?? 0);
+    if (!Number.isFinite(actorLevel)) return false;
+    if (!Number.isFinite(poisonLevel)) return false;
+    return poisonLevel <= actorLevel - 2;
+  }
+
+  static _hasDoublePoisonLevelViolation(actor, existingCoating, afflictionData) {
+    if (!this._canAddSecondPoison(actor, existingCoating)) return false;
+    if (!this._isDoublePoisonCandidate(afflictionData)) return false;
+    return !this._isPoisonLowEnoughForDoublePoison(actor, existingCoating.afflictionData) ||
+      !this._isPoisonLowEnoughForDoublePoison(actor, afflictionData);
+  }
+
+  static _getPreparedCoatingAfflictionData(actor, item) {
+    const afflictionData = AfflictionParser.parseFromItem(item);
+    if (!afflictionData) return null;
+    return this._withOriginActor(actor, this._applyToxicologistSwap(actor, afflictionData));
   }
 
   static async _chooseDoublePoisonSaveType(firstPoison, secondPoison) {

@@ -446,6 +446,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
             isCoated: !!coating,
             poisonName: coating?.poisonName || null,
             poisonItemUuid: coating?.poisonItemUuid || null,
+            componentPoisonLinks: coating ? this.constructor._getCoatingComponentLinks(coating) : [],
             coatingTooltip: coating ? this.constructor._formatCoatingTooltip(coating.afflictionData) : null,
             canAddDoublePoison: WeaponCoatingService._canAddSecondPoison(actor, coating)
           });
@@ -590,6 +591,16 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       }
     }
     return lines.join('<br>');
+  }
+
+  static _getCoatingComponentLinks(coating) {
+    if (!coating?.afflictionData?.doublePoison) return [];
+    return (coating.afflictionData.componentPoisons || [])
+      .map(component => ({
+        name: component.name,
+        uuid: component.sourceItemUuid,
+      }))
+      .filter(component => component.uuid);
   }
 
   static cleanTooltipText(text) {
@@ -995,21 +1006,27 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       return;
     }
 
-    const afflictionData = AfflictionParser.parseFromItem(item);
-    if (!afflictionData) {
+    const finalAfflictionData = WeaponCoatingService._getPreparedCoatingAfflictionData(actor, item);
+    if (!finalAfflictionData) {
       ui.notifications.error(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.PARSE_ERROR'));
       return;
+    }
+
+    if (button.dataset.doublePoison === 'true') {
+      const existing = WeaponCoatingStore.getCoating(actor, weaponId);
+      if (WeaponCoatingService._hasDoublePoisonLevelViolation(actor, existing, finalAfflictionData)) {
+        ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.DOUBLE_POISON_LEVEL_INVALID'));
+        return;
+      }
+      if (!WeaponCoatingService._shouldOfferDoublePoison(actor, existing, finalAfflictionData)) {
+        ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.DOUBLE_POISON_INVALID'));
+        return;
+      }
     }
 
     // Prompt for coating duration (always shows on GM client)
     const expirationMode = await WeaponCoatingService.promptCoatingDuration();
     if (expirationMode === null) return;
-
-    // Apply Toxicologist acid swap if applicable
-    const finalAfflictionData = WeaponCoatingService._withOriginActor(
-      actor,
-      WeaponCoatingService._applyToxicologistSwap(actor, afflictionData)
-    );
 
     const weaponName = weapon?.name ?? weaponId;
     const combat = game.combat;

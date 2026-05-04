@@ -210,6 +210,13 @@
                     <i class="fas fa-circle-info"></i>
                   </button>
                   {{/if}}
+                  {{#each componentPoisonLinks}}
+                  <button type="button" class="coating-info-btn" data-action="openPoisonItem"
+                          data-uuid="{{uuid}}"
+                          data-tooltip="{{name}}">
+                    <i class="fas fa-circle-info"></i>
+                  </button>
+                  {{/each}}
                 {{/if}}
               </div>
               <div class="weapon-coating-controls">
@@ -221,17 +228,24 @@
                   </button>
                   {{#if canAddDoublePoison}}
                     {{#if ../../hasInjuryItems}}
-                      <select class="coating-poison-select">
-                        <option value="">{{localize "PF2E_AFFLICTIONER.WEAPON_COATING.SELECT_SECOND_POISON"}}</option>
-                        {{#each ../../injuryItems}}
-                          <option value="{{uuid}}">{{name}}{{#if ownerName}} ({{ownerName}}){{/if}}</option>
-                        {{/each}}
-                      </select>
-                      <button type="button" class="coating-apply-btn" data-action="addCoating"
-                              data-actor-id="{{actorId}}" data-weapon-id="{{weaponId}}"
-                              data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.APPLY_SECOND_COATING_TOOLTIP'}}">
-                        <i class="fas fa-flask"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.ADD_SECOND_POISON_BTN"}}
-                      </button>
+                      <input type="checkbox" class="double-poison-checkbox" name="doublePoison.enabled" id="double-poison-{{actorId}}-{{weaponId}}" />
+                      <label class="double-poison-toggle" for="double-poison-{{actorId}}-{{weaponId}}">
+                        {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.DOUBLE_POISON_TOGGLE"}}
+                      </label>
+                      <div class="double-poison-controls">
+                        <select class="coating-poison-select">
+                          <option value="">{{localize "PF2E_AFFLICTIONER.WEAPON_COATING.SELECT_SECOND_POISON"}}</option>
+                          {{#each ../../injuryItems}}
+                            <option value="{{uuid}}">{{name}}{{#if ownerName}} ({{ownerName}}){{/if}}</option>
+                          {{/each}}
+                        </select>
+                        <button type="button" class="coating-apply-btn" data-action="addCoating"
+                                data-actor-id="{{actorId}}" data-weapon-id="{{weaponId}}"
+                                data-double-poison="true"
+                                data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.APPLY_SECOND_COATING_TOOLTIP'}}">
+                          <i class="fas fa-flask"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.ADD_SECOND_POISON_BTN"}}
+                        </button>
+                      </div>
                     {{/if}}
                   {{/if}}
                 {{else}}

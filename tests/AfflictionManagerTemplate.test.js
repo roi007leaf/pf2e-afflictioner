@@ -31,10 +31,14 @@ describe('Affliction Manager template', () => {
     expect(template).not.toContain('name="sourceRule.traits" value=');
   });
 
-  test('renders controls for applying a second poison when Double Poison is available', () => {
+  test('renders a Double Poison opt-in checkbox before second-poison controls', () => {
     const template = fs.readFileSync(path.resolve('templates/affliction-manager.hbs'), 'utf8');
 
     expect(template).toContain('canAddDoublePoison');
+    expect(template).toContain('double-poison-toggle');
+    expect(template).toContain('name="doublePoison.enabled"');
+    expect(template).toContain('DOUBLE_POISON_TOGGLE');
+    expect(template).toContain('double-poison-controls');
     expect(template).toContain('SELECT_SECOND_POISON');
     expect(template).toContain('ADD_SECOND_POISON_BTN');
     expect(template).toContain('APPLY_SECOND_COATING_TOOLTIP');
@@ -57,5 +61,20 @@ describe('Affliction Manager template', () => {
     expect(source).not.toContain('canAddDoublePoison: !!coating && WeaponCoatingService._canUseDoublePoison(actor)');
 
     delete global.foundry;
+  });
+
+  test('marks the second poison button as a Double Poison action', () => {
+    const template = fs.readFileSync(path.resolve('templates/affliction-manager.hbs'), 'utf8');
+
+    expect(template).toContain('data-double-poison="true"');
+  });
+
+  test('renders info buttons for Double Poison component items', () => {
+    const template = fs.readFileSync(path.resolve('templates/affliction-manager.hbs'), 'utf8');
+
+    expect(template).toContain('componentPoisonLinks');
+    expect(template).toContain('{{#each componentPoisonLinks}}');
+    expect(template).toContain('data-uuid="{{uuid}}"');
+    expect(template).toContain('{{name}}');
   });
 });

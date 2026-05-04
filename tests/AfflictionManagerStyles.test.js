@@ -9,4 +9,11 @@ describe('Affliction Manager styles', () => {
     expect(css).toMatch(/\.pf2e-afflictioner \.weapon-poison-label \{[\s\S]*overflow:\s*hidden;[\s\S]*text-overflow:\s*ellipsis;/);
     expect(css).toMatch(/\.pf2e-afflictioner \.weapon-coating-controls \{[\s\S]*flex-wrap:\s*wrap;/);
   });
+
+  test('second poison controls are hidden until the Double Poison checkbox is checked', () => {
+    const css = fs.readFileSync(path.resolve('styles/affliction-manager.css'), 'utf8');
+
+    expect(css).toMatch(/\.pf2e-afflictioner \.double-poison-controls \{[\s\S]*display:\s*none;/);
+    expect(css).toMatch(/\.pf2e-afflictioner \.double-poison-checkbox:checked ~ \.double-poison-controls \{[\s\S]*display:\s*flex;/);
+  });
 });

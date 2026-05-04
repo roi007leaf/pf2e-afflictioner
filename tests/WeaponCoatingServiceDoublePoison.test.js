@@ -51,6 +51,7 @@ describe('WeaponCoatingService Double Poison support', () => {
       name: 'Aconite',
       dc: 24,
       isVirulent: true,
+      sourceItemUuid: 'Item.aconite',
       stages: [
         stage(1, { value: 1, unit: 'round', isDice: false }, 'Aconite stage 1', {
           damage: [{ formula: '1d6', type: 'poison' }],
@@ -63,6 +64,7 @@ describe('WeaponCoatingService Double Poison support', () => {
       name: 'Belladonna',
       dc: 21,
       isVirulent: false,
+      sourceItemUuid: 'Item.belladonna',
       stages: [
         stage(1, { value: 2, unit: 'round', isDice: false }, 'Belladonna stage 1', {
           conditions: [{ name: 'sickened', value: 1 }],
@@ -88,6 +90,10 @@ describe('WeaponCoatingService Double Poison support', () => {
     ]);
     expect(merged.stages[0].damage).toEqual([{ formula: '1d6', type: 'poison' }]);
     expect(merged.stages[0].conditions).toEqual([{ name: 'sickened', value: 1 }]);
+    expect(merged.componentPoisons).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Aconite', sourceItemUuid: 'Item.aconite' }),
+      expect.objectContaining({ name: 'Belladonna', sourceItemUuid: 'Item.belladonna' }),
+    ]));
   });
 
   test('keeps virulent only when both poisons are virulent', () => {
@@ -174,7 +180,7 @@ describe('WeaponCoatingService Double Poison support', () => {
           poisonItemUuid: 'Item.first',
           poisonName: 'Aconite',
           weaponName: 'Dagger',
-          afflictionData: poison({ name: 'Aconite', dc: 24, saveType: 'fortitude' }),
+          afflictionData: poison({ name: 'Aconite', dc: 24, saveType: 'fortitude', level: 5 }),
           expirationMode: 'unlimited',
         },
       },
@@ -182,6 +188,7 @@ describe('WeaponCoatingService Double Poison support', () => {
     const actor = {
       id: 'actor-1',
       name: 'Alchemist',
+      level: 10,
       items: [{ type: 'feat', system: { slug: 'double-poison' } }],
       getFlag: jest.fn((_moduleId, key) => flags[key] || {}),
       setFlag: jest.fn(async (_moduleId, key, value) => {
@@ -211,7 +218,7 @@ describe('WeaponCoatingService Double Poison support', () => {
       poisonItemUuid: 'Item.second',
       poisonName: 'Belladonna',
       weaponName: 'Dagger',
-      afflictionData: poison({ name: 'Belladonna', dc: 21, saveType: 'will' }),
+      afflictionData: poison({ name: 'Belladonna', dc: 21, saveType: 'will', level: 5 }),
       expirationMode: 'unlimited',
       poisonImg: 'poison.webp',
     });
@@ -238,5 +245,45 @@ describe('WeaponCoatingService Double Poison support', () => {
 
     expect(WeaponCoatingService._shouldOfferDoublePoison(actor, existingCoating, poison())).toBe(false);
     expect(WeaponCoatingService._canAddSecondPoison(actor, existingCoating)).toBe(false);
+  });
+
+  test('does not treat stage-less poison data as a Double Poison candidate', () => {
+    expect(WeaponCoatingService._isDoublePoisonCandidate({
+      name: 'Flayleaf',
+      type: 'poison',
+      traits: ['drug', 'injury', 'poison'],
+      isEffectOnly: true,
+      stages: null,
+    })).toBe(false);
+
+    expect(WeaponCoatingService._isDoublePoisonCandidate({
+      skip: true,
+    })).toBe(false);
+  });
+
+  test('requires both poisons to be at least two levels below the actor for Double Poison', () => {
+    const actor = {
+      level: 10,
+      items: [{ type: 'feat', system: { slug: 'double-poison' } }],
+    };
+    const existingCoating = {
+      afflictionData: poison({ name: 'Aconite', level: 8 }),
+    };
+
+    expect(WeaponCoatingService._shouldOfferDoublePoison(actor, existingCoating, poison({ name: 'Belladonna', level: 7 }))).toBe(true);
+    expect(WeaponCoatingService._shouldOfferDoublePoison(actor, existingCoating, poison({ name: 'Belladonna', level: 9 }))).toBe(false);
+    expect(WeaponCoatingService._shouldOfferDoublePoison(actor, {
+      afflictionData: poison({ name: 'Aconite', level: 9 }),
+    }, poison({ name: 'Belladonna', level: 7 }))).toBe(false);
+  });
+
+  test('reads actor level from system details for Double Poison level checks', () => {
+    const actor = {
+      system: { details: { level: { value: 6 } } },
+      items: [{ type: 'feat', system: { slug: 'double-poison' } }],
+    };
+
+    expect(WeaponCoatingService._isPoisonLowEnoughForDoublePoison(actor, poison({ level: 4 }))).toBe(true);
+    expect(WeaponCoatingService._isPoisonLowEnoughForDoublePoison(actor, poison({ level: 5 }))).toBe(false);
   });
 });
