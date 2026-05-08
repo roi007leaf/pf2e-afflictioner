@@ -1,10 +1,10 @@
 import * as AfflictionDefinitionStore from '../stores/AfflictionDefinitionStore.js';
 import { AfflictionEditorDialog } from './AfflictionEditorDialog.js';
 import { AfflictionEditorService } from '../services/AfflictionEditorService.js';
-import { AfflictionParser } from '../services/AfflictionParser.js';
 import { AfflictionConflictDetector } from '../services/AfflictionConflictDetector.js';
 import { ConflictResolutionDialog } from './ConflictResolutionDialog.js';
-import { shouldSkipAffliction } from '../utils.js';
+import { shouldSkipPromptAffliction } from '../utils.js';
+import { AfflictionItemResolver } from '../services/AfflictionItemResolver.js';
 
 export class EditedAfflictionsManager extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2
@@ -307,14 +307,13 @@ export class EditedAfflictionsManager extends foundry.applications.api.Handlebar
       return;
     }
 
-    const traits = item.system?.traits?.value || [];
-    if (!traits.includes('poison') && !traits.includes('disease')) {
-      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.ITEM_MUST_HAVE_TRAIT'));
+    if (!AfflictionItemResolver.hasDirectOrReferencedAfflictionText(item)) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.ITEM_MUST_HAVE_TRAIT_FULL'));
       return;
     }
 
-    const afflictionData = AfflictionParser.parseFromItem(item);
-    if (shouldSkipAffliction(afflictionData)) {
+    const afflictionData = await AfflictionItemResolver.resolveFromItem(item);
+    if (shouldSkipPromptAffliction(afflictionData)) {
       ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.AFFLICTION_SKIPPED'));
       return;
     }

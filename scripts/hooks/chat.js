@@ -1,10 +1,12 @@
 import { AfflictionService } from '../services/AfflictionService.js';
 import { AfflictionParser } from '../services/AfflictionParser.js';
+import { AfflictionItemResolver } from '../services/AfflictionItemResolver.js';
 import * as AfflictionStore from '../stores/AfflictionStore.js';
 import * as WeaponCoatingStore from '../stores/WeaponCoatingStore.js';
 import { DEGREE_OF_SUCCESS, MODULE_ID } from '../constants.js';
 import { getSystemFlags } from '../systemCompat.js';
 import { FeatsService } from '../services/FeatsService.js';
+import { shouldSkipPromptAffliction } from '../utils.js';
 
 export async function onCreateChatMessage(message, options, userId) {
   if (!game.user.isGM) return;
@@ -33,11 +35,8 @@ export async function onCreateChatMessage(message, options, userId) {
 
   if (!item) return;
 
-  const traits = item.system?.traits?.value || [];
-  if (!traits.includes('poison') && !traits.includes('disease') && !traits.includes('curse')) return;
-
-  const afflictionData = AfflictionParser.parseFromItem(item);
-  if (!afflictionData) return;
+  const afflictionData = await AfflictionItemResolver.resolveFromItem(item);
+  if (!afflictionData || shouldSkipPromptAffliction(afflictionData)) return;
 
   // Store the origin actor so referenced afflictions can look up items on it later
   afflictionData.originActorUuid = item.parent?.uuid || flags.origin?.actor || null;
@@ -71,6 +70,11 @@ export async function onCreateChatMessage(message, options, userId) {
       tokenName: token.name,
       afflictionName: afflictionData.name
     }));
+    return;
+  }
+
+  if (afflictionData.isEffectOnly) {
+    await AfflictionService.applyEffectOnlyResult(token, afflictionData, degreeOfSuccess);
     return;
   }
 

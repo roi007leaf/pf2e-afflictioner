@@ -177,11 +177,14 @@ export class AfflictionParser {
     if (item.system?.save?.value) return item.system.save.value;
     if (item.system?.dc?.value) return item.system.dc.value;
 
+    const spellcastingDC = this.extractSpellcastingDC(item);
+    if (spellcastingDC) return spellcastingDC;
+
     // Engine-level enricher attributes — always ASCII regardless of locale.
-    let dcMatch = description.match(/@Check\[[^\]]*\|dc:(\d+)\]/i);
+    let dcMatch = description.match(/@Check\[[^\]]*\bdc:(\d+)[^\]]*\]/i);
     if (dcMatch) return parseInt(dcMatch[1]);
 
-    dcMatch = description.match(/data-pf2-dc="(\d+)"/i);
+    dcMatch = description.match(/data-pf2-dc=["'](\d+)["']/i) || description.match(/data-dc=["'](\d+)["']/i);
     if (dcMatch) return parseInt(dcMatch[1]);
 
     // Locale-specific plain-text fallback (e.g. "DC 18").
@@ -189,6 +192,25 @@ export class AfflictionParser {
     if (dcMatch) return parseInt(dcMatch[1]);
 
     console.warn(`PF2e Afflictioner | No DC found for affliction item "${item.name}" (${item.uuid}).`);
+    return null;
+  }
+
+  static extractSpellcastingDC(item) {
+    const candidates = [
+      item.spellcasting?.statistic?.dc?.value,
+      item.spellcasting?.statistic?.dc,
+      item.spellcasting?.dc?.value,
+      item.spellcasting?.dc,
+      item.system?.location?.spellcasting?.statistic?.dc?.value,
+      item.parent?.system?.attributes?.classOrSpellDC?.value,
+      item.parent?.system?.attributes?.spellDC?.value,
+      item.parent?.system?.attributes?.classDC?.value,
+    ];
+
+    for (const candidate of candidates) {
+      const dc = typeof candidate === 'number' ? candidate : parseInt(candidate);
+      if (Number.isFinite(dc) && dc > 0) return dc;
+    }
     return null;
   }
 
@@ -203,6 +225,11 @@ export class AfflictionParser {
     const defenseStatistic = item.system?.defense?.save?.statistic;
     if (defenseStatistic && ['fortitude', 'reflex', 'will'].includes(defenseStatistic)) {
       return defenseStatistic;
+    }
+
+    const plainSaveMatch = this.stripEnrichment(description).match(/\b(?:Saving Throw|Defense)\s*:?\s*(Fortitude|Reflex|Will)\b/i);
+    if (plainSaveMatch) {
+      return plainSaveMatch[1].toLowerCase();
     }
 
     // @Check enricher: @Check[type:fortitude|dc:18] or @Check[fortitude|dc:18]
@@ -307,32 +334,73 @@ export class AfflictionParser {
     stages.sort((a, b) => a.number - b.number);
 
     if (stages.length === 0) {
-      const plainRe = new RegExp(`${locale.stageLabelRe}${locale.afterLabel}(.+?)[（(]([^)）]+)[)）]([^]*)`, 'gi');
-      for (const match of description.matchAll(plainRe)) {
-        const stageNum = parseInt(match[1]);
-        const effectsBefore = match[2].trim();
-        const durationText = match[3];
-        const effectsAfter = match[4].trim();
-        const effects = [effectsBefore, effectsAfter].filter(e => e).join(' ');
-        const duration = this.parseDuration(durationText);
-
-        stages.push({
-          number: stageNum,
-          effects: effects,
-          rawText: match[0],
-          duration: duration,
-          damage: this.extractDamage(effects),
-          conditions: this.extractConditions(effects),
-          weakness: this.extractWeakness(effects),
-          requiresManualHandling: this.detectManualHandling(effects),
-          isDead: this.detectDeath(effects),
-          referencedAfflictions: this.extractReferencedAfflictions(effects)
-        });
-      }
+      stages.push(...this.extractPlainStages(description));
     }
 
     this.resolveStageReferences(stages);
     return stages;
+  }
+
+  static extractPlainStages(description) {
+    const locale = getParserLocale();
+    const labelRe = new RegExp(`(?:^|[;；。])\\s*${locale.stageLabelRe}\\b`, 'gi');
+    const labels = [...description.matchAll(labelRe)];
+    const stages = [];
+
+    for (let index = 0; index < labels.length; index++) {
+      const label = labels[index];
+      const stageNum = parseInt(label[1]);
+      if (!Number.isFinite(stageNum)) continue;
+
+      const start = label.index + label[0].length;
+      const end = labels[index + 1]?.index ?? description.length;
+      const rawContent = description.slice(start, end).replace(/^[\s:：-]+/, '').replace(/[;；。]\s*$/, '').trim();
+      if (!rawContent) continue;
+
+      const duration = this.extractStageDuration(rawContent);
+      const effects = this.removeStageDurationText(rawContent).trim();
+
+      stages.push({
+        number: stageNum,
+        effects,
+        rawText: `${label[0].replace(/^[;；。]\s*/, '')} ${rawContent}`.trim(),
+        duration,
+        damage: this.extractDamage(effects),
+        conditions: this.extractConditions(effects),
+        weakness: this.extractWeakness(effects),
+        requiresManualHandling: this.detectManualHandling(effects),
+        isDead: this.detectDeath(effects),
+        referencedAfflictions: this.extractReferencedAfflictions(effects)
+      });
+    }
+
+    return stages;
+  }
+
+  static extractStageDuration(text) {
+    const inlineRollMatch = text.match(/\[\[(?:\/br\s+)?(\d+d\d+(?:[+-]\d+)?)\s+#(\w+)\]\]/i);
+    if (inlineRollMatch) return this.parseDuration(`${inlineRollMatch[1]} ${inlineRollMatch[2]}`);
+
+    const parenMatches = [...text.matchAll(/[（(]([^)）]+)[)）]/g)];
+    const durationMatch = parenMatches
+      .map(match => match[1].trim())
+      .findLast(value => this.looksLikeDuration(value));
+    if (durationMatch) return this.parseDuration(durationMatch);
+
+    const forMatch = this.stripEnrichment(text).match(getParserLocale().forDurationPattern);
+    return forMatch ? this.parseDuration(forMatch[1]) : null;
+  }
+
+  static removeStageDurationText(text) {
+    return text
+      .replace(/[（(]([^)）]+)[)）]/g, (match, content) => this.looksLikeDuration(content.trim()) ? '' : match)
+      .replace(getParserLocale().forDurationPattern, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  static looksLikeDuration(text) {
+    return getParserLocale().durationDiceRegex.test(text) || getParserLocale().durationFixedRegex.test(text);
   }
 
   static stripEnrichment(text) {
@@ -365,6 +433,7 @@ export class AfflictionParser {
 
   static detectDeath(effectsText) {
     const stripped = this.stripEnrichment(effectsText).toLowerCase();
+    if (stripped === 'death') return true;
     return getParserLocale().deathPattern.test(stripped);
   }
 
@@ -441,21 +510,11 @@ export class AfflictionParser {
     }
 
     // @Damage enricher — FoundryVTT engine syntax, locale-independent.
-    for (const match of text.matchAll(/@Damage\[([\d\w+-]+)\[([^\]]+)\]\]/gi)) {
-      const formula = match[1].trim();
-      const type = match[2].trim().toLowerCase();
-      if (!seenFormulas.has(formula)) {
-        damageEntries.push({ formula, type });
-        seenFormulas.add(formula);
-      }
-    }
-
-    for (const match of text.matchAll(/@Damage\[([\d\w+-]+)\](?!\])/gi)) {
-      const formula = match[1].trim();
-      if (!seenFormulas.has(formula)) {
-        damageEntries.push({ formula, type: 'untyped' });
-        seenFormulas.add(formula);
-      }
+    for (const content of this.extractDamageEnricherContents(text)) {
+      const parsed = this.parseDamageEnricherContent(content);
+      if (!parsed || seenFormulas.has(parsed.formula)) continue;
+      damageEntries.push(parsed);
+      seenFormulas.add(parsed.formula);
     }
 
     // Plain-text fallback: "1d6 fire" — uses locale damage type list.
@@ -471,6 +530,52 @@ export class AfflictionParser {
     }
 
     return damageEntries;
+  }
+
+  static extractDamageEnricherContents(text) {
+    const contents = [];
+    const marker = '@Damage[';
+    let searchStart = 0;
+
+    while (searchStart < text.length) {
+      const markerIndex = text.indexOf(marker, searchStart);
+      if (markerIndex === -1) break;
+
+      let depth = 1;
+      let content = '';
+      let index = markerIndex + marker.length;
+
+      for (; index < text.length; index++) {
+        const char = text[index];
+        if (char === '[') {
+          depth += 1;
+        } else if (char === ']') {
+          depth -= 1;
+          if (depth === 0) break;
+        }
+        content += char;
+      }
+
+      if (depth === 0 && content.trim()) contents.push(content.trim());
+      searchStart = index + 1;
+    }
+
+    return contents;
+  }
+
+  static parseDamageEnricherContent(content) {
+    const core = content.split('|')[0]?.trim();
+    if (!core) return null;
+
+    const typedMatch = core.match(/^(.+)\[([^\]]+)\]$/);
+    if (typedMatch) {
+      return {
+        formula: typedMatch[1].trim(),
+        type: typedMatch[2].trim().toLowerCase()
+      };
+    }
+
+    return { formula: core, type: 'untyped' };
   }
 
   static extractWeakness(text) {

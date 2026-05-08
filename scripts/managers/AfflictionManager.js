@@ -7,7 +7,8 @@ import { TreatmentService } from '../services/TreatmentService.js';
 import { CounteractService } from '../services/CounteractService.js';
 import { AfflictionParser } from '../services/AfflictionParser.js';
 import { WeaponCoatingService } from '../services/WeaponCoatingService.js';
-import { shouldSkipAffliction } from '../utils.js';
+import { shouldSkipAffliction, shouldSkipPromptAffliction } from '../utils.js';
+import { AfflictionItemResolver } from '../services/AfflictionItemResolver.js';
 import * as ImmunityBypassRuleStore from '../stores/ImmunityBypassRuleStore.js';
 export class AfflictionManager extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2
@@ -282,14 +283,13 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       return;
     }
 
-    const traits = item.system?.traits?.value || [];
-    if (!traits.includes('poison') && !traits.includes('disease')) {
-      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.ITEM_MUST_HAVE_TRAIT'));
+    if (!AfflictionItemResolver.hasDirectOrReferencedAfflictionText(item)) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.ITEM_MUST_HAVE_TRAIT_FULL'));
       return;
     }
 
-    const afflictionData = AfflictionParser.parseFromItem(item);
-    if (shouldSkipAffliction(afflictionData)) {
+    const afflictionData = await AfflictionItemResolver.resolveFromItem(item);
+    if (shouldSkipPromptAffliction(afflictionData)) {
       ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.AFFLICTION_SKIPPED'));
       return;
     }

@@ -47,7 +47,8 @@ export const EN_PARSER_LOCALE = {
   // Used as a fallback when no @Damage enricher is present.
   damageTypes: [
     'acid', 'bludgeoning', 'cold', 'electricity', 'fire', 'force',
-    'mental', 'piercing', 'poison', 'slashing', 'sonic', 'bleed', 'persistent',
+    'mental', 'piercing', 'poison', 'slashing', 'sonic', 'void', 'vitality',
+    'bleed', 'persistent',
   ],
 
   // ── Condition matching ─────────────────────────────────────────────────────
@@ -82,6 +83,8 @@ export const EN_PARSER_LOCALE = {
     /\b(?:exposed|subjected)\s+to\s+(?:the\s+)?(.+?)(?:\s*[（(]|\s*$)/gi,
     /\bcontracts?\s+(?:the\s+)?(.+?)(?:\s*[（(]|\s*$)/gi,
     /\bafflicted\s+with\s+(?:the\s+)?(.+?)(?:\s*[（(]|\s*$)/gi,
+    /\bsaves?\s+against\s+(?:the\s+)?(.+?\bcurse)\b/gi,
+    /\bsaving\s+throw\s+against\s+(?:the\s+)?(.+?\bcurse)\b/gi,
   ],
 
   // ── Multiple-exposure patterns ─────────────────────────────────────────────

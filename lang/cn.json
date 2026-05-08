@@ -272,7 +272,7 @@
       "COULD_NOT_LOAD_ITEM": "无法加载物品",
       "COULD_NOT_LOAD_EFFECT": "无法加载效果",
       "COULD_NOT_PARSE": "无法从物品中解析苦难",
-      "ITEM_MUST_HAVE_TRAIT": "物品必须具有毒素或疾病特征",
+      "ITEM_MUST_HAVE_TRAIT": "物品必须具有毒素、疾病或诅咒特征",
       "ITEM_MUST_HAVE_TRAIT_FULL": "物品必须具有毒素、疾病或诅咒特征",
       "AFFLICTION_SKIPPED": "苦难没有有效的阶段或 DC，跳过",
       "DEFINITION_NOT_FOUND": "未找到已编辑的定义",

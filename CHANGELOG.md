@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.2] - 2026-05-08
+
+### Fixed
+
+- **NPC curse action support**: NPC abilities that directly have the `curse` trait or reference a curse in their action text now resolve to curse afflictions from the source actor, world items, or compendiums instead of being skipped or rejected by poison/disease-only checks.
+- **Legacy curse parsing**: Plain-text curse entries such as Curse of Death and Forbidden Cravings now parse semicolon-separated stages, void damage, death stages, plain saving throw labels, actor spell DCs, and repeated stage references like "as stage 2".
+- **Spell affliction DC and damage extraction**: Spell-based afflictions now prefer computed spell or message DCs over placeholder item DCs and parse nested PF2e `@Damage[...]` formulas with options.
+
 ## [3.2.1] - 2026-05-04
 
 ### Added

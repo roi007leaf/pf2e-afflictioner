@@ -318,7 +318,7 @@
       "COULD_NOT_LOAD_ITEM": "Could not load item",
       "COULD_NOT_LOAD_EFFECT": "Could not load effect",
       "COULD_NOT_PARSE": "Could not parse affliction from item",
-      "ITEM_MUST_HAVE_TRAIT": "Item must have poison or disease trait",
+      "ITEM_MUST_HAVE_TRAIT": "Item must have poison, disease, or curse trait",
       "ITEM_MUST_HAVE_TRAIT_FULL": "Item must have poison, disease, or curse trait",
       "AFFLICTION_SKIPPED": "Affliction has no valid stages or DC, skipping",
       "DEFINITION_NOT_FOUND": "Edited definition not found",

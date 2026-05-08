@@ -1,7 +1,8 @@
 import * as AfflictionStore from '../stores/AfflictionStore.js';
 import { AfflictionService } from '../services/AfflictionService.js';
 import { AfflictionParser } from '../services/AfflictionParser.js';
-import { shouldSkipAffliction } from '../utils.js';
+import { applyMessageAfflictionContext, shouldSkipPromptAffliction } from '../utils.js';
+import { AfflictionItemResolver } from '../services/AfflictionItemResolver.js';
 import { FeatsService } from '../services/FeatsService.js';
 import { getSystemFlags } from '../systemCompat.js';
 import { DEGREE_OF_SUCCESS } from '../constants.js';
@@ -163,8 +164,8 @@ async function addApplyAfflictionButton(message, htmlElement) {
 
   if (!item) return;
 
-  const afflictionData = AfflictionParser.parseFromItem(item);
-  if (!afflictionData || shouldSkipAffliction(afflictionData)) return;
+  const afflictionData = await AfflictionItemResolver.resolveFromItem(item);
+  if (!afflictionData || shouldSkipPromptAffliction(afflictionData)) return;
 
   // Store the origin actor so referenced afflictions can look up items on it later
   afflictionData.originActorUuid = actor.uuid;
@@ -182,6 +183,8 @@ async function addApplyAfflictionButton(message, htmlElement) {
       afflictionData.saveType = noteType;
     }
   }
+
+  applyMessageAfflictionContext(afflictionData, message);
 
   // Blowgun Poisoner: degrade the target's initial save if the attacker critically hit with a blowgun
   const attackOutcome = getSystemFlags(message)?.context?.outcome;
@@ -287,22 +290,17 @@ async function addApplyAfflictionToSelectedButton(message, htmlElement) {
 
   if (!item) return;
 
-  const traits = item.system?.traits?.value || [];
-  if (!traits.includes('poison') && !traits.includes('disease') && !traits.includes('curse')) {
-    return;
-  }
-
-  let afflictionData = AfflictionParser.parseFromItem(item);
+  let afflictionData = await AfflictionItemResolver.resolveFromItem(item);
 
   // If item-based parsing failed, try parsing from message content directly
-  if ((!afflictionData || shouldSkipAffliction(afflictionData)) && message.content) {
+  if ((!afflictionData || shouldSkipPromptAffliction(afflictionData)) && message.content) {
     const contentItem = buildSyntheticItemFromMessage(message);
     if (contentItem) {
-      afflictionData = AfflictionParser.parseFromItem(contentItem);
+      afflictionData = await AfflictionItemResolver.resolveFromItem(contentItem, { originActor: message.actor || item.parent });
     }
   }
 
-  if (!afflictionData || shouldSkipAffliction(afflictionData)) {
+  if (!afflictionData || shouldSkipPromptAffliction(afflictionData)) {
     return;
   }
 
@@ -310,22 +308,8 @@ async function addApplyAfflictionToSelectedButton(message, htmlElement) {
   const originActorUuid = getSystemFlags(message)?.origin?.actor || message.actor?.uuid || null;
   if (originActorUuid) afflictionData.originActorUuid = originActorUuid;
 
-  // Extract DC from message content save button (spell DCs are computed at cast time)
-  if (!afflictionData.dc) {
-    const dcMatch = message.content?.match(/data-dc="(\d+)"/);
-    if (dcMatch) afflictionData.dc = parseInt(dcMatch[1]);
-  }
-
-  // Extract save type from message content save button if not already set from item data
-  if (afflictionData.saveType === 'fortitude') {
-    const saveMatch = message.content?.match(/data-save="(\w+)"/);
-    if (saveMatch) {
-      const msgSaveType = saveMatch[1].toLowerCase();
-      if (['fortitude', 'reflex', 'will'].includes(msgSaveType)) {
-        afflictionData.saveType = msgSaveType;
-      }
-    }
-  }
+  // Spell/action chat cards carry computed DCs after elite/weak and spellcasting adjustments.
+  applyMessageAfflictionContext(afflictionData, message);
 
   htmlElement.dataset.applyAfflictionToSelectedEnabled = 'true';
 
@@ -377,11 +361,8 @@ async function addAfflictionDragSupport(message, htmlElement) {
   const item = message.getAssociatedItem?.();
   if (!item) return;
 
-  const traits = item.system?.traits?.value || [];
-  if (!traits.includes('poison') && !traits.includes('disease') && !traits.includes('curse')) return;
-
-  const afflictionData = AfflictionParser.parseFromItem(item);
-  if (!afflictionData) return;
+  const afflictionData = await AfflictionItemResolver.resolveFromItem(item);
+  if (!afflictionData || shouldSkipPromptAffliction(afflictionData)) return;
 
   htmlElement.dataset.afflictionDragEnabled = 'true';
 
@@ -427,9 +408,18 @@ function buildSyntheticItemFromMessage(message) {
   if (!content) return null;
 
   const rollOptions = getSystemFlags(message)?.origin?.rollOptions || [];
-  const traits = rollOptions
+  let traits = rollOptions
     .filter(o => o.startsWith('origin:item:trait:'))
     .map(o => o.replace('origin:item:trait:', ''));
+
+  if (!traits.includes('poison') && !traits.includes('disease') && !traits.includes('curse')) {
+    const traitMatches = [...content.matchAll(/data-trait=["']([^"']+)["']/gi)].map(match => match[1]);
+    traits = [...new Set(traitMatches)];
+  }
+
+  if (!traits.includes('poison') && !traits.includes('disease') && !traits.includes('curse')) {
+    traits = AfflictionParser.extractReferencedAfflictions(content).length > 0 ? ['curse'] : traits;
+  }
 
   if (!traits.includes('poison') && !traits.includes('disease') && !traits.includes('curse')) {
     return null;

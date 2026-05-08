@@ -207,13 +207,13 @@ async function injectItemCardAfflictionButton(message, root) {
   }
   if (!item) return;
 
-  const { AfflictionParser } = await import('../services/AfflictionParser.js');
-  if (!AfflictionParser.getAfflictionType(item)) return;
-
-  const afflictionData = AfflictionParser.parseFromItem(item);
-  if (!afflictionData || afflictionData.skip) return;
+  const { AfflictionItemResolver } = await import('../services/AfflictionItemResolver.js');
+  const { applyMessageAfflictionContext, shouldSkipPromptAffliction } = await import('../utils.js');
+  const afflictionData = await AfflictionItemResolver.resolveFromItem(item);
+  if (!afflictionData || shouldSkipPromptAffliction(afflictionData)) return;
   afflictionData.originActorUuid = item.parent?.uuid || flags.origin?.actor || null;
   afflictionData.originActorId = item.parent?.id || message.speaker?.actor || null;
+  applyMessageAfflictionContext(afflictionData, message);
 
   root.dataset.itemAfflictionInjected = 'true';
 

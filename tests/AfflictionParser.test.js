@@ -81,6 +81,15 @@ describe('AfflictionParser — English', () => {
     expect(AfflictionParser.extractDC(desc, item)).toBe(20);
   });
 
+  test('prefers spellcasting DC over placeholder spell check DC', () => {
+    const desc = '<p><strong>Saving Throw</strong> @Check[fortitude|dc:15|against:spell]</p>';
+    const item = {
+      system: { description: { value: desc } },
+      spellcasting: { statistic: { dc: { value: 31 } } },
+    };
+    expect(AfflictionParser.extractDC(desc, item)).toBe(31);
+  });
+
   // ── extractOnset ──────────────────────────────────────────────────────────
 
   test('extracts onset from HTML', () => {
@@ -172,6 +181,13 @@ describe('AfflictionParser — English', () => {
     expect(refs[0].toLowerCase()).toBe('ghoul fever');
   });
 
+  test('extracts referenced curse from "save against" action text', () => {
+    const text = 'The target must save against the forbidden cravings curse.';
+    const refs = AfflictionParser.extractReferencedAfflictions(text);
+    expect(refs).toHaveLength(1);
+    expect(refs[0].toLowerCase()).toBe('forbidden cravings curse');
+  });
+
   test('returns empty array when no reference found', () => {
     const text = '1d6 poison damage and sickened 1';
     const refs = AfflictionParser.extractReferencedAfflictions(text);
@@ -244,6 +260,17 @@ describe('AfflictionParser — English', () => {
     const damage = AfflictionParser.extractDamage(text);
     expect(damage).toEqual(
       expect.arrayContaining([expect.objectContaining({ formula: '2d6', type: 'fire' })]),
+    );
+  });
+
+  test('extracts damage from expression @Damage enrichers with nested type and options', () => {
+    const text = '@Damage[(max(4,(@item.rank)-1))d6[void]] damage and @Damage[2d6[void]|immutable] damage';
+    const damage = AfflictionParser.extractDamage(text);
+    expect(damage).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ formula: '(max(4,(@item.rank)-1))d6', type: 'void' }),
+        expect.objectContaining({ formula: '2d6', type: 'void' }),
+      ]),
     );
   });
 
@@ -401,6 +428,73 @@ describe('AfflictionParser — English', () => {
     const stages = AfflictionParser.extractStages(html);
     expect(stages).toHaveLength(1);
     expect(stages[0].duration).toEqual({ value: 1, unit: 'round', isDice: false });
+  });
+
+  test('parses legacy Curse of Death semicolon stages', () => {
+    const item = {
+      name: 'Curse of Death',
+      uuid: 'test-curse-of-death',
+      spellcasting: { statistic: { dc: { value: 31 } } },
+      system: {
+        traits: { value: ['curse', 'death', 'void'] },
+        level: { value: 5 },
+        description: {
+          value:
+            'Defense Fortitude; Duration sustained up to 1 minute. ' +
+            'Critical Failure The target is afflicted with the curse of death at stage 2. ' +
+            'Curse of Death (curse, death, void) This curse ends when the spell ends; ' +
+            'Stage 1 4d6 void damage and fatigued (1 round); ' +
+            'Stage 2 8d6 void damage and fatigued (1 round); ' +
+            'Stage 3 12d6 void damage and fatigued (1 round); ' +
+            'Stage 4 death',
+        },
+      },
+    };
+
+    const result = AfflictionParser.parseFromItem(item);
+    expect(result.dc).toBe(31);
+    expect(result.saveType).toBe('fortitude');
+    expect(result.stages).toHaveLength(4);
+    expect(result.stages[0].damage).toEqual([{ formula: '4d6', type: 'void' }]);
+    expect(result.stages[1].damage).toEqual([{ formula: '8d6', type: 'void' }]);
+    expect(result.stages[2].damage).toEqual([{ formula: '12d6', type: 'void' }]);
+    expect(result.stages[3].isDead).toBe(true);
+  });
+
+  test('parses legacy Forbidden Cravings plain text and actor spell DC', () => {
+    const item = {
+      name: 'Forbidden Cravings',
+      uuid: 'test-forbidden-cravings',
+      parent: {
+        system: {
+          attributes: {
+            classOrSpellDC: { value: 22 },
+          },
+        },
+      },
+      system: {
+        traits: { value: ['curse'] },
+        description: {
+          value:
+            'Forbidden Cravings (curse) A creature can still eat and drink while sickened by this curse; ' +
+            "Saving Throw Will, using the high spell DC for the ghoul's level; " +
+            'Stage 1 carrier with no ill effects (1 day); ' +
+            'Stage 2 2d6 void damage and the target is sickened 1 until it consumes raw meat (1 day); ' +
+            'Stage 3 as stage 2; ' +
+            'Stage 4 as stage 2 unless the target has consumed raw meat in the past 24 hours, then it takes 4d6 void damage and is sickened 2 until it consumes raw meat; ' +
+            'Stage 5 if the creature has eaten raw meat in the past 24 hours, it dies and rises as a ghoul, if not, it returns to stage 4',
+        },
+      },
+    };
+
+    const result = AfflictionParser.parseFromItem(item);
+    expect(result.dc).toBe(22);
+    expect(result.saveType).toBe('will');
+    expect(result.stages).toHaveLength(5);
+    expect(result.stages[1].damage).toEqual([{ formula: '2d6', type: 'void' }]);
+    expect(result.stages[1].conditions).toEqual([{ name: 'sickened', value: 1 }]);
+    expect(result.stages[2].damage).toEqual(result.stages[1].damage);
+    expect(result.stages[4].isDead).toBe(true);
   });
 });
 

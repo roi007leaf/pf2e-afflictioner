@@ -1,6 +1,7 @@
 import { AfflictionParser } from '../services/AfflictionParser.js';
 import * as AfflictionDefinitionStore from '../stores/AfflictionDefinitionStore.js';
-import { shouldSkipAffliction } from '../utils.js';
+import { shouldSkipPromptAffliction } from '../utils.js';
+import { AfflictionItemResolver } from '../services/AfflictionItemResolver.js';
 
 export class AddAfflictionDialog extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2
@@ -46,12 +47,12 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
     if (this.token?.actor) {
       for (const item of this.token.actor.items) {
         const afflictionType = AfflictionParser.getAfflictionType(item);
-        if (afflictionType) {
+        if (afflictionType || AfflictionItemResolver.hasDirectOrReferencedAfflictionText(item)) {
           afflictionItems.push({
             id: item.id,
             uuid: item.uuid,
             name: item.name,
-            type: afflictionType,
+            type: afflictionType || 'referenced',
             img: item.img
           });
         }
@@ -129,8 +130,8 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
         return;
       }
 
-      const afflictionData = AfflictionParser.parseFromItem(item);
-      if (shouldSkipAffliction(afflictionData)) {
+      const afflictionData = await AfflictionItemResolver.resolveFromItem(item);
+      if (shouldSkipPromptAffliction(afflictionData)) {
         ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.AFFLICTION_SKIPPED'));
         return;
       }
@@ -275,13 +276,13 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
     const item = await fromUuid(data.uuid);
     if (!item) return;
 
-    if (!AfflictionParser.getAfflictionType(item)) {
+    if (!AfflictionItemResolver.hasDirectOrReferencedAfflictionText(item)) {
       ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.ITEM_MUST_HAVE_TRAIT_FULL'));
       return;
     }
 
-    const afflictionData = AfflictionParser.parseFromItem(item);
-    if (shouldSkipAffliction(afflictionData)) {
+    const afflictionData = await AfflictionItemResolver.resolveFromItem(item);
+    if (shouldSkipPromptAffliction(afflictionData)) {
       ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.AFFLICTION_SKIPPED'));
       return;
     }

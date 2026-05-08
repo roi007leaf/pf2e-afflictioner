@@ -15,6 +15,21 @@ export class AfflictionService {
     if (!actor) return;
     const entityName = token?.name || actor?.name || 'Unknown';
 
+    if (afflictionData?.isEffectOnly) {
+      const immunityResult = await this.getActorAfflictionImmunityResult(actor, afflictionData);
+      if (immunityResult.bypassed.length > 0) {
+        await AfflictionChatService.postImmunityBypassNotice(token, actor, afflictionData, immunityResult.bypassed, immunityResult.sourceActor);
+      }
+      if (immunityResult.remaining.length > 0) {
+        await AfflictionChatService.postImmunityNotice(token, actor, afflictionData, immunityResult.remaining);
+        return;
+      }
+      await this.applyEffectOnlyAffliction(token, afflictionData, {
+        name: afflictionData.triggerItemName || afflictionData.name
+      });
+      return;
+    }
+
     const key = AfflictionDefinitionStore.generateDefinitionKey(afflictionData);
     const editedDef = AfflictionDefinitionStore.getEditedDefinition(key);
 
@@ -647,31 +662,60 @@ export class AfflictionService {
   }
 
   static async findReferencedItem(name, originActor) {
-    const lowerName = name.toLowerCase();
+    const candidates = this.getReferencedItemNameCandidates(name);
 
     // 1. Search origin actor's items
     if (originActor) {
-      const found = originActor.items?.find(i => i.name.toLowerCase() === lowerName);
+      const items = originActor.items?.find ? originActor.items : Array.from(originActor.items ?? []);
+      const found = items.find(i => candidates.has(i.name.toLowerCase()));
       if (found) return found;
     }
 
     // 2. Search world items
-    const worldItem = game.items?.find(i => i.name.toLowerCase() === lowerName);
+    const worldItems = game.items?.find ? game.items : Array.from(game.items ?? []);
+    const worldItem = worldItems.find(i => candidates.has(i.name.toLowerCase()));
     if (worldItem) return worldItem;
 
     // 3. Search compendiums (equipment, spells, feats)
-    const packNames = ['pf2e.equipment-srd', 'pf2e.spells-srd', 'pf2e.feat-effects'];
-    for (const packName of packNames) {
-      const pack = game.packs?.get(packName);
+    const preferredPackNames = [
+      'pf2e.equipment-srd',
+      'pf2e.equipment',
+      'pf2e.spells-srd',
+      'pf2e.spells',
+      'pf2e.boons-and-curses',
+      'pf2e.feat-effects',
+    ];
+    const preferredPacks = preferredPackNames.map(packName => game.packs?.get?.(packName)).filter(Boolean);
+    const allItemPacks = typeof game.packs?.filter === 'function'
+      ? game.packs.filter(pack => pack.metadata?.type === 'Item' && (!pack.metadata?.system || pack.metadata.system === 'pf2e'))
+      : [];
+    const packs = [...new Set([...preferredPacks, ...allItemPacks])];
+
+    for (const pack of packs) {
       if (!pack) continue;
       try {
         const index = await pack.getIndex({ fields: ['name', 'system.traits'] });
-        const entry = index.find(e => e.name.toLowerCase() === lowerName);
+        const entry = index.find(e => candidates.has(e.name.toLowerCase()));
         if (entry) return await pack.getDocument(entry._id);
       } catch { /* ignore */ }
     }
 
     return null;
+  }
+
+  static getReferencedItemNameCandidates(name) {
+    const cleaned = String(name || '')
+      .toLowerCase()
+      .replace(/^the\s+/, '')
+      .replace(/[,;.]+$/g, '')
+      .trim();
+    const candidates = new Set([cleaned]);
+
+    if (cleaned.endsWith(' curse')) {
+      candidates.add(cleaned.replace(/\s+curse$/, '').trim());
+    }
+
+    return candidates;
   }
 
   static async applyEffectOnlyAffliction(token, refData, parentAffliction) {
