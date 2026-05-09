@@ -1,6 +1,8 @@
 import * as AfflictionStore from '../stores/AfflictionStore.js';
 import { getSystemFlags } from '../systemCompat.js';
 
+const BLIND_MESSAGE_MODE = 'blind';
+
 export function registerSaveButtonHandlers(root) {
   registerInitialSaveButtons(root);
   registerStageSaveButtons(root);
@@ -68,7 +70,7 @@ function registerInitialSaveButtons(root) {
 
       const rollOptions = { dc: { value: currentDC } };
       if (isBlindRoll) {
-        rollOptions.rollMode = CONST.DICE_ROLL_MODES.BLIND;
+        rollOptions.messageMode = BLIND_MESSAGE_MODE;
       }
 
       const saveKey = affliction.saveType || 'fortitude';
@@ -178,7 +180,7 @@ function registerStageSaveButtons(root) {
 
       const stageRollOptions = { dc: { value: currentDC } };
       if (actor.type === 'npc') {
-        stageRollOptions.rollMode = CONST.DICE_ROLL_MODES.BLIND;
+        stageRollOptions.messageMode = BLIND_MESSAGE_MODE;
       }
 
       const saveKey = affliction.saveType || 'fortitude';
@@ -272,7 +274,7 @@ function registerReferencedSaveButtons(root) {
       // Roll the save
       const isNpc = actor.type === 'npc';
       const rollOptions = { dc: { value: dc } };
-      if (isNpc) rollOptions.rollMode = CONST.DICE_ROLL_MODES.BLIND;
+      if (isNpc) rollOptions.messageMode = BLIND_MESSAGE_MODE;
 
       let rollMessage = null;
       Hooks.once('createChatMessage', (message) => {
