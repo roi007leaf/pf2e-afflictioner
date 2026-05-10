@@ -654,10 +654,19 @@ export class SocketService {
       this._lastRerollConfirmationFlags = {
         needsConfirmation: true,
         tokenId: oldMessage.flags['pf2e-afflictioner'].tokenId,
+        actorId: oldMessage.flags['pf2e-afflictioner'].actorId,
         afflictionId: oldMessage.flags['pf2e-afflictioner'].afflictionId,
         saveType: oldMessage.flags['pf2e-afflictioner'].saveType,
         dc: oldMessage.flags['pf2e-afflictioner'].dc
       };
+
+      const confirmationFlags = { ...this._lastRerollConfirmationFlags };
+      const speakerActorId = oldMessage.speaker?.actor;
+      Hooks.once('createChatMessage', async (newMsg) => {
+        if (!speakerActorId || newMsg.speaker?.actor === speakerActorId || newMsg.actor?.id === speakerActorId) {
+          await newMsg.update({ 'flags.pf2e-afflictioner': confirmationFlags });
+        }
+      });
     }
 
     if (oldMessage.flags?.['pf2e-afflictioner']?.needsCounteractConfirmation) {

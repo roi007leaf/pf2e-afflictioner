@@ -84,3 +84,61 @@ describe('SocketService immediate save modifier notices', () => {
     }));
   });
 });
+
+describe('SocketService reroll confirmation flags', () => {
+  beforeEach(() => {
+    game.user = { isGM: true };
+    global.Hooks = {
+      once: jest.fn(),
+    };
+  });
+
+  afterEach(() => {
+    SocketService._lastRerollOldMessageId = null;
+    SocketService._lastRerollConfirmationFlags = null;
+    jest.restoreAllMocks();
+  });
+
+  test('copies save confirmation flags to the rerolled chat message as it is created', async () => {
+    const oldMessage = {
+      id: 'old-message-1',
+      speaker: { actor: 'actor-1' },
+      flags: {
+        'pf2e-afflictioner': {
+          needsConfirmation: true,
+          tokenId: 'token-1',
+          actorId: 'actor-1',
+          afflictionId: 'affliction-1',
+          saveType: 'stage',
+          dc: 27,
+        },
+      },
+    };
+    const newMessage = {
+      speaker: { actor: 'actor-1' },
+      update: jest.fn(),
+    };
+
+    game.messages = {
+      get: jest.fn(id => (id === oldMessage.id ? oldMessage : null)),
+      contents: [oldMessage],
+    };
+
+    await SocketService.onPf2ePreReroll({ options: { messageId: oldMessage.id } });
+
+    expect(Hooks.once).toHaveBeenCalledWith('createChatMessage', expect.any(Function));
+
+    await Hooks.once.mock.calls[0][1](newMessage);
+
+    expect(newMessage.update).toHaveBeenCalledWith({
+      'flags.pf2e-afflictioner': expect.objectContaining({
+        needsConfirmation: true,
+        tokenId: 'token-1',
+        actorId: 'actor-1',
+        afflictionId: 'affliction-1',
+        saveType: 'stage',
+        dc: 27,
+      }),
+    });
+  });
+});
