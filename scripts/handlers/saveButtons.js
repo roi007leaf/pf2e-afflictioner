@@ -24,6 +24,13 @@ function getAfflictionTraitRollOptions(affliction) {
   ];
 }
 
+function getCheckDialogRollOptions(event) {
+  const skipDefault = !(game.user?.settings?.showCheckDialogs ?? true);
+  return {
+    skipDialog: event?.shiftKey ? !skipDefault : skipDefault,
+  };
+}
+
 function registerInitialSaveButtons(root) {
   const rollInitialSaveButtons = root.querySelectorAll('.affliction-roll-initial-save');
   rollInitialSaveButtons.forEach(button => {
@@ -82,7 +89,7 @@ function registerInitialSaveButtons(root) {
         }
       });
 
-      const rollOptions = { dc: { value: currentDC } };
+      const rollOptions = { dc: { value: currentDC }, ...getCheckDialogRollOptions(event) };
       const traitRollOptions = getAfflictionTraitRollOptions(affliction);
       if (traitRollOptions.length > 0) {
         rollOptions.extraRollOptions = traitRollOptions;
@@ -196,7 +203,7 @@ function registerStageSaveButtons(root) {
         }
       });
 
-      const stageRollOptions = { dc: { value: currentDC } };
+      const stageRollOptions = { dc: { value: currentDC }, ...getCheckDialogRollOptions(event) };
       const traitRollOptions = getAfflictionTraitRollOptions(affliction);
       if (traitRollOptions.length > 0) {
         stageRollOptions.extraRollOptions = traitRollOptions;
@@ -295,7 +302,7 @@ function registerReferencedSaveButtons(root) {
 
       // Roll the save
       const isNpc = actor.type === 'npc';
-      const rollOptions = { dc: { value: dc } };
+      const rollOptions = { dc: { value: dc }, ...getCheckDialogRollOptions(event) };
       const traitRollOptions = getAfflictionTraitRollOptions(refData);
       if (traitRollOptions.length > 0) {
         rollOptions.extraRollOptions = traitRollOptions;

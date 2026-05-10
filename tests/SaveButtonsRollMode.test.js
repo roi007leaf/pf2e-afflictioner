@@ -62,6 +62,9 @@ describe('save button roll modes', () => {
       user: {
         id: 'gm-1',
         isGM: true,
+        settings: {
+          showCheckDialogs: true,
+        },
       },
     };
 
@@ -152,6 +155,96 @@ describe('save button roll modes', () => {
         'item:trait:poison',
         'item:trait:injury',
       ]),
+    }));
+  });
+
+  test('initial save roll does not pass the click event that can overwrite explicit dialog toggling', async () => {
+    document.body.innerHTML = `
+      <div class="message">
+        <button class="affliction-roll-initial-save"
+                data-token-id="${token.id}"
+                data-affliction-id="affliction-1"
+                data-dc="27">
+        </button>
+      </div>
+    `;
+
+    registerSaveButtonHandlers(document.body);
+    const clickEvent = new MouseEvent('click', { bubbles: true, shiftKey: true });
+    document.querySelector('.affliction-roll-initial-save').dispatchEvent(clickEvent);
+
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    expect(rollMock).toHaveBeenCalledWith(expect.not.objectContaining({
+      event: expect.anything(),
+    }));
+  });
+
+  test('initial save roll skips the dialog when shift-clicking with dialogs shown by default', async () => {
+    game.user.settings.showCheckDialogs = true;
+    document.body.innerHTML = `
+      <div class="message">
+        <button class="affliction-roll-initial-save"
+                data-token-id="${token.id}"
+                data-affliction-id="affliction-1"
+                data-dc="27">
+        </button>
+      </div>
+    `;
+
+    registerSaveButtonHandlers(document.body);
+    document.querySelector('.affliction-roll-initial-save')
+      .dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }));
+
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    expect(rollMock).toHaveBeenCalledWith(expect.objectContaining({
+      skipDialog: true,
+    }));
+  });
+
+  test('initial save roll shows the dialog when shift-clicking with dialogs skipped by default', async () => {
+    game.user.settings.showCheckDialogs = false;
+    document.body.innerHTML = `
+      <div class="message">
+        <button class="affliction-roll-initial-save"
+                data-token-id="${token.id}"
+                data-affliction-id="affliction-1"
+                data-dc="27">
+        </button>
+      </div>
+    `;
+
+    registerSaveButtonHandlers(document.body);
+    document.querySelector('.affliction-roll-initial-save')
+      .dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }));
+
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    expect(rollMock).toHaveBeenCalledWith(expect.objectContaining({
+      skipDialog: false,
+    }));
+  });
+
+  test('stage save roll does not pass the click event that can overwrite explicit dialog toggling', async () => {
+    document.body.innerHTML = `
+      <div class="message">
+        <button class="affliction-roll-save"
+                data-token-id="${token.id}"
+                data-affliction-id="affliction-1"
+                data-dc="27">
+        </button>
+      </div>
+    `;
+
+    registerSaveButtonHandlers(document.body);
+    const clickEvent = new MouseEvent('click', { bubbles: true, shiftKey: true });
+    document.querySelector('.affliction-roll-save').dispatchEvent(clickEvent);
+
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    expect(rollMock).toHaveBeenCalledWith(expect.not.objectContaining({
+      event: expect.anything(),
     }));
   });
 });
