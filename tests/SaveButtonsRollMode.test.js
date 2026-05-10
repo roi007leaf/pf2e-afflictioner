@@ -71,6 +71,7 @@ describe('save button roll modes', () => {
       dc: 27,
       saveType: 'fortitude',
       type: 'poison',
+      traits: ['injury', 'poison'],
     });
   });
 
@@ -99,6 +100,58 @@ describe('save button roll modes', () => {
     expect(rollMock).toHaveBeenCalledWith(expect.objectContaining({
       dc: { value: 27 },
       messageMode: 'blind',
+    }));
+  });
+
+  test('initial save roll includes affliction trait roll options', async () => {
+    document.body.innerHTML = `
+      <div class="message">
+        <button class="affliction-roll-initial-save"
+                data-token-id="${token.id}"
+                data-affliction-id="affliction-1"
+                data-dc="27">
+        </button>
+      </div>
+    `;
+
+    registerSaveButtonHandlers(document.body);
+    document.querySelector('.affliction-roll-initial-save').click();
+
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    expect(rollMock).toHaveBeenCalledWith(expect.objectContaining({
+      extraRollOptions: expect.arrayContaining([
+        'poison',
+        'injury',
+        'item:trait:poison',
+        'item:trait:injury',
+      ]),
+    }));
+  });
+
+  test('stage save roll includes affliction trait roll options', async () => {
+    document.body.innerHTML = `
+      <div class="message">
+        <button class="affliction-roll-save"
+                data-token-id="${token.id}"
+                data-affliction-id="affliction-1"
+                data-dc="27">
+        </button>
+      </div>
+    `;
+
+    registerSaveButtonHandlers(document.body);
+    document.querySelector('.affliction-roll-save').click();
+
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    expect(rollMock).toHaveBeenCalledWith(expect.objectContaining({
+      extraRollOptions: expect.arrayContaining([
+        'poison',
+        'injury',
+        'item:trait:poison',
+        'item:trait:injury',
+      ]),
     }));
   });
 });

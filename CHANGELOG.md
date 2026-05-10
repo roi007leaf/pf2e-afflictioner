@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.4] - 2026-05-10
+
+### Fixed
+
+- **Affliction save roll traits**: Saves rolled from Afflictioner chat cards now include PF2e item trait roll options such as `item:trait:poison`, allowing antidotes and similar conditional bonuses to activate correctly.
+
 ## [3.2.3] - 2026-05-09
 
 ### Fixed

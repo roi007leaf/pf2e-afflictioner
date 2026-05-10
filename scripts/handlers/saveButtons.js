@@ -10,6 +10,20 @@ export function registerSaveButtonHandlers(root) {
   registerReferencedSaveButtons(root);
 }
 
+function getAfflictionTraitRollOptions(affliction) {
+  const traits = [
+    affliction?.type,
+    ...(Array.isArray(affliction?.traits) ? affliction.traits : []),
+  ].filter(trait => typeof trait === 'string' && trait.trim().length > 0)
+    .map(trait => trait.trim().toLowerCase());
+
+  const uniqueTraits = [...new Set(traits)];
+  return [
+    ...uniqueTraits,
+    ...uniqueTraits.map(trait => `item:trait:${trait}`),
+  ];
+}
+
 function registerInitialSaveButtons(root) {
   const rollInitialSaveButtons = root.querySelectorAll('.affliction-roll-initial-save');
   rollInitialSaveButtons.forEach(button => {
@@ -69,6 +83,10 @@ function registerInitialSaveButtons(root) {
       });
 
       const rollOptions = { dc: { value: currentDC } };
+      const traitRollOptions = getAfflictionTraitRollOptions(affliction);
+      if (traitRollOptions.length > 0) {
+        rollOptions.extraRollOptions = traitRollOptions;
+      }
       if (isBlindRoll) {
         rollOptions.messageMode = BLIND_MESSAGE_MODE;
       }
@@ -179,6 +197,10 @@ function registerStageSaveButtons(root) {
       });
 
       const stageRollOptions = { dc: { value: currentDC } };
+      const traitRollOptions = getAfflictionTraitRollOptions(affliction);
+      if (traitRollOptions.length > 0) {
+        stageRollOptions.extraRollOptions = traitRollOptions;
+      }
       if (actor.type === 'npc') {
         stageRollOptions.messageMode = BLIND_MESSAGE_MODE;
       }
@@ -274,6 +296,10 @@ function registerReferencedSaveButtons(root) {
       // Roll the save
       const isNpc = actor.type === 'npc';
       const rollOptions = { dc: { value: dc } };
+      const traitRollOptions = getAfflictionTraitRollOptions(refData);
+      if (traitRollOptions.length > 0) {
+        rollOptions.extraRollOptions = traitRollOptions;
+      }
       if (isNpc) rollOptions.messageMode = BLIND_MESSAGE_MODE;
 
       let rollMessage = null;
