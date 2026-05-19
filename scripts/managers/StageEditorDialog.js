@@ -114,7 +114,7 @@ export class StageEditorDialog extends foundry.applications.api.HandlebarsApplic
 
       let icon = 'fa-link';
       let type = 'uuid';
-      if (uuid.includes('conditionitems') || uuid.includes('sf2e.conditions')) {
+      if (/\.conditionitems\.Item\.|\.conditions\.Item\./.test(uuid)) {
         icon = 'fa-heartbeat';
         type = 'condition';
       } else if (uuid.includes('equipment-effects') || uuid.includes('spell-effects')) {

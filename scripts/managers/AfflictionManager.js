@@ -877,7 +877,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       return;
     }
 
-    await AfflictionService.handleStageSave(token, affliction, 10, 15, true, null, actor);
+    await AfflictionService.adjustStageManually(token, affliction, 1, actor);
     this.render({ force: true });
   }
 
@@ -902,7 +902,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       return;
     }
 
-    await AfflictionService.handleStageSave(token, affliction, 15, 10, true, null, actor);
+    await AfflictionService.adjustStageManually(token, affliction, -1, actor);
     this.render({ force: true });
   }
 

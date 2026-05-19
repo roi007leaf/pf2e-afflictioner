@@ -405,7 +405,19 @@ export class AfflictionEffectBuilder {
   }
 
   static async getConditionUuid(conditionName) {
-    const slug = conditionName.toLowerCase();
+    const slug = this.normalizeConditionSlug(conditionName);
+    if (!slug) return null;
+
+    const conditionManager = game.pf2e?.ConditionManager;
+    if (conditionManager?.getCondition) {
+      try {
+        const condition = conditionManager.getCondition(slug);
+        const uuid = condition?.uuid || condition?.sourceId || condition?._stats?.compendiumSource;
+        if (uuid) return uuid;
+      } catch {
+        // Fall back to compendium index lookup below.
+      }
+    }
 
     const pack = getConditionPack();
     if (!pack) {
@@ -413,10 +425,16 @@ export class AfflictionEffectBuilder {
       return null;
     }
 
-    const index = await pack.getIndex();
+    let index;
+    try {
+      index = await pack.getIndex({ fields: ['system.slug'] });
+    } catch {
+      index = await pack.getIndex();
+    }
+
     const entry = index.find(i =>
-      i.name.toLowerCase() === slug ||
-      (i.system?.slug && i.system.slug === slug)
+      this.normalizeConditionSlug(i.name) === slug ||
+      this.normalizeConditionSlug(i.system?.slug) === slug
     );
 
     if (!entry) {
@@ -425,5 +443,12 @@ export class AfflictionEffectBuilder {
     }
 
     return getConditionUuidFromEntry(pack, entry._id);
+  }
+
+  static normalizeConditionSlug(conditionName) {
+    return String(conditionName || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-');
   }
 }

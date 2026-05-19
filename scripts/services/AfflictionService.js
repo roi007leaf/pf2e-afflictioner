@@ -370,20 +370,23 @@ export class AfflictionService {
 
   static async handleStageSave(token, affliction, saveTotal, dc, isManual = false, dieValue = null, actor = null) {
     actor = actor || token?.actor;
-    const entityName = token?.name || actor?.name || 'Unknown';
+    if (isManual) {
+      const stageDelta = saveTotal < dc ? 1 : -1;
+      return this.adjustStageManually(token, affliction, stageDelta, actor);
+    }
+
     const degree = this.calculateAfflictionDegreeOfSuccess(saveTotal, dc, dieValue, actor, affliction);
-    const combat = game.combat;
 
     let stageChange = 0;
     let newVirulentConsecutiveSuccesses = affliction.virulentConsecutiveSuccesses || 0;
     let showVirulentMessage = false;
 
-    const fastRecoveryChange = !isManual ? FeatsService.getFastRecoveryStageChange(degree, affliction.isVirulent) : null;
+    const fastRecoveryChange = FeatsService.getFastRecoveryStageChange(degree, affliction.isVirulent);
     const fastRecoveryApplied = fastRecoveryChange !== null && FeatsService.hasFastRecovery(actor);
     if (fastRecoveryApplied) {
       stageChange = fastRecoveryChange;
       newVirulentConsecutiveSuccesses = 0;
-    } else if (affliction.isVirulent && !isManual) {
+    } else if (affliction.isVirulent) {
       switch (degree) {
         case DEGREE_OF_SUCCESS.CRITICAL_SUCCESS:
           stageChange = -1;
@@ -425,8 +428,35 @@ export class AfflictionService {
       }
     }
 
-    const minStage = isManual ? 1 : 0;
-    const newStage = Math.max(minStage, affliction.currentStage + stageChange);
+    const newStage = Math.max(0, affliction.currentStage + stageChange);
+
+    return this._applyStageChange(token, affliction, newStage, {
+      actor,
+      newVirulentConsecutiveSuccesses,
+      showVirulentMessage,
+      fastRecoveryApplied,
+    });
+  }
+
+  static async adjustStageManually(token, affliction, stageDelta, actor = null) {
+    const newStage = Math.max(1, affliction.currentStage + stageDelta);
+    return this._applyStageChange(token, affliction, newStage, {
+      actor: actor || token?.actor,
+      newVirulentConsecutiveSuccesses: affliction.virulentConsecutiveSuccesses || 0,
+      showVirulentMessage: false,
+      fastRecoveryApplied: false,
+    });
+  }
+
+  static async _applyStageChange(token, affliction, newStage, {
+    actor = null,
+    newVirulentConsecutiveSuccesses = affliction.virulentConsecutiveSuccesses || 0,
+    showVirulentMessage = false,
+    fastRecoveryApplied = false,
+  } = {}) {
+    actor = actor || token?.actor;
+    const entityName = token?.name || actor?.name || 'Unknown';
+    const combat = game.combat;
 
     if (newStage === 0) {
       const oldStageData = affliction.stages[affliction.currentStage - 1];
