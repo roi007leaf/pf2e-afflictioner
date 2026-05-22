@@ -77,4 +77,16 @@ describe('Affliction Manager template', () => {
     expect(template).toContain('data-uuid="{{uuid}}"');
     expect(template).toContain('{{name}}');
   });
+
+  test('renders separate injection load controls for injection trait weapons', () => {
+    const template = fs.readFileSync(path.resolve('templates/affliction-manager.hbs'), 'utf8');
+
+    expect(template).toContain('hasInjectionTrait');
+    expect(template).toContain('isInjectionLoaded');
+    expect(template).toContain('data-action="addInjection"');
+    expect(template).toContain('data-action="removeInjection"');
+    expect(template).toContain('weapon-control-pair');
+    expect(template).toContain('WEAPON_COATING.LOAD_INJECTION_BTN');
+    expect(template).toContain('WEAPON_COATING.REMOVE_INJECTION');
+  });
 });

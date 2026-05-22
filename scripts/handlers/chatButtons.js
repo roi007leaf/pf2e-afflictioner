@@ -26,6 +26,7 @@ export function onRenderChatMessage(message, html) {
   registerMaxDurationRemovalHandler(root);
   registerDeathConfirmationHandler(root);
   registerApplyWeaponPoisonHandler(root);
+  registerApplyWeaponInjectionHandler(root);
 
   injectCoatWeaponButton(message, root);
 }
@@ -106,6 +107,40 @@ function registerApplyWeaponPoisonHandler(root) {
   });
 }
 
+function registerApplyWeaponInjectionHandler(root) {
+  const btn = root.querySelector('.pf2e-afflictioner-inject-weapon-poison');
+  if (!btn) return;
+
+  btn.addEventListener('click', async () => {
+    const targetTokenId = btn.dataset.targetTokenId;
+    const actorId = btn.dataset.actorId;
+    const weaponId = btn.dataset.weaponId;
+    const afflictionData = JSON.parse(decodeURIComponent(btn.dataset.afflictionData));
+
+    const target = canvas.tokens.get(targetTokenId);
+    if (!target) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.TARGET_NOT_FOUND'));
+      return;
+    }
+
+    if (actorId && weaponId) {
+      const actor = game.actors.get(actorId);
+      if (actor) {
+        const { removeInjection } = await import('../stores/WeaponCoatingStore.js');
+        await removeInjection(actor, weaponId);
+        const { AfflictionManager } = await import('../managers/AfflictionManager.js');
+        if (AfflictionManager.currentInstance) AfflictionManager.currentInstance.render({ force: true });
+      }
+    }
+
+    const { AfflictionService } = await import('../services/AfflictionService.js');
+    await AfflictionService.promptInitialSave(target, afflictionData);
+
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-check"></i> ${game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.SAVE_PROMPTED')}`;
+  });
+}
+
 async function injectCoatWeaponButton(message, root) {
   const speakerActor = message.speaker?.actor ? game.actors.get(message.speaker.actor) : null;
   if (!game.user.isGM && !speakerActor?.isOwner) return;
@@ -141,6 +176,23 @@ async function injectCoatWeaponButton(message, root) {
   btn.type = 'button';
   btn.className = 'pf2e-afflictioner-coat-weapon-btn';
   btn.innerHTML = `<i class="fas fa-flask"></i> ${game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.COAT_WEAPON_BTN')}`;
+
+  const injectBtn = isInjuryPoison && document.createElement('button');
+  if (injectBtn) {
+    injectBtn.type = 'button';
+    injectBtn.className = 'pf2e-afflictioner-load-injection-btn';
+    injectBtn.dataset.itemUuid = itemUuid;
+    injectBtn.innerHTML = `<i class="fas fa-syringe"></i> ${game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.LOAD_INJECTION_BTN')}`;
+    injectBtn.addEventListener('click', async () => {
+      const targetTokenIds = [...game.user.targets].map(t => t.id);
+      const { WeaponCoatingService } = await import('../services/WeaponCoatingService.js');
+      const loaded = await WeaponCoatingService.openInjectionLoadDialog(itemUuid, speakerActorId, speakerTokenId, targetTokenIds);
+      if (loaded) {
+        injectBtn.disabled = true;
+        injectBtn.innerHTML = `<i class="fas fa-check"></i> ${game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.LOAD_INJECTION_DONE')}`;
+      }
+    });
+  }
 
   if (isEnvenom) {
     const actor = speakerActorId ? game.actors.get(speakerActorId) : null;
@@ -186,6 +238,7 @@ async function injectCoatWeaponButton(message, root) {
 
   root.dataset.coatWeaponInjected = 'true';
   container.appendChild(btn);
+  if (injectBtn) container.appendChild(injectBtn);
 }
 
 async function injectItemCardAfflictionButton(message, root) {

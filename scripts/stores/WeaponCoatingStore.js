@@ -10,10 +10,24 @@ export function getCoating(actor, weaponId) {
   return getCoatings(actor)[weaponId] || null;
 }
 
+export function getInjections(actor) {
+  return actor.getFlag(MODULE_ID, 'weaponInjections') || {};
+}
+
+export function getInjection(actor, weaponId) {
+  return getInjections(actor)[weaponId] || null;
+}
+
 export async function addCoating(actor, weaponId, coatingData) {
   const coatings = getCoatings(actor);
   coatings[weaponId] = coatingData;
   await actor.setFlag(MODULE_ID, 'weaponCoatings', coatings);
+}
+
+export async function addInjection(actor, weaponId, injectionData) {
+  const injections = getInjections(actor);
+  injections[weaponId] = injectionData;
+  await actor.setFlag(MODULE_ID, 'weaponInjections', injections);
 }
 
 export async function updateCoating(actor, weaponId, updates) {
@@ -21,6 +35,13 @@ export async function updateCoating(actor, weaponId, updates) {
   if (!coatings[weaponId]) return;
   Object.assign(coatings[weaponId], updates);
   await actor.setFlag(MODULE_ID, 'weaponCoatings', coatings);
+}
+
+export async function updateInjection(actor, weaponId, updates) {
+  const injections = getInjections(actor);
+  if (!injections[weaponId]) return;
+  Object.assign(injections[weaponId], updates);
+  await actor.setFlag(MODULE_ID, 'weaponInjections', injections);
 }
 
 export async function removeCoating(actor, weaponId) {
@@ -37,6 +58,22 @@ export async function removeCoating(actor, weaponId) {
     }
   }
   await actor.unsetFlag(MODULE_ID, `weaponCoatings.${weaponId}`);
+}
+
+export async function removeInjection(actor, weaponId) {
+  const injection = getInjection(actor, weaponId);
+  if (injection?.injectionEffectUuid) {
+    suppressedEffectDeletionUuids.add(injection.injectionEffectUuid);
+    try {
+      const effect = await fromUuid(injection.injectionEffectUuid);
+      if (effect) await effect.delete();
+    } catch (e) {
+      console.warn('PF2e Afflictioner | Could not remove injection effect:', e);
+    } finally {
+      suppressedEffectDeletionUuids.delete(injection.injectionEffectUuid);
+    }
+  }
+  await actor.unsetFlag(MODULE_ID, `weaponInjections.${weaponId}`);
 }
 
 export function isCoatingEffectDeletionSuppressed(effectUuid) {

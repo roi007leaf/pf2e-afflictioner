@@ -7,7 +7,7 @@
     {{/if}}
     <button type="button" class="affliction-manager-tab-btn" data-tab="coatings">
       <i class="fas fa-flask"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.TAB_LABEL"}}
-      {{#if hasAnyCoating}}<span class="coating-badge">{{#each actorsWithWeapons}}{{#each weapons}}{{#if isCoated}}1{{/if}}{{/each}}{{/each}}</span>{{/if}}
+      {{#if hasAnyCoating}}<span class="coating-badge">{{#each actorsWithWeapons}}{{#each weapons}}{{#if isCoated}}1{{else}}{{#if isInjectionLoaded}}1{{/if}}{{/if}}{{/each}}{{/each}}</span>{{/if}}
     </button>
     {{#if canManageAfflictions}}
     <button type="button" class="affliction-manager-tab-btn" data-tab="overrides">
@@ -197,7 +197,7 @@
       {{#each actorsWithWeapons}}
         <div class="coating-actor-section">
           {{#each weapons}}
-            <div class="weapon-row {{#if isCoated}}is-coated{{/if}}">
+            <div class="weapon-row {{#if isCoated}}is-coated{{/if}} {{#if isInjectionLoaded}}is-injection-loaded{{/if}}">
               <div class="weapon-info">
                 <span class="weapon-name"><i class="fas fa-sword"></i> {{weaponName}}</span>
                 <span class="weapon-damage-type">({{damageType}})</span>
@@ -218,8 +218,19 @@
                   </button>
                   {{/each}}
                 {{/if}}
+                {{#if isInjectionLoaded}}
+                  <span class="weapon-injection-label" data-tooltip="{{injectionTooltip}}"><i class="fas fa-syringe"></i> {{injectionName}}</span>
+                  {{#if injectionItemUuid}}
+                  <button type="button" class="coating-info-btn" data-action="openPoisonItem"
+                          data-uuid="{{injectionItemUuid}}"
+                          data-tooltip="Open item sheet">
+                    <i class="fas fa-circle-info"></i>
+                  </button>
+                  {{/if}}
+                {{/if}}
               </div>
               <div class="weapon-coating-controls">
+                {{#if canCoat}}
                 {{#if isCoated}}
                   <button type="button" class="coating-remove-btn" data-action="removeCoating"
                           data-actor-id="{{actorId}}" data-weapon-id="{{weaponId}}"
@@ -233,36 +244,66 @@
                         {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.DOUBLE_POISON_TOGGLE"}}
                       </label>
                       <div class="double-poison-controls">
-                        <select class="coating-poison-select">
-                          <option value="">{{localize "PF2E_AFFLICTIONER.WEAPON_COATING.SELECT_SECOND_POISON"}}</option>
-                          {{#each ../../injuryItems}}
-                            <option value="{{uuid}}">{{name}}{{#if ownerName}} ({{ownerName}}){{/if}}</option>
-                          {{/each}}
-                        </select>
-                        <button type="button" class="coating-apply-btn" data-action="addCoating"
-                                data-actor-id="{{actorId}}" data-weapon-id="{{weaponId}}"
-                                data-double-poison="true"
-                                data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.APPLY_SECOND_COATING_TOOLTIP'}}">
-                          <i class="fas fa-flask"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.ADD_SECOND_POISON_BTN"}}
-                        </button>
+                        <div class="weapon-control-pair">
+                          <select class="coating-poison-select">
+                            <option value="">{{localize "PF2E_AFFLICTIONER.WEAPON_COATING.SELECT_SECOND_POISON"}}</option>
+                            {{#each ../../injuryItems}}
+                              <option value="{{uuid}}">{{name}}{{#if ownerName}} ({{ownerName}}){{/if}}</option>
+                            {{/each}}
+                          </select>
+                          <button type="button" class="coating-apply-btn" data-action="addCoating"
+                                  data-actor-id="{{actorId}}" data-weapon-id="{{weaponId}}"
+                                  data-double-poison="true"
+                                  data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.APPLY_SECOND_COATING_TOOLTIP'}}">
+                            <i class="fas fa-flask"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.ADD_SECOND_POISON_BTN"}}
+                          </button>
+                        </div>
                       </div>
                     {{/if}}
                   {{/if}}
                 {{else}}
                   {{#if ../../hasInjuryItems}}
-                    <select class="coating-poison-select">
-                      <option value="">{{localize "PF2E_AFFLICTIONER.WEAPON_COATING.SELECT_POISON"}}</option>
-                      {{#each ../../injuryItems}}
-                        <option value="{{uuid}}">{{name}}{{#if ownerName}} ({{ownerName}}){{/if}}</option>
-                      {{/each}}
-                    </select>
-                    <button type="button" class="coating-apply-btn" data-action="addCoating"
-                            data-actor-id="{{actorId}}" data-weapon-id="{{weaponId}}"
-                            data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.APPLY_COATING_TOOLTIP'}}">
-                      <i class="fas fa-flask"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.COAT_WEAPON_BTN"}}
-                    </button>
+                    <div class="weapon-control-pair">
+                      <select class="coating-poison-select">
+                        <option value="">{{localize "PF2E_AFFLICTIONER.WEAPON_COATING.SELECT_POISON"}}</option>
+                        {{#each ../../injuryItems}}
+                          <option value="{{uuid}}">{{name}}{{#if ownerName}} ({{ownerName}}){{/if}}</option>
+                        {{/each}}
+                      </select>
+                      <button type="button" class="coating-apply-btn" data-action="addCoating"
+                              data-actor-id="{{actorId}}" data-weapon-id="{{weaponId}}"
+                              data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.APPLY_COATING_TOOLTIP'}}">
+                        <i class="fas fa-flask"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.COAT_WEAPON_BTN"}}
+                      </button>
+                    </div>
                   {{else}}
                     <span class="no-poisons-hint">{{localize "PF2E_AFFLICTIONER.WEAPON_COATING.NO_POISONS_AVAILABLE"}}</span>
+                  {{/if}}
+                {{/if}}
+                {{/if}}
+                {{#if hasInjectionTrait}}
+                  {{#if isInjectionLoaded}}
+                    <button type="button" class="injection-remove-btn" data-action="removeInjection"
+                            data-actor-id="{{actorId}}" data-weapon-id="{{weaponId}}"
+                            data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.REMOVE_INJECTION'}}">
+                      <i class="fas fa-times"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.REMOVE_INJECTION"}}
+                    </button>
+                  {{else}}
+                    {{#if ../../hasInjuryItems}}
+                      <div class="weapon-control-pair">
+                        <select class="injection-poison-select">
+                          <option value="">{{localize "PF2E_AFFLICTIONER.WEAPON_COATING.SELECT_INJECTION_POISON"}}</option>
+                          {{#each ../../injuryItems}}
+                            <option value="{{uuid}}">{{name}}{{#if ownerName}} ({{ownerName}}){{/if}}</option>
+                          {{/each}}
+                        </select>
+                        <button type="button" class="injection-apply-btn" data-action="addInjection"
+                                data-actor-id="{{actorId}}" data-weapon-id="{{weaponId}}"
+                                data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.LOAD_INJECTION_TOOLTIP'}}">
+                          <i class="fas fa-syringe"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.LOAD_INJECTION_BTN"}}
+                        </button>
+                      </div>
+                    {{/if}}
                   {{/if}}
                 {{/if}}
               </div>

@@ -61,6 +61,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       counteractAffliction: AfflictionManager.counteractAffliction,
       removeCoating: AfflictionManager.removeCoating,
       addCoating: AfflictionManager.addCoating,
+      removeInjection: AfflictionManager.removeInjection,
+      addInjection: AfflictionManager.addInjection,
       openPoisonItem: AfflictionManager.openPoisonItem,
       saveSourceImmunityBypassRule: AfflictionManager.saveSourceImmunityBypassRule,
       openSourceRuleAffliction: AfflictionManager.openSourceRuleAffliction,
@@ -432,23 +434,30 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       const actor = controlledToken.actor;
       const weapons = (actor.itemTypes?.weapon || []).filter(w => {
         const dt = w.system?.damage?.damageType;
-        return dt === 'piercing' || dt === 'slashing';
+        return dt === 'piercing' || dt === 'slashing' || WeaponCoatingService._isInjectionWeapon(w);
       });
       if (weapons.length) {
         const entry = { actorId: actor.id, actorName: actor.name, weapons: [] };
         for (const weapon of weapons) {
           const coating = WeaponCoatingStore.getCoating(actor, weapon.id);
+          const injection = WeaponCoatingStore.getInjection(actor, weapon.id);
           entry.weapons.push({
             actorId: actor.id,
             weaponId: weapon.id,
             weaponName: weapon.name,
             damageType: weapon.system?.damage?.damageType || 'unknown',
+            canCoat: weapon.system?.damage?.damageType === 'piercing' || weapon.system?.damage?.damageType === 'slashing',
+            hasInjectionTrait: WeaponCoatingService._isInjectionWeapon(weapon),
             isCoated: !!coating,
             poisonName: coating?.poisonName || null,
             poisonItemUuid: coating?.poisonItemUuid || null,
             componentPoisonLinks: coating ? this.constructor._getCoatingComponentLinks(coating) : [],
             coatingTooltip: coating ? this.constructor._formatCoatingTooltip(coating.afflictionData) : null,
-            canAddDoublePoison: WeaponCoatingService._canAddSecondPoison(actor, coating)
+            canAddDoublePoison: WeaponCoatingService._canAddSecondPoison(actor, coating),
+            isInjectionLoaded: !!injection,
+            injectionName: injection?.poisonName || null,
+            injectionItemUuid: injection?.poisonItemUuid || null,
+            injectionTooltip: injection ? this.constructor._formatCoatingTooltip(injection.afflictionData) : null,
           });
         }
         actorsWithWeapons.push(entry);
@@ -467,7 +476,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       }
     }
 
-    const hasAnyCoating = actorsWithWeapons.some(a => a.weapons.some(w => w.isCoated));
+    const hasAnyCoating = actorsWithWeapons.some(a => a.weapons.some(w => w.isCoated || w.isInjectionLoaded));
     const sourceRuleActor = this.filterActorId
       ? game.actors.get(this.filterActorId) || null
       : controlledToken?.actor || null;
@@ -981,6 +990,20 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     this.render({ force: true });
   }
 
+  static async removeInjection(_event, button) {
+    const actorId = button.dataset.actorId;
+    const weaponId = button.dataset.weaponId;
+    const actor = game.actors.get(actorId);
+    if (!actor) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.ACTOR_NOT_FOUND'));
+      return;
+    }
+    const removed = await WeaponCoatingService.removeInjectionWithPermission(actor, weaponId);
+    if (!removed) return;
+    ui.notifications.info(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_REMOVE_SUCCESS'));
+    this.render({ force: true });
+  }
+
   static async addCoating(_event, button) {
     const actorId = button.dataset.actorId;
     const weaponId = button.dataset.weaponId;
@@ -1051,6 +1074,73 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     }
 
     ui.notifications.info(game.i18n.format('PF2E_AFFLICTIONER.WEAPON_COATING.COATED', { weaponName, poisonName: finalAfflictionData.name }));
+    this.render({ force: true });
+  }
+
+  static async addInjection(_event, button) {
+    const actorId = button.dataset.actorId;
+    const weaponId = button.dataset.weaponId;
+    const row = button.closest('.weapon-row');
+    const select = row?.querySelector('.injection-poison-select');
+    const itemUuid = select?.value;
+
+    if (!itemUuid) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.SELECT_FIRST'));
+      return;
+    }
+
+    const actor = game.actors.get(actorId);
+    if (!actor) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.ACTOR_NOT_FOUND'));
+      return;
+    }
+
+    const weapon = actor.items.get(weaponId);
+    if (!WeaponCoatingService._isInjectionWeapon(weapon)) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.NO_INJECTION_WEAPONS'));
+      return;
+    }
+
+    const item = await fromUuid(itemUuid);
+    if (!item) {
+      ui.notifications.error(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.ITEM_LOAD_ERROR'));
+      return;
+    }
+
+    const finalAfflictionData = WeaponCoatingService._getPreparedInjectionAfflictionData(actor, item);
+    if (!finalAfflictionData) {
+      ui.notifications.error(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.PARSE_ERROR'));
+      return;
+    }
+
+    const existing = WeaponCoatingStore.getInjection(actor, weaponId);
+    if (existing) {
+      const confirmed = await foundry.applications.api.DialogV2.confirm({
+        title: game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_REPLACE_TITLE'),
+        content: `<p>${game.i18n.format('PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_REPLACE_CONTENT', { weaponName: weapon.name, existingPoison: existing.poisonName })}</p>`,
+        defaultYes: false
+      });
+      if (!confirmed) return;
+    }
+
+    const poisonImg = item.img || null;
+    const applied = await WeaponCoatingService._applyInjectionWithPermission(actor, weaponId, {
+      poisonItemUuid: itemUuid,
+      poisonName: finalAfflictionData.name,
+      weaponName: weapon.name,
+      afflictionData: finalAfflictionData,
+      poisonImg
+    });
+    if (!applied) return;
+
+    const quantity = item.system?.quantity ?? 1;
+    if (quantity <= 1) {
+      await item.delete();
+    } else {
+      await item.update({ 'system.quantity': quantity - 1 });
+    }
+
+    ui.notifications.info(game.i18n.format('PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_LOADED', { weaponName: weapon.name, poisonName: finalAfflictionData.name }));
     this.render({ force: true });
   }
 

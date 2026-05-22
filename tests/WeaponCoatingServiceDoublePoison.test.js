@@ -286,4 +286,16 @@ describe('WeaponCoatingService Double Poison support', () => {
     expect(WeaponCoatingService._isPoisonLowEnoughForDoublePoison(actor, poison({ level: 4 }))).toBe(true);
     expect(WeaponCoatingService._isPoisonLowEnoughForDoublePoison(actor, poison({ level: 5 }))).toBe(false);
   });
+
+  test('detects injection trait when PF2e provides weapon traits as a Set', () => {
+    const weapon = {
+      system: {
+        traits: {
+          value: new Set(['injection', 'magical']),
+        },
+      },
+    };
+
+    expect(WeaponCoatingService._isInjectionWeapon(weapon)).toBe(true);
+  });
 });

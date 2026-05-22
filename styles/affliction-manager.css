@@ -305,6 +305,10 @@
   border-left-color: var(--afflictioner-poison);
 }
 
+.pf2e-afflictioner .weapon-row.is-injection-loaded:not(.is-coated) {
+  border-left-color: #5a9c8a;
+}
+
 .pf2e-afflictioner .weapon-info {
   display: flex;
   align-items: center;
@@ -332,8 +336,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 0.82em;
-  color: #7dbf4a;
   white-space: nowrap;
+  color: #7dbf4a;
+}
+
+.pf2e-afflictioner .weapon-injection-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.82em;
+  white-space: nowrap;
+  color: #7dbfb0;
 }
 
 .pf2e-afflictioner .coating-info-btn {
@@ -357,12 +370,21 @@
 
 .pf2e-afflictioner .weapon-coating-controls {
   display: flex;
-  flex: 1 1 260px;
+  flex: 8 1 520px;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pf2e-afflictioner .weapon-control-pair {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 auto;
   gap: 6px;
   min-width: 0;
+  white-space: nowrap;
 }
 
 .pf2e-afflictioner .double-poison-checkbox {
@@ -392,19 +414,24 @@
   display: flex;
 }
 
-.pf2e-afflictioner .weapon-coating-controls .coating-poison-select {
+.pf2e-afflictioner .weapon-coating-controls .coating-poison-select,
+.pf2e-afflictioner .weapon-coating-controls .injection-poison-select {
+  flex: 1 1 150px;
   font-size: 0.82em;
   padding: 3px 6px;
   background: var(--afflictioner-bg-medium);
   border: 1px solid var(--afflictioner-border);
   border-radius: 4px;
   color: var(--afflictioner-text-light);
-  min-width: 140px;
+  min-width: 130px;
+  width: clamp(130px, 18vw, 180px);
   max-width: 180px;
 }
 
 .pf2e-afflictioner .coating-apply-btn,
-.pf2e-afflictioner .coating-remove-btn {
+.pf2e-afflictioner .coating-remove-btn,
+.pf2e-afflictioner .injection-apply-btn,
+.pf2e-afflictioner .injection-remove-btn {
   padding: 4px 10px;
   font-size: 0.82em;
   border: 1px solid var(--afflictioner-border);
@@ -412,6 +439,7 @@
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s;
+  flex: 0 0 auto;
 }
 
 .pf2e-afflictioner .coating-apply-btn {
@@ -423,12 +451,27 @@
   background: #5a9c32;
 }
 
+.pf2e-afflictioner .injection-apply-btn {
+  background: #4b8c7b;
+  color: #fff;
+}
+
+.pf2e-afflictioner .injection-apply-btn:hover {
+  background: #5aa693;
+}
+
 .pf2e-afflictioner .coating-remove-btn {
   background: var(--afflictioner-bg-dark);
   color: var(--afflictioner-text-light);
 }
 
-.pf2e-afflictioner .coating-remove-btn:hover {
+.pf2e-afflictioner .injection-remove-btn {
+  background: var(--afflictioner-bg-dark);
+  color: var(--afflictioner-text-light);
+}
+
+.pf2e-afflictioner .coating-remove-btn:hover,
+.pf2e-afflictioner .injection-remove-btn:hover {
   background: #7c2a2a;
 }
 

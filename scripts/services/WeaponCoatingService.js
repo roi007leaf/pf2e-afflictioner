@@ -149,6 +149,143 @@ export class WeaponCoatingService {
     return true;
   }
 
+  static async openInjectionLoadDialog(itemUuid, speakerActorId, speakerTokenId, targetTokenIds = []) {
+    const i = game.i18n;
+    const item = await fromUuid(itemUuid);
+    if (!item) {
+      ui.notifications.error(i.localize(`${K}.ITEM_LOAD_ERROR`));
+      return;
+    }
+
+    const afflictionData = AfflictionParser.parseFromItem(item);
+    if (!afflictionData) {
+      ui.notifications.error(i.localize(`${K}.PARSE_ERROR`));
+      return;
+    }
+
+    const allWeapons = this._collectWeapons(speakerActorId, speakerTokenId, targetTokenIds);
+    const weapons = allWeapons.filter(w => this._isInjectionWeapon(w));
+
+    if (!weapons.length) {
+      ui.notifications.warn(i.localize(`${K}.NO_INJECTION_WEAPONS`));
+      return;
+    }
+
+    const groups = [];
+    const groupIndex = new Map();
+    weapons.forEach((w, idx) => {
+      if (!groupIndex.has(w.actorId)) {
+        groupIndex.set(w.actorId, groups.length);
+        groups.push({ actorName: w.actorName, weapons: [] });
+      }
+      groups[groupIndex.get(w.actorId)].weapons.push({ ...w, idx });
+    });
+
+    const sections = groups.map(g => `
+      <div class="wcs-section">
+        <h3 class="wcs-section-title">${g.actorName}</h3>
+        <div class="wcs-grid">
+          ${g.weapons.map(w => `
+            <div class="wcs-card" data-index="${w.idx}">
+              <img src="${w.img}" alt="${w.weaponName}" />
+              <div class="wcs-card-info">
+                <span class="wcs-card-name">${w.weaponName}</span>
+                <span class="wcs-card-damage">${i.localize(`${K}.INJECTION_TRAIT_LABEL`)}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+
+    const content = `
+      <p class="wcs-label">${i.format(`${K}.INJECTION_DIALOG_SELECT_LABEL`, { poisonName: `<strong>${afflictionData.name}</strong>` })}</p>
+      ${sections}
+      <p class="wcs-hint">${i.localize(`${K}.INJECTION_DIALOG_HINT`)}</p>
+    `;
+
+    const selected = await new Promise((resolve) => {
+      let hookId;
+
+      hookId = Hooks.on('renderDialogV2', (_app, element) => {
+        if (!element.querySelector('.wcs-grid')) return;
+        Hooks.off('renderDialogV2', hookId);
+
+        element.querySelectorAll('.wcs-card').forEach((card) => {
+          card.addEventListener('click', async () => {
+            const index = parseInt(card.dataset.index);
+            element.querySelectorAll('.wcs-card').forEach(c => c.classList.remove('wcs-selected'));
+            card.classList.add('wcs-selected');
+            resolve(weapons[index]);
+            await _app.close();
+          });
+        });
+      });
+
+      foundry.applications.api.DialogV2.wait({
+        window: { title: i.localize(`${K}.INJECTION_DIALOG_TITLE`) },
+        content,
+        buttons: [{ action: 'cancel', label: i.localize('PF2E_AFFLICTIONER.DIALOG.CANCEL'), icon: 'fas fa-times' }],
+        rejectClose: false
+      }).then(() => {
+        Hooks.off('renderDialogV2', hookId);
+        resolve(null);
+      }).catch(() => {
+        Hooks.off('renderDialogV2', hookId);
+        resolve(null);
+      });
+    });
+
+    if (!selected) return;
+
+    const actor = game.actors.get(selected.actorId);
+    if (!actor) {
+      ui.notifications.error(i.localize(`${K}.ACTOR_NOT_FOUND`));
+      return;
+    }
+
+    const existing = WeaponCoatingStore.getInjection(actor, selected.weaponId);
+    if (existing) {
+      const confirmed = await foundry.applications.api.DialogV2.confirm({
+        title: i.localize(`${K}.INJECTION_REPLACE_TITLE`),
+        content: `<p>${i.format(`${K}.INJECTION_REPLACE_CONTENT`, { weaponName: selected.weaponName, existingPoison: existing.poisonName })}</p>`,
+        defaultYes: false
+      });
+      if (!confirmed) return;
+    }
+
+    const finalAfflictionData = this._getPreparedInjectionAfflictionData(actor, item);
+    if (!finalAfflictionData) {
+      ui.notifications.error(i.localize(`${K}.PARSE_ERROR`));
+      return;
+    }
+
+    const applied = await this._applyInjectionWithPermission(actor, selected.weaponId, {
+      poisonItemUuid: itemUuid,
+      poisonName: finalAfflictionData.name,
+      weaponName: selected.weaponName,
+      afflictionData: finalAfflictionData,
+      poisonImg: item.img || null
+    });
+    if (!applied) return;
+
+    const quantity = item.system?.quantity ?? 1;
+    if (quantity <= 1) {
+      await item.delete();
+    } else {
+      await item.update({ 'system.quantity': quantity - 1 });
+    }
+
+    ui.notifications.info(i.format(`${K}.INJECTION_LOADED`, { weaponName: selected.weaponName, poisonName: finalAfflictionData.name }));
+
+    const { AfflictionManager } = await import('../managers/AfflictionManager.js');
+    if (AfflictionManager.currentInstance) {
+      AfflictionManager.currentInstance.render({ force: true });
+    }
+
+    return true;
+  }
+
   /**
    * Opens the coat-weapon dialog for a Versatile Vial (Field Vials feature).
    * Instead of an affliction, stores direct damage data on the coating.
@@ -725,6 +862,84 @@ export class WeaponCoatingService {
     return this._withOriginActor(actor, this._applyToxicologistSwap(actor, afflictionData));
   }
 
+  static async createInjectionEffect(actor, weaponName, poisonName, poisonImg = null) {
+    const i = game.i18n;
+    const effectName = i.format(`${K}.INJECTION_EFFECT_NAME`, { poisonName, weaponName });
+    const effectDesc = i.format(`${K}.INJECTION_EFFECT_DESCRIPTION`, { poisonName, weaponName });
+
+    const effectData = {
+      type: 'effect',
+      name: effectName,
+      img: poisonImg || 'icons/svg/poison.svg',
+      system: {
+        description: { value: `<p>${effectDesc}</p>` },
+        tokenIcon: { show: true },
+        duration: { value: -1, unit: 'unlimited', expiry: null, sustained: false },
+        badge: null,
+        rules: [],
+        slug: `injection-${poisonName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        unidentified: false
+      },
+      flags: {
+        [MODULE_ID]: {
+          isInjectionEffect: true,
+          weaponName,
+          poisonName
+        }
+      }
+    };
+
+    try {
+      if (!actor.createEmbeddedDocuments) return null;
+      const [created] = await actor.createEmbeddedDocuments('Item', [effectData]);
+      return created?.uuid ?? null;
+    } catch (error) {
+      console.error('PF2e Afflictioner | Error creating injection effect:', error);
+      return null;
+    }
+  }
+
+  static _getPreparedInjectionAfflictionData(actor, item) {
+    return this._getPreparedCoatingAfflictionData(actor, item);
+  }
+
+  static _getWeaponTraits(weapon) {
+    const traits = weapon?.traits || weapon?.system?.traits?.value || [];
+    return this._normalizeTraitCollection(traits);
+  }
+
+  static _normalizeTraitCollection(traits) {
+    if (!traits) return [];
+    if (Array.isArray(traits)) return traits;
+    if (typeof traits === 'string') return [traits];
+    if (traits.value && traits.value !== traits) return this._normalizeTraitCollection(traits.value);
+
+    if (typeof traits[Symbol.iterator] === 'function') {
+      return Array.from(traits)
+        .map(trait => this._normalizeTraitValue(trait))
+        .filter(Boolean);
+    }
+
+    if (typeof traits === 'object') {
+      return Object.entries(traits)
+        .map(([key, value]) => (value === true ? key : this._normalizeTraitValue(value)))
+        .filter(Boolean);
+    }
+
+    return [];
+  }
+
+  static _normalizeTraitValue(trait) {
+    if (!trait) return null;
+    if (typeof trait === 'string') return trait;
+    if (Array.isArray(trait)) return this._normalizeTraitValue(trait[0]);
+    return trait.slug || trait.value || trait.id || null;
+  }
+
+  static _isInjectionWeapon(weapon) {
+    return this._getWeaponTraits(weapon).includes('injection');
+  }
+
   static async _chooseDoublePoisonSaveType(firstPoison, secondPoison) {
     const firstSave = firstPoison?.saveType || 'fortitude';
     const secondSave = secondPoison?.saveType || 'fortitude';
@@ -953,10 +1168,44 @@ export class WeaponCoatingService {
     return true;
   }
 
+  static async _applyInjectionToActor(actorId, weaponId, injectionParams) {
+    const actor = game.actors.get(actorId);
+    if (!actor) return false;
+
+    const existing = WeaponCoatingStore.getInjection(actor, weaponId);
+    if (existing) {
+      await WeaponCoatingStore.removeInjection(actor, weaponId);
+    }
+
+    const { poisonItemUuid, poisonName, weaponName, afflictionData, poisonImg } = injectionParams;
+
+    await WeaponCoatingStore.addInjection(actor, weaponId, {
+      poisonItemUuid,
+      poisonName,
+      weaponName,
+      afflictionData,
+      loadedTimestamp: game.time?.worldTime ?? null,
+    });
+
+    const injectionEffectUuid = await this.createInjectionEffect(actor, weaponName, poisonName, poisonImg);
+    if (injectionEffectUuid) {
+      await WeaponCoatingStore.updateInjection(actor, weaponId, { injectionEffectUuid });
+    }
+
+    return true;
+  }
+
   static async _removeCoatingFromActor(actorId, weaponId) {
     const actor = game.actors.get(actorId);
     if (!actor) return false;
     await WeaponCoatingStore.removeCoating(actor, weaponId);
+    return true;
+  }
+
+  static async _removeInjectionFromActor(actorId, weaponId) {
+    const actor = game.actors.get(actorId);
+    if (!actor) return false;
+    await WeaponCoatingStore.removeInjection(actor, weaponId);
     return true;
   }
 
@@ -975,6 +1224,18 @@ export class WeaponCoatingService {
     return false;
   }
 
+  static async _applyInjectionWithPermission(actor, weaponId, injectionParams) {
+    if (actor.isOwner) {
+      return this._applyInjectionToActor(actor.id, weaponId, injectionParams);
+    }
+    const { SocketService } = await import('./SocketService.js');
+    if (SocketService.socket) {
+      return SocketService.requestApplyWeaponInjection(actor.id, weaponId, injectionParams);
+    }
+    console.error('PF2e Afflictioner | socketlib is required for loading injection weapons on unowned actors');
+    return false;
+  }
+
   static async removeCoatingWithPermission(actor, weaponId) {
     if (actor.isOwner) {
       return this._removeCoatingFromActor(actor.id, weaponId);
@@ -984,6 +1245,18 @@ export class WeaponCoatingService {
       return SocketService.requestRemoveWeaponCoating(actor.id, weaponId);
     }
     console.error('PF2e Afflictioner | socketlib is required for removing coatings on unowned actors');
+    return false;
+  }
+
+  static async removeInjectionWithPermission(actor, weaponId) {
+    if (actor.isOwner) {
+      return this._removeInjectionFromActor(actor.id, weaponId);
+    }
+    const { SocketService } = await import('./SocketService.js');
+    if (SocketService.socket) {
+      return SocketService.requestRemoveWeaponInjection(actor.id, weaponId);
+    }
+    console.error('PF2e Afflictioner | socketlib is required for removing injection loads on unowned actors');
     return false;
   }
 
@@ -1002,6 +1275,7 @@ export class WeaponCoatingService {
           actorName: actor.name,
           weaponId: weapon.id,
           weaponName: weapon.name,
+          traits: weapon.system?.traits?.value || [],
           damageType: weapon.system?.damage?.damageType || 'unknown',
           img: weapon.img || 'icons/svg/sword.svg'
         });

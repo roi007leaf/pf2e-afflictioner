@@ -153,6 +153,8 @@ export class SocketService {
     this.socket.register('gmPromptCoatingDuration', this.gmPromptCoatingDuration.bind(this));
     this.socket.register('gmApplyWeaponCoating', this.gmApplyWeaponCoating.bind(this));
     this.socket.register('gmRemoveWeaponCoating', this.gmRemoveWeaponCoating.bind(this));
+    this.socket.register('gmApplyWeaponInjection', this.gmApplyWeaponInjection.bind(this));
+    this.socket.register('gmRemoveWeaponInjection', this.gmRemoveWeaponInjection.bind(this));
 
     Hooks.on('pf2e.preReroll', this.onPf2ePreReroll.bind(this));
     Hooks.on('pf2e.reroll', this.onPf2eReroll.bind(this));
@@ -186,6 +188,38 @@ export class SocketService {
       return await this.socket.executeAsGM('gmRemoveWeaponCoating', actorId, weaponId);
     } catch (error) {
       console.error('PF2e Afflictioner | Error requesting weapon coating removal:', error);
+      return false;
+    }
+  }
+
+  static async gmApplyWeaponInjection(actorId, weaponId, injectionParams) {
+    if (!game.user.isGM) return false;
+    const { WeaponCoatingService } = await import('./WeaponCoatingService.js');
+    return WeaponCoatingService._applyInjectionToActor(actorId, weaponId, injectionParams);
+  }
+
+  static async requestApplyWeaponInjection(actorId, weaponId, injectionParams) {
+    if (!this.socket) return false;
+    try {
+      return await this.socket.executeAsGM('gmApplyWeaponInjection', actorId, weaponId, injectionParams);
+    } catch (error) {
+      console.error('PF2e Afflictioner | Error requesting weapon injection load:', error);
+      return false;
+    }
+  }
+
+  static async gmRemoveWeaponInjection(actorId, weaponId) {
+    if (!game.user.isGM) return false;
+    const { WeaponCoatingService } = await import('./WeaponCoatingService.js');
+    return WeaponCoatingService._removeInjectionFromActor(actorId, weaponId);
+  }
+
+  static async requestRemoveWeaponInjection(actorId, weaponId) {
+    if (!this.socket) return false;
+    try {
+      return await this.socket.executeAsGM('gmRemoveWeaponInjection', actorId, weaponId);
+    } catch (error) {
+      console.error('PF2e Afflictioner | Error requesting weapon injection removal:', error);
       return false;
     }
   }

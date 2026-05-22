@@ -3,6 +3,7 @@ import { AfflictionParser } from '../services/AfflictionParser.js';
 import { AfflictionItemResolver } from '../services/AfflictionItemResolver.js';
 import * as AfflictionStore from '../stores/AfflictionStore.js';
 import * as WeaponCoatingStore from '../stores/WeaponCoatingStore.js';
+import { WeaponCoatingService } from '../services/WeaponCoatingService.js';
 import { DEGREE_OF_SUCCESS, MODULE_ID } from '../constants.js';
 import { getSystemFlags } from '../systemCompat.js';
 import { FeatsService } from '../services/FeatsService.js';
@@ -150,6 +151,76 @@ async function rollStickyPoisonFlatCheck(actor, weapon, coating, dc, gmWhisper) 
   return success;
 }
 
+async function resolveAttackTargets(flags) {
+  const targets = [];
+  const pf2eTarget = flags.context?.target;
+  if (pf2eTarget?.token) {
+    try {
+      const tokenDoc = await fromUuid(pf2eTarget.token);
+      if (tokenDoc) {
+        const canvasToken = canvas.tokens.get(tokenDoc.id);
+        if (canvasToken) targets.push(canvasToken);
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (!targets.length) {
+    targets.push(...game.user.targets);
+  }
+
+  return targets;
+}
+
+async function postInjectionHitPrompt(actor, weapon, injection, flags, gmWhisper) {
+  const i = game.i18n;
+  const K = 'PF2E_AFFLICTIONER.WEAPON_COATING';
+  const targets = await resolveAttackTargets(flags);
+  const actorName = actor.name;
+  const weaponName = weapon.name;
+  const poisonName = injection.poisonName;
+
+  let buttonAfflictionData = {
+    ...injection.afflictionData,
+    originActorUuid: injection.afflictionData.originActorUuid || actor.uuid || null,
+    originActorId: injection.afflictionData.originActorId || actor.id || null,
+  };
+
+  if (FeatsService.hasPerniciousPoison(actor) && injection.afflictionData.level > 0) {
+    buttonAfflictionData = { ...buttonAfflictionData, perniciousPoisonLevel: injection.afflictionData.level };
+  }
+
+  if (targets.length) {
+    for (const target of targets) {
+      await ChatMessage.create({
+        content: `
+          <div class="pf2e-afflictioner-save-request pf2e-afflictioner-injection-request">
+            <h3><i class="fas fa-syringe"></i> ${i.format(`${K}.INJECTION_HIT_TITLE`, { poisonName })}</h3>
+            <p>${i.format(`${K}.INJECTION_HIT_DESC`, { actorName, targetName: target.name, weaponName })}</p>
+            <button class="pf2e-afflictioner-inject-weapon-poison"
+                    data-target-token-id="${target.id}"
+                    data-actor-id="${actor.id}"
+                    data-weapon-id="${weapon.id}"
+                    data-affliction-data="${encodeURIComponent(JSON.stringify(buttonAfflictionData))}">
+              <i class="fas fa-syringe"></i> ${i.format(`${K}.INJECTION_APPLY_BTN`, { targetName: target.name })}
+            </button>
+          </div>`,
+        whisper: gmWhisper
+      });
+    }
+    return;
+  }
+
+  await ChatMessage.create({
+    content: `
+      <div class="pf2e-afflictioner-save-request pf2e-afflictioner-injection-request">
+        <h3><i class="fas fa-syringe"></i> ${i.format(`${K}.INJECTION_HIT_TITLE`, { poisonName })}</h3>
+        <p>${i.format(`${K}.INJECTION_NO_TARGET`, { actorName, weaponName })}</p>
+        <p><em>${i.localize(`${K}.INJECTION_NO_TARGET_HINT`)}</em></p>
+      </div>`,
+    whisper: gmWhisper
+  });
+}
+
 async function handleAttackRoll(_message, flags) {
   const originUuid = flags.origin?.uuid;
   if (!originUuid) return;
@@ -165,6 +236,19 @@ async function handleAttackRoll(_message, flags) {
   const actor = weapon.parent;
   if (!actor) return;
 
+  const outcome = flags.context?.outcome;
+  if (!outcome) return;
+
+  const gmWhisper = game.users.filter(u => u.isGM).map(u => u.id);
+  const injection = WeaponCoatingStore.getInjection(actor, weapon.id);
+  if (
+    injection &&
+    WeaponCoatingService._isInjectionWeapon(weapon) &&
+    (outcome === DEGREE_OF_SUCCESS.SUCCESS || outcome === DEGREE_OF_SUCCESS.CRITICAL_SUCCESS)
+  ) {
+    await postInjectionHitPrompt(actor, weapon, injection, flags, gmWhisper);
+  }
+
   const coating = WeaponCoatingStore.getCoating(actor, weapon.id);
   if (!coating) {
     if (actor.type === 'hazard') {
@@ -173,14 +257,9 @@ async function handleAttackRoll(_message, flags) {
     return;
   }
 
-  const outcome = flags.context?.outcome;
-  if (!outcome) return;
-
   const weaponName = weapon.name;
   const actorName = actor.name;
   const poisonName = coating.poisonName;
-
-  const gmWhisper = game.users.filter(u => u.isGM).map(u => u.id);
 
   if (outcome === DEGREE_OF_SUCCESS.SUCCESS || outcome === DEGREE_OF_SUCCESS.CRITICAL_SUCCESS) {
     // Direct damage coatings (Field Vials) — roll bonus damage, no save
@@ -240,22 +319,7 @@ async function handleAttackRoll(_message, flags) {
       const i = game.i18n;
       const K = 'PF2E_AFFLICTIONER.WEAPON_COATING';
 
-      // Extract target from PF2e message flags (reliable regardless of who processes the hook)
-      const targets = [];
-      const pf2eTarget = flags.context?.target;
-      if (pf2eTarget?.token) {
-        try {
-          const tokenDoc = await fromUuid(pf2eTarget.token);
-          if (tokenDoc) {
-            const canvasToken = canvas.tokens.get(tokenDoc.id);
-            if (canvasToken) targets.push(canvasToken);
-          }
-        } catch { /* ignore */ }
-      }
-      // Fallback to current user's targets
-      if (!targets.length) {
-        targets.push(...game.user.targets);
-      }
+      const targets = await resolveAttackTargets(flags);
 
       if (targets.length) {
         for (const target of targets) {
