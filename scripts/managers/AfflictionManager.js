@@ -432,6 +432,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
 
     if (controlledToken?.actor) {
       const actor = controlledToken.actor;
+      const storageTarget = controlledToken.document?.actorLink ? actor : controlledToken;
       const weapons = WeaponCoatingService._getCoatableWeaponItems(actor).filter(w => {
         const dt = WeaponCoatingService._getWeaponDamageType(w);
         return dt === 'piercing' || dt === 'slashing' || WeaponCoatingService._isInjectionWeapon(w);
@@ -440,8 +441,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
         const actorUuid = WeaponCoatingService._getActorReference(actor);
         const entry = { actorId: actor.id, actorUuid, tokenId: controlledToken.id, actorName: controlledToken.name || actor.name, weapons: [] };
         for (const weapon of weapons) {
-          const coating = WeaponCoatingStore.getCoating(actor, weapon.id);
-          const injection = WeaponCoatingStore.getInjection(actor, weapon.id);
+          const coating = WeaponCoatingStore.getCoating(storageTarget, weapon.id);
+          const injection = WeaponCoatingStore.getInjection(storageTarget, weapon.id);
           entry.weapons.push({
             actorId: actor.id,
             actorUuid,
@@ -722,7 +723,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
 
   static async _resolveCoatingActor(button) {
     const tokenId = button.dataset.tokenId;
-    const token = tokenId ? canvas?.tokens?.get(tokenId) : null;
+    const token = tokenId ? globalThis.canvas?.tokens?.get?.(tokenId) : null;
     if (token?.actor) return token.actor;
 
     const actorUuid = button.dataset.actorUuid;
@@ -737,6 +738,15 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
 
     const actorId = button.dataset.actorId;
     return actorId ? game.actors.get(actorId) : null;
+  }
+
+  static async _resolveCoatingTarget(button) {
+    const tokenId = button.dataset.tokenId;
+    const token = tokenId ? globalThis.canvas?.tokens?.get?.(tokenId) : null;
+    if (token?.document?.actorLink === false) return token;
+    if (token?.actor) return token.actor;
+
+    return this._resolveCoatingActor(button);
   }
 
   static async removeAffliction(_event, button) {
@@ -1000,12 +1010,13 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
 
   static async removeCoating(_event, button) {
     const weaponId = button.dataset.weaponId;
-    const actor = await AfflictionManager._resolveCoatingActor(button);
+    const target = await AfflictionManager._resolveCoatingTarget(button);
+    const actor = WeaponCoatingService._getActorFromTarget(target);
     if (!actor) {
       ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.ACTOR_NOT_FOUND'));
       return;
     }
-    const removed = await WeaponCoatingService.removeCoatingWithPermission(actor, weaponId);
+    const removed = await WeaponCoatingService.removeCoatingWithPermission(target, weaponId);
     if (!removed) return;
     ui.notifications.info(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.REMOVE_SUCCESS'));
     this.render({ force: true });
@@ -1013,12 +1024,13 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
 
   static async removeInjection(_event, button) {
     const weaponId = button.dataset.weaponId;
-    const actor = await AfflictionManager._resolveCoatingActor(button);
+    const target = await AfflictionManager._resolveCoatingTarget(button);
+    const actor = WeaponCoatingService._getActorFromTarget(target);
     if (!actor) {
       ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.ACTOR_NOT_FOUND'));
       return;
     }
-    const removed = await WeaponCoatingService.removeInjectionWithPermission(actor, weaponId);
+    const removed = await WeaponCoatingService.removeInjectionWithPermission(target, weaponId);
     if (!removed) return;
     ui.notifications.info(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_REMOVE_SUCCESS'));
     this.render({ force: true });
@@ -1035,7 +1047,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       return;
     }
 
-    const actor = await AfflictionManager._resolveCoatingActor(button);
+    const target = await AfflictionManager._resolveCoatingTarget(button);
+    const actor = WeaponCoatingService._getActorFromTarget(target);
     if (!actor) {
       ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.ACTOR_NOT_FOUND'));
       return;
@@ -1055,7 +1068,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     }
 
     if (button.dataset.doublePoison === 'true') {
-      const existing = WeaponCoatingStore.getCoating(actor, weaponId);
+      const existing = WeaponCoatingStore.getCoating(target, weaponId);
       if (WeaponCoatingService._hasDoublePoisonLevelViolation(actor, existing, finalAfflictionData)) {
         ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.DOUBLE_POISON_LEVEL_INVALID'));
         return;
@@ -1074,7 +1087,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     const combat = game.combat;
     const poisonImg = item.img || null;
 
-    const applied = await WeaponCoatingService._applyCoatingWithPermission(actor, weaponId, {
+    const applied = await WeaponCoatingService._applyCoatingWithPermission(target, weaponId, {
       poisonItemUuid: itemUuid,
       poisonName: finalAfflictionData.name,
       weaponName,
@@ -1107,7 +1120,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       return;
     }
 
-    const actor = await AfflictionManager._resolveCoatingActor(button);
+    const target = await AfflictionManager._resolveCoatingTarget(button);
+    const actor = WeaponCoatingService._getActorFromTarget(target);
     if (!actor) {
       ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.ACTOR_NOT_FOUND'));
       return;
@@ -1131,7 +1145,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       return;
     }
 
-    const existing = WeaponCoatingStore.getInjection(actor, weaponId);
+    const existing = WeaponCoatingStore.getInjection(target, weaponId);
     if (existing) {
       const confirmed = await foundry.applications.api.DialogV2.confirm({
         title: game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_REPLACE_TITLE'),
@@ -1142,7 +1156,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     }
 
     const poisonImg = item.img || null;
-    const applied = await WeaponCoatingService._applyInjectionWithPermission(actor, weaponId, {
+    const applied = await WeaponCoatingService._applyInjectionWithPermission(target, weaponId, {
       poisonItemUuid: itemUuid,
       poisonName: finalAfflictionData.name,
       weaponName: weapon.name,

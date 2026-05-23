@@ -90,7 +90,7 @@ describe('weapon injection attack prompts', () => {
     expect(ChatMessage.create.mock.calls[0][0].content).toContain('Giant%20Centipede%20Venom');
   });
 
-  test('coated unlinked token attack looks up coating on the speaker actor instead of the base actor', async () => {
+  test('coated unlinked token attack looks up coating on the token document instead of the base actor', async () => {
     const baseActor = {
       id: 'actor-1',
       uuid: 'Actor.actor-1',
@@ -115,6 +115,12 @@ describe('weapon injection attack prompts', () => {
       name: 'Blacknoon Apprentice',
       type: 'npc',
       items: Object.assign([], { get: jest.fn(() => syntheticWeapon) }),
+      getFlag: jest.fn(() => ({})),
+    };
+    const tokenDocument = {
+      id: 'attacker-1',
+      uuid: 'Scene.scene.Token.attacker-1',
+      actorLink: false,
       getFlag: jest.fn((_moduleId, key) => {
         if (key === 'weaponCoatings') {
           return {
@@ -133,12 +139,17 @@ describe('weapon injection attack prompts', () => {
         return {};
       }),
     };
+    const attackerToken = { id: 'attacker-1', actor: syntheticActor, document: tokenDocument };
     syntheticWeapon.parent = syntheticActor;
     const target = { id: 'target-1', name: 'Ogre' };
 
     global.canvas = {
       tokens: {
-        get: jest.fn(id => (id === 'target-1' ? target : null)),
+        get: jest.fn(id => {
+          if (id === 'attacker-1') return attackerToken;
+          if (id === 'target-1') return target;
+          return null;
+        }),
       },
     };
     global.fromUuid = jest.fn(async uuid => {
@@ -148,7 +159,7 @@ describe('weapon injection attack prompts', () => {
     });
 
     await onCreateChatMessage({
-      speakerActor: syntheticActor,
+      speaker: { token: 'attacker-1' },
       flags: {
         pf2e: {
           context: {
@@ -162,11 +173,14 @@ describe('weapon injection attack prompts', () => {
     });
 
     expect(baseActor.getFlag).not.toHaveBeenCalledWith('pf2e-afflictioner', 'weaponCoatings');
+    expect(syntheticActor.getFlag).not.toHaveBeenCalledWith('pf2e-afflictioner', 'weaponCoatings');
+    expect(tokenDocument.getFlag).toHaveBeenCalledWith('pf2e-afflictioner', 'weaponCoatings');
     expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
       content: expect.stringContaining('PF2E_AFFLICTIONER.WEAPON_COATING.HIT_TITLE'),
       whisper: ['gm-1'],
     }));
     expect(ChatMessage.create.mock.calls[0][0].content).toContain('data-actor-uuid="Scene.scene.Token.attacker-1.Actor.actor-1"');
+    expect(ChatMessage.create.mock.calls[0][0].content).toContain('data-token-id="attacker-1"');
     expect(ChatMessage.create.mock.calls[0][0].content).toContain('Giant%20Centipede%20Venom');
   });
 

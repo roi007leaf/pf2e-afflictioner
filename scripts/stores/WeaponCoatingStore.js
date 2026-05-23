@@ -2,50 +2,66 @@ import { MODULE_ID } from '../constants.js';
 
 const suppressedEffectDeletionUuids = new Set();
 
-export function getCoatings(actor) {
-  return actor.getFlag(MODULE_ID, 'weaponCoatings') || {};
+function _getDocument(target) {
+  if (target?.document) {
+    if (target.document.actorLink && target.actor) return target.actor;
+    return target.document;
+  }
+  if (target?.actorLink !== undefined && target.actor) {
+    return target.actorLink ? target.actor : target;
+  }
+  return target;
 }
 
-export function getCoating(actor, weaponId) {
-  return getCoatings(actor)[weaponId] || null;
+export function getCoatings(target) {
+  return _getDocument(target)?.getFlag(MODULE_ID, 'weaponCoatings') || {};
 }
 
-export function getInjections(actor) {
-  return actor.getFlag(MODULE_ID, 'weaponInjections') || {};
+export function getCoating(target, weaponId) {
+  return getCoatings(target)[weaponId] || null;
 }
 
-export function getInjection(actor, weaponId) {
-  return getInjections(actor)[weaponId] || null;
+export function getInjections(target) {
+  return _getDocument(target)?.getFlag(MODULE_ID, 'weaponInjections') || {};
 }
 
-export async function addCoating(actor, weaponId, coatingData) {
-  const coatings = getCoatings(actor);
+export function getInjection(target, weaponId) {
+  return getInjections(target)[weaponId] || null;
+}
+
+export async function addCoating(target, weaponId, coatingData) {
+  const doc = _getDocument(target);
+  const coatings = getCoatings(target);
   coatings[weaponId] = coatingData;
-  await actor.setFlag(MODULE_ID, 'weaponCoatings', coatings);
+  await doc.setFlag(MODULE_ID, 'weaponCoatings', coatings);
 }
 
-export async function addInjection(actor, weaponId, injectionData) {
-  const injections = getInjections(actor);
+export async function addInjection(target, weaponId, injectionData) {
+  const doc = _getDocument(target);
+  const injections = getInjections(target);
   injections[weaponId] = injectionData;
-  await actor.setFlag(MODULE_ID, 'weaponInjections', injections);
+  await doc.setFlag(MODULE_ID, 'weaponInjections', injections);
 }
 
-export async function updateCoating(actor, weaponId, updates) {
-  const coatings = getCoatings(actor);
+export async function updateCoating(target, weaponId, updates) {
+  const doc = _getDocument(target);
+  const coatings = getCoatings(target);
   if (!coatings[weaponId]) return;
   Object.assign(coatings[weaponId], updates);
-  await actor.setFlag(MODULE_ID, 'weaponCoatings', coatings);
+  await doc.setFlag(MODULE_ID, 'weaponCoatings', coatings);
 }
 
-export async function updateInjection(actor, weaponId, updates) {
-  const injections = getInjections(actor);
+export async function updateInjection(target, weaponId, updates) {
+  const doc = _getDocument(target);
+  const injections = getInjections(target);
   if (!injections[weaponId]) return;
   Object.assign(injections[weaponId], updates);
-  await actor.setFlag(MODULE_ID, 'weaponInjections', injections);
+  await doc.setFlag(MODULE_ID, 'weaponInjections', injections);
 }
 
-export async function removeCoating(actor, weaponId) {
-  const coating = getCoating(actor, weaponId);
+export async function removeCoating(target, weaponId) {
+  const doc = _getDocument(target);
+  const coating = getCoating(target, weaponId);
   if (coating?.coatingEffectUuid) {
     suppressedEffectDeletionUuids.add(coating.coatingEffectUuid);
     try {
@@ -57,11 +73,16 @@ export async function removeCoating(actor, weaponId) {
       suppressedEffectDeletionUuids.delete(coating.coatingEffectUuid);
     }
   }
-  await actor.unsetFlag(MODULE_ID, `weaponCoatings.${weaponId}`);
+  await doc.unsetFlag(MODULE_ID, `weaponCoatings.${weaponId}`);
 }
 
-export async function removeInjection(actor, weaponId) {
-  const injection = getInjection(actor, weaponId);
+export async function removeCoatingFlag(target, weaponId) {
+  await _getDocument(target)?.unsetFlag(MODULE_ID, `weaponCoatings.${weaponId}`);
+}
+
+export async function removeInjection(target, weaponId) {
+  const doc = _getDocument(target);
+  const injection = getInjection(target, weaponId);
   if (injection?.injectionEffectUuid) {
     suppressedEffectDeletionUuids.add(injection.injectionEffectUuid);
     try {
@@ -73,7 +94,11 @@ export async function removeInjection(actor, weaponId) {
       suppressedEffectDeletionUuids.delete(injection.injectionEffectUuid);
     }
   }
-  await actor.unsetFlag(MODULE_ID, `weaponInjections.${weaponId}`);
+  await doc.unsetFlag(MODULE_ID, `weaponInjections.${weaponId}`);
+}
+
+export async function removeInjectionFlag(target, weaponId) {
+  await _getDocument(target)?.unsetFlag(MODULE_ID, `weaponInjections.${weaponId}`);
 }
 
 export function isCoatingEffectDeletionSuppressed(effectUuid) {
@@ -85,14 +110,14 @@ export function getAllCoatingsOnCanvas() {
   for (const token of canvas.tokens.placeables) {
     const actor = token.actor;
     if (!actor) continue;
-    const coatings = getCoatings(actor);
+    const coatings = getCoatings(token);
     for (const [weaponId, coating] of Object.entries(coatings)) {
       result.push({
         actor,
         actorId: actor.id,
         actorUuid: actor.uuid || actor.id,
         tokenId: token.id,
-        actorName: actor.name,
+        actorName: token.name || actor.name,
         weaponId,
         ...coating
       });

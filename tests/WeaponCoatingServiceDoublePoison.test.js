@@ -233,8 +233,8 @@ describe('WeaponCoatingService Double Poison support', () => {
     expect(actor.createEmbeddedDocuments).toHaveBeenCalled();
   });
 
-  test('coating a synthetic token actor does not write to the base actor with the same id', async () => {
-    const syntheticFlags = {};
+  test('coating an unlinked token stores flags on the token document', async () => {
+    const tokenFlags = {};
     const baseFlags = {};
     const makeActor = (name, uuid, flags) => ({
       id: 'actor-1',
@@ -250,13 +250,27 @@ describe('WeaponCoatingService Double Poison support', () => {
       createEmbeddedDocuments: jest.fn(async () => [{ uuid: `${uuid}.Item.effect` }]),
     });
     const baseActor = makeActor('Blacknoon Apprentice', 'Actor.actor-1', baseFlags);
-    const syntheticActor = makeActor('Blacknoon Apprentice', 'Scene.scene-1.Token.token-1.Actor.actor-1', syntheticFlags);
+    const syntheticActor = makeActor('Blacknoon Apprentice', 'Scene.scene-1.Token.token-1.Actor.actor-1', {});
+    const token = {
+      id: 'token-1',
+      actor: syntheticActor,
+      document: {
+        id: 'token-1',
+        uuid: 'Scene.scene-1.Token.token-1',
+        actorLink: false,
+        getFlag: jest.fn((_moduleId, key) => tokenFlags[key] || {}),
+        setFlag: jest.fn(async (_moduleId, key, value) => {
+          tokenFlags[key] = value;
+        }),
+        unsetFlag: jest.fn(),
+      },
+    };
 
     game.actors = { get: jest.fn(() => baseActor) };
     game.combat = null;
     game.time = { worldTime: 1234 };
 
-    const applied = await WeaponCoatingService._applyCoatingWithPermission(syntheticActor, 'weapon-1', {
+    const applied = await WeaponCoatingService._applyCoatingWithPermission(token, 'weapon-1', {
       poisonItemUuid: 'Scene.scene-1.Token.token-1.Actor.actor-1.Item.poison-1',
       poisonName: 'Giant Centipede Venom',
       weaponName: 'Dagger',
@@ -266,9 +280,10 @@ describe('WeaponCoatingService Double Poison support', () => {
     });
 
     expect(applied).toBe(true);
-    expect(syntheticActor.setFlag).toHaveBeenCalled();
-    expect(syntheticFlags.weaponCoatings['weapon-1'].poisonName).toBe('Giant Centipede Venom');
+    expect(token.document.setFlag).toHaveBeenCalled();
+    expect(tokenFlags.weaponCoatings['weapon-1'].poisonName).toBe('Giant Centipede Venom');
     expect(syntheticActor.createEmbeddedDocuments).toHaveBeenCalled();
+    expect(syntheticActor.setFlag).not.toHaveBeenCalled();
     expect(baseActor.setFlag).not.toHaveBeenCalled();
     expect(baseFlags.weaponCoatings).toBeUndefined();
   });
@@ -381,5 +396,70 @@ describe('WeaponCoatingService Double Poison support', () => {
       damageType: 'slashing',
       tokenId: 'token-1',
     })]);
+  });
+
+  test('prefers inventory weapons over duplicate NPC melee attack items', () => {
+    const hookSwordWeapon = {
+      id: 'weapon-hook',
+      name: 'Hook Sword',
+      img: 'hook-weapon.webp',
+      system: {
+        traits: { value: [] },
+        damage: { damageType: 'slashing' },
+      },
+    };
+    const hookSwordMelee = {
+      id: 'melee-hook',
+      name: 'Hook Sword',
+      img: 'hook-melee.webp',
+      system: {
+        traits: { value: ['attack'] },
+        damageRolls: {
+          main: { damage: '1d8', damageType: 'slashing' },
+        },
+      },
+    };
+    const longswordWeapon = {
+      id: 'weapon-long',
+      name: 'Longsword',
+      img: 'long-weapon.webp',
+      system: {
+        traits: { value: ['injection'] },
+        damage: { damageType: 'slashing' },
+      },
+    };
+    const longswordMelee = {
+      id: 'melee-long',
+      name: 'Longsword',
+      img: 'long-melee.webp',
+      flags: { pf2e: { linkedWeapon: 'weapon-long' } },
+      system: {
+        traits: { value: ['attack', 'injection'] },
+        damageRolls: {
+          main: { damage: '1d8', damageType: 'slashing' },
+        },
+      },
+    };
+    const mandiblesMelee = {
+      id: 'melee-mandibles',
+      name: 'Mandibles',
+      img: 'mandibles.webp',
+      system: {
+        traits: { value: ['attack'] },
+        damageRolls: {
+          main: { damage: '1d6', damageType: 'piercing' },
+        },
+      },
+    };
+    const actor = {
+      itemTypes: {
+        weapon: [hookSwordWeapon, longswordWeapon],
+        melee: [hookSwordMelee, longswordMelee, mandiblesMelee],
+      },
+    };
+
+    const weapons = WeaponCoatingService._getCoatableWeaponItems(actor);
+
+    expect(weapons.map(weapon => weapon.id)).toEqual(['weapon-hook', 'weapon-long', 'melee-mandibles']);
   });
 });

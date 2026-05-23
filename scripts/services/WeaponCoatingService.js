@@ -11,20 +11,42 @@ export class WeaponCoatingService {
     return actor?.uuid || actor?.id || null;
   }
 
-  static async _resolveActor(actorRef) {
-    if (!actorRef) return null;
-    if (typeof actorRef !== 'string') return actorRef;
+  static _getActorFromTarget(target) {
+    return target?.actor || target;
+  }
 
-    if (actorRef.includes('.') && typeof fromUuid === 'function') {
+  static _getStorageReference(target) {
+    if (target?.document && target.document.actorLink === false) {
+      return target.document.uuid || target.id || null;
+    }
+    if (target?.actorLink === false && target.actor) {
+      return target.uuid || target.id || null;
+    }
+    return this._getActorReference(this._getActorFromTarget(target));
+  }
+
+  static async _resolveTarget(targetRef) {
+    if (!targetRef) return null;
+    if (typeof targetRef !== 'string') return targetRef;
+
+    if (targetRef.includes('.') && typeof fromUuid === 'function') {
       try {
-        const actor = await fromUuid(actorRef);
-        if (actor) return actor;
+        const document = await fromUuid(targetRef);
+        if (document) return globalThis.canvas?.tokens?.get?.(document.id) || document;
       } catch {
         // Fall back to world actor lookup below.
       }
     }
 
-    return game.actors.get(actorRef) || null;
+    return globalThis.canvas?.tokens?.get?.(targetRef) || game.actors.get(targetRef) || null;
+  }
+
+  static async _resolveActor(actorRef) {
+    return this._getActorFromTarget(await this._resolveTarget(actorRef));
+  }
+
+  static _getSelectedStorageTarget(selected, actor) {
+    return selected.target || selected.storageTarget || selected.token || actor;
   }
 
   static async openCoatDialog(itemUuid, speakerActorId, speakerTokenId, targetTokenIds = []) {
@@ -123,9 +145,10 @@ export class WeaponCoatingService {
       ui.notifications.error(i.localize(`${K}.ACTOR_NOT_FOUND`));
       return;
     }
+    const storageTarget = this._getSelectedStorageTarget(selected, actor);
 
     // Check for existing coating before replacing
-    const existing = WeaponCoatingStore.getCoating(actor, selected.weaponId);
+    const existing = WeaponCoatingStore.getCoating(storageTarget, selected.weaponId);
     if (existing && !this._shouldOfferDoublePoison(actor, existing, afflictionData)) {
       const confirmed = await foundry.applications.api.DialogV2.confirm({
         title: i.localize(`${K}.REPLACE_TITLE`),
@@ -142,7 +165,7 @@ export class WeaponCoatingService {
     // Apply Toxicologist acid swap if applicable
     const finalAfflictionData = this._withOriginActor(actor, this._applyToxicologistSwap(actor, afflictionData));
 
-    const applied = await this._applyCoatingWithPermission(actor, selected.weaponId, {
+    const applied = await this._applyCoatingWithPermission(storageTarget, selected.weaponId, {
       poisonItemUuid: itemUuid,
       poisonName: finalAfflictionData.name,
       weaponName: selected.weaponName,
@@ -265,8 +288,9 @@ export class WeaponCoatingService {
       ui.notifications.error(i.localize(`${K}.ACTOR_NOT_FOUND`));
       return;
     }
+    const storageTarget = this._getSelectedStorageTarget(selected, actor);
 
-    const existing = WeaponCoatingStore.getInjection(actor, selected.weaponId);
+    const existing = WeaponCoatingStore.getInjection(storageTarget, selected.weaponId);
     if (existing) {
       const confirmed = await foundry.applications.api.DialogV2.confirm({
         title: i.localize(`${K}.INJECTION_REPLACE_TITLE`),
@@ -282,7 +306,7 @@ export class WeaponCoatingService {
       return;
     }
 
-    const applied = await this._applyInjectionWithPermission(actor, selected.weaponId, {
+    const applied = await this._applyInjectionWithPermission(storageTarget, selected.weaponId, {
       poisonItemUuid: itemUuid,
       poisonName: finalAfflictionData.name,
       weaponName: selected.weaponName,
@@ -416,8 +440,9 @@ export class WeaponCoatingService {
       ui.notifications.error(i.localize(`${K}.ACTOR_NOT_FOUND`));
       return;
     }
+    const storageTarget = this._getSelectedStorageTarget(selected, actor);
 
-    const existing = WeaponCoatingStore.getCoating(actor, selected.weaponId);
+    const existing = WeaponCoatingStore.getCoating(storageTarget, selected.weaponId);
     if (existing) {
       const confirmed = await foundry.applications.api.DialogV2.confirm({
         title: i.localize(`${K}.REPLACE_TITLE`),
@@ -430,7 +455,7 @@ export class WeaponCoatingService {
     // Field Vials: "The substance becomes inert at the end of your current turn."
     const expirationMode = 'end-next-turn';
 
-    const applied = await this._applyCoatingWithPermission(actor, selected.weaponId, {
+    const applied = await this._applyCoatingWithPermission(storageTarget, selected.weaponId, {
       poisonItemUuid: item.uuid,
       poisonName: item.name,
       weaponName: selected.weaponName,
@@ -577,9 +602,10 @@ export class WeaponCoatingService {
       ui.notifications.error(i.localize(`${K}.ACTOR_NOT_FOUND`));
       return;
     }
+    const storageTarget = this._getSelectedStorageTarget(selected, actor);
 
     // Check for existing coating before replacing
-    const existing = WeaponCoatingStore.getCoating(actor, selected.weaponId);
+    const existing = WeaponCoatingStore.getCoating(storageTarget, selected.weaponId);
     if (existing && !this._shouldOfferDoublePoison(actor, existing, finalAfflictionData)) {
       const confirmed = await foundry.applications.api.DialogV2.confirm({
         title: i.localize(`${K}.REPLACE_TITLE`),
@@ -596,7 +622,7 @@ export class WeaponCoatingService {
     // Apply Toxicologist acid swap if applicable
     finalAfflictionData = this._withOriginActor(actor, this._applyToxicologistSwap(actor, finalAfflictionData));
 
-    const applied = await this._applyCoatingWithPermission(actor, selected.weaponId, {
+    const applied = await this._applyCoatingWithPermission(storageTarget, selected.weaponId, {
       poisonItemUuid: null,
       poisonName: finalAfflictionData.name,
       weaponName: selected.weaponName,
@@ -790,16 +816,17 @@ export class WeaponCoatingService {
    * @param {Actor} actor
    * @returns {string|null}
    */
-  static _findCombatantId(actor) {
+  static _findCombatantId(actor, target = null) {
     if (!game.combat?.started) return null;
     const combatants = Array.from(game.combat.combatants ?? []);
     const actorUuid = actor.uuid;
+    const tokenId = target?.id || target?.document?.id || actor.token?.id;
     const combatant = combatants.find(c =>
+      (tokenId && c.tokenId === tokenId) ||
       c.actor === actor ||
       (actorUuid && c.actor?.uuid === actorUuid) ||
       c.token?.actor === actor ||
       (actorUuid && c.token?.actor?.uuid === actorUuid) ||
-      (actor.token?.id && c.tokenId === actor.token.id) ||
       c.actorId === actor.id
     );
     return combatant?.id ?? null;
@@ -952,17 +979,42 @@ export class WeaponCoatingService {
     return firstDamageRoll?.damageType || 'unknown';
   }
 
+  static _getLinkedWeaponId(item) {
+    return item?.flags?.pf2e?.linkedWeapon || item?.system?.linkedWeapon || item?.system?.linkedWeaponId || null;
+  }
+
+  static _getWeaponDuplicateKey(item) {
+    return [
+      String(item?.name || '').trim().toLowerCase(),
+      this._getWeaponDamageType(item),
+    ].join('|');
+  }
+
   static _getCoatableWeaponItems(actor) {
-    const items = [
-      ...(actor?.itemTypes?.weapon || []),
-      ...(actor?.itemTypes?.melee || []),
-    ];
+    const inventoryWeapons = actor?.itemTypes?.weapon || [];
+    const meleeAttacks = actor?.itemTypes?.melee || [];
     const seen = new Set();
-    return items.filter(item => {
-      if (!item?.id || seen.has(item.id)) return false;
+    const validInventoryWeapons = inventoryWeapons.filter(item => item?.id);
+    const inventoryWeaponIds = new Set(validInventoryWeapons.map(item => item.id));
+    const inventoryWeaponKeys = new Set(validInventoryWeapons.map(item => this._getWeaponDuplicateKey(item)));
+    const result = [];
+
+    for (const item of inventoryWeapons) {
+      if (!item?.id || seen.has(item.id)) continue;
       seen.add(item.id);
-      return true;
-    });
+      result.push(item);
+    }
+
+    for (const item of meleeAttacks) {
+      if (!item?.id || seen.has(item.id)) continue;
+      const linkedWeaponId = this._getLinkedWeaponId(item);
+      if (linkedWeaponId && inventoryWeaponIds.has(linkedWeaponId)) continue;
+      if (inventoryWeaponKeys.has(this._getWeaponDuplicateKey(item))) continue;
+      seen.add(item.id);
+      result.push(item);
+    }
+
+    return result;
   }
 
   static _normalizeTraitCollection(traits) {
@@ -1182,10 +1234,11 @@ export class WeaponCoatingService {
   }
 
   static async _applyCoatingToActor(actorRef, weaponId, coatingParams) {
-    const actor = await this._resolveActor(actorRef);
+    const target = await this._resolveTarget(actorRef);
+    const actor = this._getActorFromTarget(target);
     if (!actor) return false;
 
-    const existing = WeaponCoatingStore.getCoating(actor, weaponId);
+    const existing = WeaponCoatingStore.getCoating(target, weaponId);
     let { poisonItemUuid, poisonName, weaponName, afflictionData, expirationMode, poisonImg } = coatingParams;
 
     if (
@@ -1201,42 +1254,43 @@ export class WeaponCoatingService {
     }
 
     if (existing) {
-      await WeaponCoatingStore.removeCoating(actor, weaponId);
+      await WeaponCoatingStore.removeCoating(target, weaponId);
     }
 
     const combat = game.combat;
 
-    await WeaponCoatingStore.addCoating(actor, weaponId, {
+    await WeaponCoatingStore.addCoating(target, weaponId, {
       poisonItemUuid,
       poisonName,
       weaponName,
       afflictionData,
       appliedRound: combat?.started ? combat.round : null,
       appliedTimestamp: game.time.worldTime,
-      appliedCombatantId: this._findCombatantId(actor),
+      appliedCombatantId: this._findCombatantId(actor, target),
       expirationMode
     });
 
     const coatingEffectUuid = await this.createCoatingEffect(actor, weaponName, poisonName, expirationMode, poisonImg);
     if (coatingEffectUuid) {
-      await WeaponCoatingStore.updateCoating(actor, weaponId, { coatingEffectUuid });
+      await WeaponCoatingStore.updateCoating(target, weaponId, { coatingEffectUuid });
     }
 
     return true;
   }
 
   static async _applyInjectionToActor(actorRef, weaponId, injectionParams) {
-    const actor = await this._resolveActor(actorRef);
+    const target = await this._resolveTarget(actorRef);
+    const actor = this._getActorFromTarget(target);
     if (!actor) return false;
 
-    const existing = WeaponCoatingStore.getInjection(actor, weaponId);
+    const existing = WeaponCoatingStore.getInjection(target, weaponId);
     if (existing) {
-      await WeaponCoatingStore.removeInjection(actor, weaponId);
+      await WeaponCoatingStore.removeInjection(target, weaponId);
     }
 
     const { poisonItemUuid, poisonName, weaponName, afflictionData, poisonImg } = injectionParams;
 
-    await WeaponCoatingStore.addInjection(actor, weaponId, {
+    await WeaponCoatingStore.addInjection(target, weaponId, {
       poisonItemUuid,
       poisonName,
       weaponName,
@@ -1246,23 +1300,23 @@ export class WeaponCoatingService {
 
     const injectionEffectUuid = await this.createInjectionEffect(actor, weaponName, poisonName, poisonImg);
     if (injectionEffectUuid) {
-      await WeaponCoatingStore.updateInjection(actor, weaponId, { injectionEffectUuid });
+      await WeaponCoatingStore.updateInjection(target, weaponId, { injectionEffectUuid });
     }
 
     return true;
   }
 
   static async _removeCoatingFromActor(actorRef, weaponId) {
-    const actor = await this._resolveActor(actorRef);
-    if (!actor) return false;
-    await WeaponCoatingStore.removeCoating(actor, weaponId);
+    const target = await this._resolveTarget(actorRef);
+    if (!this._getActorFromTarget(target)) return false;
+    await WeaponCoatingStore.removeCoating(target, weaponId);
     return true;
   }
 
   static async _removeInjectionFromActor(actorRef, weaponId) {
-    const actor = await this._resolveActor(actorRef);
-    if (!actor) return false;
-    await WeaponCoatingStore.removeInjection(actor, weaponId);
+    const target = await this._resolveTarget(actorRef);
+    if (!this._getActorFromTarget(target)) return false;
+    await WeaponCoatingStore.removeInjection(target, weaponId);
     return true;
   }
 
@@ -1270,48 +1324,56 @@ export class WeaponCoatingService {
    * Routes coating application through GM socket if the current user doesn't own the actor.
    */
   static async _applyCoatingWithPermission(actor, weaponId, coatingParams) {
-    if (actor.isOwner) {
+    const targetActor = this._getActorFromTarget(actor);
+    if (!targetActor) return false;
+    if (targetActor.isOwner) {
       return this._applyCoatingToActor(actor, weaponId, coatingParams);
     }
     const { SocketService } = await import('./SocketService.js');
     if (SocketService.socket) {
-      return SocketService.requestApplyWeaponCoating(this._getActorReference(actor), weaponId, coatingParams);
+      return SocketService.requestApplyWeaponCoating(this._getStorageReference(actor), weaponId, coatingParams);
     }
     console.error('PF2e Afflictioner | socketlib is required for coating weapons on unowned actors');
     return false;
   }
 
   static async _applyInjectionWithPermission(actor, weaponId, injectionParams) {
-    if (actor.isOwner) {
+    const targetActor = this._getActorFromTarget(actor);
+    if (!targetActor) return false;
+    if (targetActor.isOwner) {
       return this._applyInjectionToActor(actor, weaponId, injectionParams);
     }
     const { SocketService } = await import('./SocketService.js');
     if (SocketService.socket) {
-      return SocketService.requestApplyWeaponInjection(this._getActorReference(actor), weaponId, injectionParams);
+      return SocketService.requestApplyWeaponInjection(this._getStorageReference(actor), weaponId, injectionParams);
     }
     console.error('PF2e Afflictioner | socketlib is required for loading injection weapons on unowned actors');
     return false;
   }
 
   static async removeCoatingWithPermission(actor, weaponId) {
-    if (actor.isOwner) {
+    const targetActor = this._getActorFromTarget(actor);
+    if (!targetActor) return false;
+    if (targetActor.isOwner) {
       return this._removeCoatingFromActor(actor, weaponId);
     }
     const { SocketService } = await import('./SocketService.js');
     if (SocketService.socket) {
-      return SocketService.requestRemoveWeaponCoating(this._getActorReference(actor), weaponId);
+      return SocketService.requestRemoveWeaponCoating(this._getStorageReference(actor), weaponId);
     }
     console.error('PF2e Afflictioner | socketlib is required for removing coatings on unowned actors');
     return false;
   }
 
   static async removeInjectionWithPermission(actor, weaponId) {
-    if (actor.isOwner) {
+    const targetActor = this._getActorFromTarget(actor);
+    if (!targetActor) return false;
+    if (targetActor.isOwner) {
       return this._removeInjectionFromActor(actor, weaponId);
     }
     const { SocketService } = await import('./SocketService.js');
     if (SocketService.socket) {
-      return SocketService.requestRemoveWeaponInjection(this._getActorReference(actor), weaponId);
+      return SocketService.requestRemoveWeaponInjection(this._getStorageReference(actor), weaponId);
     }
     console.error('PF2e Afflictioner | socketlib is required for removing injection loads on unowned actors');
     return false;
@@ -1327,12 +1389,15 @@ export class WeaponCoatingService {
       const actor = token.actor;
       if (!actor) return;
       const actorUuid = this._getActorReference(actor);
+      const storageTarget = token.document?.actorLink ? actor : token;
       const groupKey = token.document?.actorLink
         ? (actorUuid || actor.id)
         : (token.id || actorUuid || actor.id);
       for (const weapon of this._getCoatableWeaponItems(actor)) {
         weapons.push({
           actor,
+          target: storageTarget,
+          storageRef: this._getStorageReference(storageTarget),
           actorId: actor.id,
           actorUuid,
           tokenId: token.id,

@@ -5,11 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.2] - 2026-05-23
+
+### Fixed
+
+- **Chat card sizing**: Afflictioner chat cards now reset Foundry chat-log list padding and injected action buttons use border-box sizing, preventing poison prompts from narrowing or padding out the chat log.
+
 ## [3.3.1] - 2026-05-23
 
 ### Fixed
 
-- **NPC coating and injection prompts**: Coated or injection-loaded NPC melee Strikes now resolve PF2e melee attack items, linked inventory weapons, and unlinked token actors before posting GM poison prompts.
+- **NPC coating and injection prompts**: Coated or injection-loaded NPC melee Strikes now resolve PF2e melee attack items, linked inventory weapons, and unlinked token document flags before posting GM poison prompts.
+- **Weapon coating list duplicates**: NPC melee attack entries that duplicate inventory weapons are now hidden from coating controls, preventing repeated Hook Sword/Longsword rows.
 - **Poison item privacy**: Using an injury poison item now keeps the item card whispered to GMs while still offering coating and injection controls.
 
 ## [3.3.0] - 2026-05-22

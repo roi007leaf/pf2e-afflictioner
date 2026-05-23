@@ -6,6 +6,9 @@ import { VishkanyaService } from '../services/VishkanyaService.js';
 import { getSystemFlags } from '../systemCompat.js';
 import { MODULE_ID } from '../constants.js';
 
+const chatLayoutDiagnosticsLogged = new Set();
+const CHAT_LOG_RESET_STYLE_ID = `${MODULE_ID}-chat-log-padding-reset`;
+
 export function onRenderChatMessage(message, html) {
   const root = html?.jquery ? html[0] : html;
   if (!root) return;
@@ -29,6 +32,225 @@ export function onRenderChatMessage(message, html) {
   registerApplyWeaponInjectionHandler(root);
 
   injectCoatWeaponButton(message, root);
+  scheduleChatLayoutDiagnostics(message, root);
+}
+
+function scheduleChatLayoutDiagnostics(message, root) {
+  if (!root.querySelector('.pf2e-afflictioner-save-request, .pf2e-afflictioner-apply-weapon-poison, .pf2e-afflictioner-apply-item-affliction')) return;
+
+  const messageId = message?.id ?? root.dataset?.messageId ?? foundry.utils.randomID();
+  if (chatLayoutDiagnosticsLogged.has(messageId)) return;
+  chatLayoutDiagnosticsLogged.add(messageId);
+
+  globalThis.setTimeout?.(() => {
+    const chatLog = findChatLog(root);
+    const before = getChatLayoutSnapshot(root, chatLog);
+    ensureChatLogPaddingResetStyle(root);
+    resetChatLogPadding(chatLog);
+
+    globalThis.requestAnimationFrame?.(() => {
+      const after = getChatLayoutSnapshot(root, chatLog);
+      const hadPadding = before.chatLog?.computed?.paddingLeft !== '0px' || before.chatLog?.computed?.paddingInlineStart !== '0px';
+      const stillHasPadding = after.chatLog?.computed?.paddingLeft !== '0px' || after.chatLog?.computed?.paddingInlineStart !== '0px';
+
+      if (!hadPadding && !stillHasPadding) return;
+
+      console[stillHasPadding ? 'error' : 'warn']('PF2e Afflictioner | Chat layout diagnostics', {
+        messageId,
+        before,
+        after,
+        parentChain: getParentChain(root),
+        stylesheets: getAfflictionerStylesheetSnapshot(),
+        matchingPaddingRules: chatLog ? getMatchingPaddingRules(chatLog) : []
+      });
+    });
+  }, 0);
+}
+
+function findChatLog(root) {
+  let current = root;
+  while (current) {
+    if (isChatLogElement(current)) return current;
+    current = current.parentElement;
+  }
+
+  const rootNode = root.getRootNode?.();
+  const scopedQuery = rootNode?.querySelector?.bind(rootNode);
+  return scopedQuery?.('ol#chat-log, ul#chat-log, .chat-log, ol:has(> li.chat-message), ul:has(> li.chat-message), #chat-log') ??
+    document.querySelector('ol#chat-log, ul#chat-log, .chat-log, ol:has(> li.chat-message), ul:has(> li.chat-message), #chat-log');
+}
+
+function isChatLogElement(element) {
+  if (!element) return false;
+  if (element.id === 'chat-log' || element.classList?.contains('chat-log')) return true;
+  if (element.tagName !== 'OL' && element.tagName !== 'UL') return false;
+  return [...element.children].some(child => child.matches?.('li.chat-message'));
+}
+
+function ensureChatLogPaddingResetStyle(root) {
+  const rootNode = root.getRootNode?.();
+  const styleParent = typeof ShadowRoot !== 'undefined' && rootNode instanceof ShadowRoot
+    ? rootNode
+    : document.head;
+  if (styleParent.querySelector?.(`#${CHAT_LOG_RESET_STYLE_ID}`)) return;
+
+  const style = document.createElement('style');
+  style.id = CHAT_LOG_RESET_STYLE_ID;
+  style.textContent = `
+ol#chat-log,
+ul#chat-log,
+#chat ol#chat-log,
+#chat ul#chat-log,
+#sidebar #chat-log,
+.chat-log,
+ol.chat-log,
+ul.chat-log,
+ol:has(> li.chat-message),
+ul:has(> li.chat-message),
+#chat-log {
+  padding-left: 0 !important;
+  padding-inline-start: 0 !important;
+}
+`;
+  styleParent.appendChild(style);
+}
+
+function resetChatLogPadding(chatLog) {
+  if (!chatLog) return;
+  chatLog.style.setProperty('padding-left', '0', 'important');
+  chatLog.style.setProperty('padding-inline-start', '0', 'important');
+}
+
+function describeElement(element) {
+  if (!element) return null;
+  const id = element.id ? `#${element.id}` : '';
+  const classes = typeof element.className === 'string' && element.className
+    ? `.${element.className.trim().replace(/\s+/g, '.')}`
+    : '';
+  return `${element.tagName.toLowerCase()}${id}${classes}`;
+}
+
+function getElementSnapshot(element) {
+  if (!element) return null;
+  const computed = getComputedStyle(element);
+  const rect = element.getBoundingClientRect();
+  return {
+    element: describeElement(element),
+    style: element.getAttribute('style') ?? '',
+    computed: {
+      padding: computed.padding,
+      paddingLeft: computed.paddingLeft,
+      paddingInlineStart: computed.paddingInlineStart,
+      width: computed.width,
+      maxWidth: computed.maxWidth,
+      boxSizing: computed.boxSizing,
+      marginLeft: computed.marginLeft,
+      overflowX: computed.overflowX
+    },
+    rect: {
+      left: Math.round(rect.left),
+      right: Math.round(rect.right),
+      width: Math.round(rect.width)
+    },
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+    offsetWidth: element.offsetWidth
+  };
+}
+
+function getChatLayoutSnapshot(root, chatLog) {
+  const message = root.closest?.('.chat-message') ?? root;
+  return {
+    chatLog: getElementSnapshot(chatLog),
+    message: getElementSnapshot(message),
+    content: getElementSnapshot(root.querySelector?.('.message-content') ?? null),
+    card: getElementSnapshot(root.querySelector?.('.pf2e-afflictioner-save-request, .pf2e-afflictioner-apply-weapon-poison, .pf2e-afflictioner-apply-item-affliction') ?? null)
+  };
+}
+
+function getParentChain(root) {
+  const chain = [];
+  let current = root;
+  while (current && chain.length < 10) {
+    chain.push(getElementSnapshot(current));
+    current = current.parentElement;
+  }
+  return chain;
+}
+
+function getAfflictionerStylesheetSnapshot() {
+  return [...document.querySelectorAll('link[rel="stylesheet"], style')]
+    .filter(element => {
+      const id = element.id ?? '';
+      const href = element.href ?? '';
+      const text = element.tagName === 'STYLE' ? element.textContent ?? '' : '';
+      return id.includes(MODULE_ID) ||
+        href.includes(MODULE_ID) ||
+        href.includes('styles/chat.css') ||
+        text.includes('pf2e-afflictioner-save-request') ||
+        text.includes('pf2e-afflictioner-chat-log-padding-reset');
+    })
+    .map(element => ({
+      element: describeElement(element),
+      href: element.href ?? null,
+      disabled: !!element.disabled,
+      media: element.media?.mediaText ?? ''
+    }));
+}
+
+function getMatchingPaddingRules(element) {
+  const matches = [];
+
+  for (const sheet of [...document.styleSheets]) {
+    collectMatchingPaddingRules(sheet, element, matches);
+  }
+
+  return matches.slice(-30);
+}
+
+function collectMatchingPaddingRules(sheetOrRule, element, matches) {
+  let rules;
+  try {
+    rules = sheetOrRule.cssRules;
+  } catch {
+    return;
+  }
+  if (!rules) return;
+
+  for (const rule of [...rules]) {
+    if (rule.cssRules) {
+      collectMatchingPaddingRules(rule, element, matches);
+      continue;
+    }
+
+    if (!rule.selectorText || !rule.style) continue;
+    const hasPaddingDeclaration = rule.style.padding ||
+      rule.style.paddingLeft ||
+      rule.style.paddingInlineStart ||
+      rule.style.getPropertyValue('padding-left') ||
+      rule.style.getPropertyValue('padding-inline-start');
+    if (!hasPaddingDeclaration) continue;
+
+    const selectors = rule.selectorText.split(',').map(selector => selector.trim()).filter(Boolean);
+    const matchedSelector = selectors.find(selector => {
+      try {
+        return element.matches(selector);
+      } catch {
+        return false;
+      }
+    });
+    if (!matchedSelector) continue;
+
+    matches.push({
+      href: rule.parentStyleSheet?.href ?? 'inline',
+      selector: matchedSelector,
+      padding: rule.style.padding,
+      paddingLeft: rule.style.getPropertyValue('padding-left'),
+      paddingLeftPriority: rule.style.getPropertyPriority('padding-left'),
+      paddingInlineStart: rule.style.getPropertyValue('padding-inline-start'),
+      paddingInlineStartPriority: rule.style.getPropertyPriority('padding-inline-start')
+    });
+  }
 }
 
 function injectHazardAfflictionButton(message, root) {
@@ -63,16 +285,18 @@ function injectHazardAfflictionButton(message, root) {
   root.dataset.hazardAfflictionInjected = 'true';
 }
 
-async function resolveActorFromButton(button) {
+async function resolveWeaponStorageTargetFromButton(button) {
   const tokenId = button.dataset.tokenId;
-  const token = tokenId ? canvas?.tokens?.get(tokenId) : null;
+  const token = tokenId ? globalThis.canvas?.tokens?.get?.(tokenId) : null;
+  if (token?.document?.actorLink === false) return token;
   if (token?.actor) return token.actor;
 
   const actorUuid = button.dataset.actorUuid;
   if (actorUuid && typeof fromUuid === 'function') {
     try {
-      const actor = await fromUuid(actorUuid);
-      if (actor) return actor;
+      const document = await fromUuid(actorUuid);
+      if (document?.actorLink === false && document.actor) return document;
+      if (document) return document;
     } catch {
       // Fall back to world actor lookup below.
     }
@@ -99,19 +323,19 @@ function registerApplyWeaponPoisonHandler(root) {
     }
 
     if ((actorId || btn.dataset.actorUuid || btn.dataset.tokenId) && weaponId) {
-      const actor = await resolveActorFromButton(btn);
-      if (actor) {
+      const storageTarget = await resolveWeaponStorageTargetFromButton(btn);
+      if (storageTarget) {
         const stickyPoisonSuccess = btn.dataset.stickyPoisonSuccess === 'true';
         if (stickyPoisonSuccess) {
           const { updateCoating } = await import('../stores/WeaponCoatingStore.js');
           const combat = game.combat;
-          await updateCoating(actor, weaponId, {
+          await updateCoating(storageTarget, weaponId, {
             expirationMode: 'end-next-turn',
             appliedRound: combat?.started ? combat.round : null
           });
         } else {
           const { removeCoating } = await import('../stores/WeaponCoatingStore.js');
-          await removeCoating(actor, weaponId);
+          await removeCoating(storageTarget, weaponId);
         }
         const { AfflictionManager } = await import('../managers/AfflictionManager.js');
         if (AfflictionManager.currentInstance) AfflictionManager.currentInstance.render({ force: true });
@@ -143,10 +367,10 @@ function registerApplyWeaponInjectionHandler(root) {
     }
 
     if ((actorId || btn.dataset.actorUuid || btn.dataset.tokenId) && weaponId) {
-      const actor = await resolveActorFromButton(btn);
-      if (actor) {
+      const storageTarget = await resolveWeaponStorageTargetFromButton(btn);
+      if (storageTarget) {
         const { removeInjection } = await import('../stores/WeaponCoatingStore.js');
-        await removeInjection(actor, weaponId);
+        await removeInjection(storageTarget, weaponId);
         const { AfflictionManager } = await import('../managers/AfflictionManager.js');
         if (AfflictionManager.currentInstance) AfflictionManager.currentInstance.render({ force: true });
       }

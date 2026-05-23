@@ -265,6 +265,9 @@ async function resolveAttackActor(message, flags, weapon) {
   if (message?.speakerActor) return message.speakerActor;
   if (message?.actor) return message.actor;
 
+  const speakerToken = message?.speaker?.token ? globalThis.canvas?.tokens?.get?.(message.speaker.token) : null;
+  if (speakerToken?.actor) return speakerToken.actor;
+
   const actorUuid = flags.actor?.uuid || flags.origin?.actor;
   if (actorUuid && typeof fromUuid === 'function') {
     try {
@@ -275,10 +278,26 @@ async function resolveAttackActor(message, flags, weapon) {
     }
   }
 
-  const speakerToken = message?.speaker?.token ? canvas?.tokens?.get(message.speaker.token) : null;
-  if (speakerToken?.actor) return speakerToken.actor;
-
   return weapon?.parent || null;
+}
+
+function resolveAttackStorageTarget(message, actor) {
+  const speakerToken = message?.speaker?.token ? globalThis.canvas?.tokens?.get?.(message.speaker.token) : null;
+  if (speakerToken?.document?.actorLink === false) return speakerToken;
+
+  const actorUuid = actor?.uuid;
+  const matchingToken = globalThis.canvas?.tokens?.placeables?.find(token =>
+    token.actor === actor || (actorUuid && token.actor?.uuid === actorUuid)
+  );
+  if (matchingToken?.document?.actorLink === false) return matchingToken;
+
+  return actor;
+}
+
+function storageTokenId(storageTarget) {
+  if (storageTarget?.document?.actorLink === false) return storageTarget.id;
+  if (storageTarget?.actorLink === false && storageTarget.actor) return storageTarget.id;
+  return '';
 }
 
 async function resolveAttackWeapon(message, flags) {
@@ -344,8 +363,8 @@ function getStoredWeaponIds(actor, weapon, message, flags) {
   return ids;
 }
 
-function findStoredWeaponData(actor, weapon, message, flags, getAll) {
-  const records = getAll(actor);
+function findStoredWeaponData(storageTarget, actor, weapon, message, flags, getAll) {
+  const records = getAll(storageTarget);
   for (const weaponId of getStoredWeaponIds(actor, weapon, message, flags)) {
     if (records[weaponId]) return { weaponId, data: records[weaponId] };
   }
@@ -397,7 +416,7 @@ function resolveAttackOutcome(message, flags) {
   return null;
 }
 
-async function postInjectionHitPrompt(actor, weapon, injection, flags, gmWhisper, weaponId = weapon.id) {
+async function postInjectionHitPrompt(actor, weapon, injection, flags, gmWhisper, weaponId = weapon.id, storageTarget = actor) {
   const i = game.i18n;
   const K = 'PF2E_AFFLICTIONER.WEAPON_COATING';
   const targets = await resolveAttackTargets(flags);
@@ -426,6 +445,7 @@ async function postInjectionHitPrompt(actor, weapon, injection, flags, gmWhisper
                     data-target-token-id="${target.id}"
                     data-actor-id="${actor.id}"
                     data-actor-uuid="${actor.uuid || actor.id}"
+                    data-token-id="${storageTokenId(storageTarget)}"
                     data-weapon-id="${weaponId}"
                     data-affliction-data="${encodeURIComponent(JSON.stringify(buttonAfflictionData))}">
               <i class="fas fa-syringe"></i> ${i.format(`${K}.INJECTION_APPLY_BTN`, { targetName: target.name })}
@@ -455,24 +475,25 @@ async function handleAttackRoll(_message, flags) {
   const actor = await resolveAttackActor(_message, flags, weapon);
   if (!actor) return;
   weapon = resolveActorWeapon(actor, weapon);
+  const storageTarget = resolveAttackStorageTarget(_message, actor);
 
   const outcome = resolveAttackOutcome(_message, flags);
   if (!outcome) return;
 
   const gmWhisper = game.users.filter(u => u.isGM).map(u => u.id);
   let handled = false;
-  const injectionRecord = findStoredWeaponData(actor, weapon, _message, flags, WeaponCoatingStore.getInjections);
+  const injectionRecord = findStoredWeaponData(storageTarget, actor, weapon, _message, flags, WeaponCoatingStore.getInjections);
   const injection = injectionRecord.data;
   if (
     injection &&
     WeaponCoatingService._isInjectionWeapon(weapon) &&
     (outcome === DEGREE_OF_SUCCESS.SUCCESS || outcome === DEGREE_OF_SUCCESS.CRITICAL_SUCCESS)
   ) {
-    await postInjectionHitPrompt(actor, weapon, injection, flags, gmWhisper, injectionRecord.weaponId);
+    await postInjectionHitPrompt(actor, weapon, injection, flags, gmWhisper, injectionRecord.weaponId, storageTarget);
     handled = true;
   }
 
-  const coatingRecord = findStoredWeaponData(actor, weapon, _message, flags, WeaponCoatingStore.getCoatings);
+  const coatingRecord = findStoredWeaponData(storageTarget, actor, weapon, _message, flags, WeaponCoatingStore.getCoatings);
   const coating = coatingRecord.data;
   if (!coating) {
     if (actor.type === 'hazard') {
@@ -488,7 +509,7 @@ async function handleAttackRoll(_message, flags) {
   if (outcome === DEGREE_OF_SUCCESS.SUCCESS || outcome === DEGREE_OF_SUCCESS.CRITICAL_SUCCESS) {
     // Direct damage coatings (Field Vials) — roll bonus damage, no save
     if (coating.afflictionData?.isDirectDamage) {
-      await WeaponCoatingStore.removeCoating(actor, coatingRecord.weaponId);
+      await WeaponCoatingStore.removeCoating(storageTarget, coatingRecord.weaponId);
       const i = game.i18n;
       const K = 'PF2E_AFFLICTIONER.WEAPON_COATING';
       const { damageFormula, damageType: dmgType } = coating.afflictionData;
@@ -556,6 +577,7 @@ async function handleAttackRoll(_message, flags) {
                         data-target-token-id="${target.id}"
                         data-actor-id="${actor.id}"
                         data-actor-uuid="${actor.uuid || actor.id}"
+                        data-token-id="${storageTokenId(storageTarget)}"
                         data-weapon-id="${coatingRecord.weaponId}"
                         data-affliction-data="${encodeURIComponent(JSON.stringify(buttonAfflictionData))}"
                         data-sticky-poison-success="${stickyPoisonSuccess}">
@@ -584,7 +606,7 @@ async function handleAttackRoll(_message, flags) {
         if (kept) removed = false;
       }
       if (removed) {
-        await WeaponCoatingStore.removeCoating(actor, coatingRecord.weaponId);
+        await WeaponCoatingStore.removeCoating(storageTarget, coatingRecord.weaponId);
         const i = game.i18n;
         const K = 'PF2E_AFFLICTIONER.WEAPON_COATING';
         await ChatMessage.create({
@@ -609,7 +631,7 @@ async function handleAttackRoll(_message, flags) {
       if (kept) removed = false;
     }
     if (removed) {
-      await WeaponCoatingStore.removeCoating(actor, coatingRecord.weaponId);
+      await WeaponCoatingStore.removeCoating(storageTarget, coatingRecord.weaponId);
       const i = game.i18n;
       const K = 'PF2E_AFFLICTIONER.WEAPON_COATING';
       await ChatMessage.create({

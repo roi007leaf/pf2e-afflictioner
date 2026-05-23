@@ -3,13 +3,29 @@
  * Save requests and treatment requests
  */
 /* Save request styling in chat */
+ol#chat-log,
+ul#chat-log,
+#chat ol#chat-log,
+#chat ul#chat-log,
+#sidebar #chat-log,
+.chat-log,
+ol.chat-log,
+ul.chat-log,
+ol:has(> li.chat-message),
+ul:has(> li.chat-message) {
+  padding-left: 0 !important;
+  padding-inline-start: 0 !important;
+}
+
 .pf2e-afflictioner-save-request {
+  box-sizing: border-box;
+  max-width: 100%;
   background: linear-gradient(135deg, rgba(139, 0, 0, 0.15) 0%, rgba(139, 0, 0, 0.05) 100%);
   border: 2px solid rgba(139, 0, 0, 0.3);
   border-left: 4px solid #8b0000;
   border-radius: 8px;
-  padding: 12px;
-  margin: 8px 0;
+  padding: 10px;
+  margin: 0;
 }
 
 .pf2e-afflictioner-save-request h3 {
@@ -18,6 +34,7 @@
   font-size: 16px;
   align-items: center;
   gap: 8px;
+  overflow-wrap: anywhere;
 }
 
 .pf2e-afflictioner-save-request h3 i {
@@ -30,7 +47,10 @@
 }
 
 .pf2e-afflictioner-save-request button {
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 10px;
   margin-top: 10px;
   background: linear-gradient(135deg, #8b0000 0%, #a00000 100%);
@@ -41,6 +61,9 @@
   border-radius: 6px;
   transition: all 0.2s ease;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
 }
 
 .pf2e-afflictioner-save-request button:hover {
@@ -605,11 +628,14 @@
 
 /* Apply hazard affliction button — injected directly into attack roll messages */
 .pf2e-afflictioner-apply-hazard-btn {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 9px 14px;
   margin-top: 8px;
   background: linear-gradient(135deg, #8b0000 0%, #a00000 100%);
@@ -624,6 +650,9 @@
   transition: all 0.18s ease;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
 }
 
 .pf2e-afflictioner-apply-hazard-btn:hover {
@@ -659,11 +688,14 @@
 
 /* Apply affliction button — injected onto item card messages */
 .pf2e-afflictioner-apply-item-affliction {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 9px 14px;
   margin-top: 8px;
   background: linear-gradient(135deg, #8b0000 0%, #a00000 100%);
@@ -678,6 +710,9 @@
   transition: all 0.18s ease;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
 }
 
 .pf2e-afflictioner-apply-item-affliction:hover {

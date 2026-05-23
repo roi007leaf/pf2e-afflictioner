@@ -30,6 +30,33 @@ describe('Weapon injection store', () => {
     });
   });
 
+  test('stores unlinked token injections on the token document', async () => {
+    const flags = { weaponInjections: {} };
+    const token = {
+      actor: { id: 'actor-1', name: 'Blacknoon Apprentice' },
+      document: {
+        actorLink: false,
+        getFlag: jest.fn((_moduleId, key) => flags[key] || {}),
+        setFlag: jest.fn(async (_moduleId, key, value) => {
+          flags[key] = value;
+        }),
+      },
+    };
+
+    await WeaponCoatingStore.addInjection(token, 'weapon-1', {
+      poisonName: 'Belladonna',
+      afflictionData: { name: 'Belladonna', type: 'poison' },
+    });
+
+    expect(token.document.setFlag).toHaveBeenCalledWith('pf2e-afflictioner', 'weaponInjections', {
+      'weapon-1': {
+        poisonName: 'Belladonna',
+        afflictionData: { name: 'Belladonna', type: 'poison' },
+      },
+    });
+    expect(WeaponCoatingStore.getInjection(token, 'weapon-1').poisonName).toBe('Belladonna');
+  });
+
   test('removes loaded injection without removing coating data', async () => {
     const flags = {
       weaponCoatings: {
