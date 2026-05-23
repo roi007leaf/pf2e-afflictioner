@@ -63,6 +63,25 @@ function injectHazardAfflictionButton(message, root) {
   root.dataset.hazardAfflictionInjected = 'true';
 }
 
+async function resolveActorFromButton(button) {
+  const tokenId = button.dataset.tokenId;
+  const token = tokenId ? canvas?.tokens?.get(tokenId) : null;
+  if (token?.actor) return token.actor;
+
+  const actorUuid = button.dataset.actorUuid;
+  if (actorUuid && typeof fromUuid === 'function') {
+    try {
+      const actor = await fromUuid(actorUuid);
+      if (actor) return actor;
+    } catch {
+      // Fall back to world actor lookup below.
+    }
+  }
+
+  const actorId = button.dataset.actorId;
+  return actorId ? game.actors.get(actorId) : null;
+}
+
 function registerApplyWeaponPoisonHandler(root) {
   const btn = root.querySelector('.pf2e-afflictioner-apply-weapon-poison');
   if (!btn) return;
@@ -79,8 +98,8 @@ function registerApplyWeaponPoisonHandler(root) {
       return;
     }
 
-    if (actorId && weaponId) {
-      const actor = game.actors.get(actorId);
+    if ((actorId || btn.dataset.actorUuid || btn.dataset.tokenId) && weaponId) {
+      const actor = await resolveActorFromButton(btn);
       if (actor) {
         const stickyPoisonSuccess = btn.dataset.stickyPoisonSuccess === 'true';
         if (stickyPoisonSuccess) {
@@ -123,8 +142,8 @@ function registerApplyWeaponInjectionHandler(root) {
       return;
     }
 
-    if (actorId && weaponId) {
-      const actor = game.actors.get(actorId);
+    if ((actorId || btn.dataset.actorUuid || btn.dataset.tokenId) && weaponId) {
+      const actor = await resolveActorFromButton(btn);
       if (actor) {
         const { removeInjection } = await import('../stores/WeaponCoatingStore.js');
         await removeInjection(actor, weaponId);

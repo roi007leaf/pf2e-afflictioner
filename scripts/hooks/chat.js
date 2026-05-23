@@ -9,16 +9,89 @@ import { getSystemFlags } from '../systemCompat.js';
 import { FeatsService } from '../services/FeatsService.js';
 import { shouldSkipPromptAffliction } from '../utils.js';
 
+const processedAttackMessageIds = new Set();
+
+function getGmWhisper() {
+  return game.users.filter(u => u.isGM).map(u => u.id);
+}
+
+function getOriginTraits(message) {
+  const rollOptions = getSystemFlags(message)?.origin?.rollOptions || [];
+  return rollOptions
+    .filter(option => option.startsWith('origin:item:trait:'))
+    .map(option => option.replace('origin:item:trait:', ''));
+}
+
+function hasInjuryPoisonTraits(itemOrTraits) {
+  const rawTraits = Array.isArray(itemOrTraits)
+    ? itemOrTraits
+    : (itemOrTraits?.system?.traits?.value || []);
+  const traits = rawTraits instanceof Set ? Array.from(rawTraits) : (Array.isArray(rawTraits) ? rawTraits : []);
+  return traits.includes('injury') && traits.includes('poison');
+}
+
+function isInjuryPoisonItemCard(message) {
+  const flags = getSystemFlags(message);
+  if (flags?.context?.type) return false;
+  if (hasInjuryPoisonTraits(getOriginTraits(message))) return true;
+
+  const item = message.getAssociatedItem?.();
+  return hasInjuryPoisonTraits(item);
+}
+
+async function getOriginItem(message) {
+  const uuid = getSystemFlags(message)?.origin?.uuid;
+  if (!uuid || typeof fromUuid !== 'function') return null;
+
+  try {
+    return await fromUuid(uuid);
+  } catch {
+    return null;
+  }
+}
+
+export function onPreCreateChatMessage(message) {
+  if (!game.user.isGM) return;
+  if (!isInjuryPoisonItemCard(message)) return;
+  const whisper = getGmWhisper();
+  if (!whisper.length) return;
+  message.updateSource?.({ whisper });
+}
+
+function isAttackRollMessage(message, flags) {
+  const context = flags?.context;
+  return context?.type === 'attack-roll' ||
+    context?.action === 'strike' ||
+    !!message?._strike;
+}
+
+async function ensureInjuryPoisonItemCardWhispered(message) {
+  if (!game.user.isGM) return;
+  if (message.whisper?.length) return;
+  const flags = getSystemFlags(message);
+  if (flags?.context?.type) return;
+  let shouldWhisper = isInjuryPoisonItemCard(message);
+  if (!shouldWhisper) {
+    shouldWhisper = hasInjuryPoisonTraits(await getOriginItem(message));
+  }
+  if (!shouldWhisper) return;
+  const whisper = getGmWhisper();
+  if (!whisper.length) return;
+  await message.update?.({ whisper });
+}
+
 export async function onCreateChatMessage(message, options, userId) {
   if (!game.user.isGM) return;
+
+  await ensureInjuryPoisonItemCardWhispered(message);
 
   if (!game.settings.get('pf2e-afflictioner', 'autoDetectAfflictions')) return;
 
   const flags = getSystemFlags(message);
-  if (!flags?.context?.type) return;
+  if (!flags?.context) return;
 
-  if (flags.context.type === 'attack-roll') {
-    await handleAttackRoll(message, flags);
+  if (isAttackRollMessage(message, flags)) {
+    await processAttackRollMessage(message, flags);
     return;
   }
 
@@ -134,6 +207,23 @@ export async function onCreateChatMessage(message, options, userId) {
   }));
 }
 
+export async function onUpdateChatMessage(message) {
+  if (!game.user.isGM) return;
+  if (!game.settings.get('pf2e-afflictioner', 'autoDetectAfflictions')) return;
+
+  const flags = getSystemFlags(message);
+  if (!isAttackRollMessage(message, flags)) return;
+
+  await processAttackRollMessage(message, flags);
+}
+
+async function processAttackRollMessage(message, flags) {
+  if (message.id && processedAttackMessageIds.has(message.id)) return;
+
+  const handled = await handleAttackRoll(message, flags);
+  if (handled && message.id) processedAttackMessageIds.add(message.id);
+}
+
 async function rollStickyPoisonFlatCheck(actor, weapon, coating, dc, gmWhisper) {
   const roll = new Roll('1d20');
   await roll.evaluate();
@@ -171,7 +261,143 @@ async function resolveAttackTargets(flags) {
   return targets;
 }
 
-async function postInjectionHitPrompt(actor, weapon, injection, flags, gmWhisper) {
+async function resolveAttackActor(message, flags, weapon) {
+  if (message?.speakerActor) return message.speakerActor;
+  if (message?.actor) return message.actor;
+
+  const actorUuid = flags.actor?.uuid || flags.origin?.actor;
+  if (actorUuid && typeof fromUuid === 'function') {
+    try {
+      const actor = await fromUuid(actorUuid);
+      if (actor) return actor;
+    } catch {
+      // Fall back to weapon parent below.
+    }
+  }
+
+  const speakerToken = message?.speaker?.token ? canvas?.tokens?.get(message.speaker.token) : null;
+  if (speakerToken?.actor) return speakerToken.actor;
+
+  return weapon?.parent || null;
+}
+
+async function resolveAttackWeapon(message, flags) {
+  const originUuid = flags.origin?.uuid;
+  if (originUuid) {
+    try {
+      const weapon = await fromUuid(originUuid);
+      if (weapon) return weapon;
+    } catch {
+      // Fall back to message item below.
+    }
+  }
+
+  return message?.item || message?._strike?.item || null;
+}
+
+function resolveActorWeapon(actor, weapon) {
+  return actor?.items?.get?.(weapon.id) || weapon;
+}
+
+function addUnique(list, value) {
+  if (value && !list.includes(value)) list.push(value);
+}
+
+function getItemIdFromUuid(uuid) {
+  return String(uuid || '').match(/(?:^|\.)Item\.([^.]+)$/)?.[1] || null;
+}
+
+function getLinkedWeaponId(item) {
+  return item?.flags?.pf2e?.linkedWeapon || item?.system?.linkedWeapon || item?.system?.linkedWeaponId || null;
+}
+
+function getActionItem(actor, strikeFlag) {
+  const index = strikeFlag && Number.isInteger(strikeFlag.index) ? strikeFlag.index : null;
+  return index === null ? null : actor?.system?.actions?.[index]?.item || null;
+}
+
+function getStoredWeaponIds(actor, weapon, message, flags) {
+  const ids = [];
+  const candidates = [
+    weapon,
+    message?.item,
+    message?._strike?.item,
+    getActionItem(actor, flags?.strike),
+  ].filter(Boolean);
+
+  for (const item of candidates) {
+    addUnique(ids, item.id);
+    addUnique(ids, getLinkedWeaponId(item));
+  }
+
+  addUnique(ids, getItemIdFromUuid(flags?.origin?.uuid));
+
+  const identifierWeaponId = String(flags?.context?.identifier || '').split('.')[0];
+  addUnique(ids, identifierWeaponId);
+
+  const actorItems = actor?.items;
+  for (const id of [...ids]) {
+    const item = actorItems?.get?.(id);
+    addUnique(ids, getLinkedWeaponId(item));
+  }
+
+  return ids;
+}
+
+function findStoredWeaponData(actor, weapon, message, flags, getAll) {
+  const records = getAll(actor);
+  for (const weaponId of getStoredWeaponIds(actor, weapon, message, flags)) {
+    if (records[weaponId]) return { weaponId, data: records[weaponId] };
+  }
+
+  const weaponName = String(weapon?.name || '').trim().toLowerCase();
+  if (weaponName) {
+    const nameMatches = Object.entries(records)
+      .filter(([, record]) => String(record?.weaponName || '').trim().toLowerCase() === weaponName);
+    if (nameMatches.length === 1) {
+      const [weaponId, data] = nameMatches[0];
+      return { weaponId, data };
+    }
+  }
+
+  return { weaponId: weapon?.id || null, data: null };
+}
+
+function outcomeFromDegree(degree) {
+  return {
+    0: DEGREE_OF_SUCCESS.CRITICAL_FAILURE,
+    1: DEGREE_OF_SUCCESS.FAILURE,
+    2: DEGREE_OF_SUCCESS.SUCCESS,
+    3: DEGREE_OF_SUCCESS.CRITICAL_SUCCESS,
+  }[degree] || null;
+}
+
+function stripHtml(html) {
+  const withoutTags = String(html || '').replace(/<[^>]*>/g, ' ');
+  const textarea = document?.createElement?.('textarea');
+  if (!textarea) return withoutTags;
+  textarea.innerHTML = withoutTags;
+  return textarea.value;
+}
+
+function resolveAttackOutcome(message, flags) {
+  const contextOutcome = flags.context?.outcome || flags.context?.unadjustedOutcome;
+  if (contextOutcome) return contextOutcome;
+
+  const rollDegree = message?.rolls?.find?.(roll => Number.isInteger(roll?.options?.degreeOfSuccess))?.options?.degreeOfSuccess;
+  const degreeOutcome = outcomeFromDegree(rollDegree);
+  if (degreeOutcome) return degreeOutcome;
+
+  const content = stripHtml(message?.content).toLowerCase();
+  if (/\bcritical\s+(hit|success)\b/.test(content)) return DEGREE_OF_SUCCESS.CRITICAL_SUCCESS;
+  if (/\bhit\s+by\b/.test(content) || /\bsuccess\b/.test(content)) return DEGREE_OF_SUCCESS.SUCCESS;
+  if (/\bcritical\s+(miss|failure)\b/.test(content)) return DEGREE_OF_SUCCESS.CRITICAL_FAILURE;
+  if (/\bmiss\s+by\b/.test(content) || /\bfailure\b/.test(content)) return DEGREE_OF_SUCCESS.FAILURE;
+
+  return null;
+}
+
+async function postInjectionHitPrompt(actor, weapon, injection, flags, gmWhisper, weaponId = weapon.id) {
   const i = game.i18n;
   const K = 'PF2E_AFFLICTIONER.WEAPON_COATING';
   const targets = await resolveAttackTargets(flags);
@@ -199,7 +425,8 @@ async function postInjectionHitPrompt(actor, weapon, injection, flags, gmWhisper
             <button class="pf2e-afflictioner-inject-weapon-poison"
                     data-target-token-id="${target.id}"
                     data-actor-id="${actor.id}"
-                    data-weapon-id="${weapon.id}"
+                    data-actor-uuid="${actor.uuid || actor.id}"
+                    data-weapon-id="${weaponId}"
                     data-affliction-data="${encodeURIComponent(JSON.stringify(buttonAfflictionData))}">
               <i class="fas fa-syringe"></i> ${i.format(`${K}.INJECTION_APPLY_BTN`, { targetName: target.name })}
             </button>
@@ -222,39 +449,36 @@ async function postInjectionHitPrompt(actor, weapon, injection, flags, gmWhisper
 }
 
 async function handleAttackRoll(_message, flags) {
-  const originUuid = flags.origin?.uuid;
-  if (!originUuid) return;
-
-  let weapon;
-  try {
-    weapon = await fromUuid(originUuid);
-  } catch {
-    return;
-  }
+  let weapon = await resolveAttackWeapon(_message, flags);
   if (!weapon) return;
 
-  const actor = weapon.parent;
+  const actor = await resolveAttackActor(_message, flags, weapon);
   if (!actor) return;
+  weapon = resolveActorWeapon(actor, weapon);
 
-  const outcome = flags.context?.outcome;
+  const outcome = resolveAttackOutcome(_message, flags);
   if (!outcome) return;
 
   const gmWhisper = game.users.filter(u => u.isGM).map(u => u.id);
-  const injection = WeaponCoatingStore.getInjection(actor, weapon.id);
+  let handled = false;
+  const injectionRecord = findStoredWeaponData(actor, weapon, _message, flags, WeaponCoatingStore.getInjections);
+  const injection = injectionRecord.data;
   if (
     injection &&
     WeaponCoatingService._isInjectionWeapon(weapon) &&
     (outcome === DEGREE_OF_SUCCESS.SUCCESS || outcome === DEGREE_OF_SUCCESS.CRITICAL_SUCCESS)
   ) {
-    await postInjectionHitPrompt(actor, weapon, injection, flags, gmWhisper);
+    await postInjectionHitPrompt(actor, weapon, injection, flags, gmWhisper, injectionRecord.weaponId);
+    handled = true;
   }
 
-  const coating = WeaponCoatingStore.getCoating(actor, weapon.id);
+  const coatingRecord = findStoredWeaponData(actor, weapon, _message, flags, WeaponCoatingStore.getCoatings);
+  const coating = coatingRecord.data;
   if (!coating) {
     if (actor.type === 'hazard') {
       await handleHazardAttackRoll(_message, flags, actor);
     }
-    return;
+    return handled;
   }
 
   const weaponName = weapon.name;
@@ -264,7 +488,7 @@ async function handleAttackRoll(_message, flags) {
   if (outcome === DEGREE_OF_SUCCESS.SUCCESS || outcome === DEGREE_OF_SUCCESS.CRITICAL_SUCCESS) {
     // Direct damage coatings (Field Vials) — roll bonus damage, no save
     if (coating.afflictionData?.isDirectDamage) {
-      await WeaponCoatingStore.removeCoating(actor, weapon.id);
+      await WeaponCoatingStore.removeCoating(actor, coatingRecord.weaponId);
       const i = game.i18n;
       const K = 'PF2E_AFFLICTIONER.WEAPON_COATING';
       const { damageFormula, damageType: dmgType } = coating.afflictionData;
@@ -281,10 +505,10 @@ async function handleAttackRoll(_message, flags) {
 
       const { AfflictionManager } = await import('../managers/AfflictionManager.js');
       if (AfflictionManager.currentInstance) AfflictionManager.currentInstance.render({ force: true });
-      return;
+      return true;
     }
 
-    const damageType = weapon.system?.damage?.damageType;
+    const damageType = WeaponCoatingService._getWeaponDamageType(weapon);
     const hasPiercingOrSlashing = damageType === 'piercing' || damageType === 'slashing';
 
     if (hasPiercingOrSlashing) {
@@ -331,7 +555,8 @@ async function handleAttackRoll(_message, flags) {
                 <button class="pf2e-afflictioner-apply-weapon-poison"
                         data-target-token-id="${target.id}"
                         data-actor-id="${actor.id}"
-                        data-weapon-id="${weapon.id}"
+                        data-actor-uuid="${actor.uuid || actor.id}"
+                        data-weapon-id="${coatingRecord.weaponId}"
                         data-affliction-data="${encodeURIComponent(JSON.stringify(buttonAfflictionData))}"
                         data-sticky-poison-success="${stickyPoisonSuccess}">
                   <i class="fas fa-biohazard"></i> ${i.format(`${K}.HIT_APPLY_BTN`, { targetName: target.name })}
@@ -351,6 +576,7 @@ async function handleAttackRoll(_message, flags) {
           whisper: gmWhisper
         });
       }
+      return true;
     } else {
       let removed = true;
       if (FeatsService.hasStickyPoison(actor)) {
@@ -358,7 +584,7 @@ async function handleAttackRoll(_message, flags) {
         if (kept) removed = false;
       }
       if (removed) {
-        await WeaponCoatingStore.removeCoating(actor, weapon.id);
+        await WeaponCoatingStore.removeCoating(actor, coatingRecord.weaponId);
         const i = game.i18n;
         const K = 'PF2E_AFFLICTIONER.WEAPON_COATING';
         await ChatMessage.create({
@@ -366,6 +592,7 @@ async function handleAttackRoll(_message, flags) {
           whisper: gmWhisper
         });
       }
+      return true;
     }
   } else if (outcome === DEGREE_OF_SUCCESS.FAILURE) {
     const i = game.i18n;
@@ -374,6 +601,7 @@ async function handleAttackRoll(_message, flags) {
       content: `<div class="pf2e-afflictioner-save-request"><p>${i.format(`${K}.MISS`, { actorName, weaponName, poisonName })}</p></div>`,
       whisper: gmWhisper
     });
+    return true;
   } else if (outcome === DEGREE_OF_SUCCESS.CRITICAL_FAILURE) {
     let removed = true;
     if (FeatsService.hasStickyPoison(actor)) {
@@ -381,7 +609,7 @@ async function handleAttackRoll(_message, flags) {
       if (kept) removed = false;
     }
     if (removed) {
-      await WeaponCoatingStore.removeCoating(actor, weapon.id);
+      await WeaponCoatingStore.removeCoating(actor, coatingRecord.weaponId);
       const i = game.i18n;
       const K = 'PF2E_AFFLICTIONER.WEAPON_COATING';
       await ChatMessage.create({
@@ -389,7 +617,10 @@ async function handleAttackRoll(_message, flags) {
         whisper: gmWhisper
       });
     }
+    return true;
   }
+
+  return false;
 }
 
 async function handleHazardAttackRoll(message, flags, actor) {

@@ -233,7 +233,7 @@
                 {{#if canCoat}}
                 {{#if isCoated}}
                   <button type="button" class="coating-remove-btn" data-action="removeCoating"
-                          data-actor-id="{{actorId}}" data-weapon-id="{{weaponId}}"
+                          data-actor-id="{{actorId}}" data-actor-uuid="{{actorUuid}}" data-token-id="{{tokenId}}" data-weapon-id="{{weaponId}}"
                           data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.REMOVE_COATING'}}">
                     <i class="fas fa-times"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.REMOVE_COATING"}}
                   </button>
@@ -252,7 +252,7 @@
                             {{/each}}
                           </select>
                           <button type="button" class="coating-apply-btn" data-action="addCoating"
-                                  data-actor-id="{{actorId}}" data-weapon-id="{{weaponId}}"
+                                  data-actor-id="{{actorId}}" data-actor-uuid="{{actorUuid}}" data-token-id="{{tokenId}}" data-weapon-id="{{weaponId}}"
                                   data-double-poison="true"
                                   data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.APPLY_SECOND_COATING_TOOLTIP'}}">
                             <i class="fas fa-flask"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.ADD_SECOND_POISON_BTN"}}
@@ -271,7 +271,7 @@
                         {{/each}}
                       </select>
                       <button type="button" class="coating-apply-btn" data-action="addCoating"
-                              data-actor-id="{{actorId}}" data-weapon-id="{{weaponId}}"
+                              data-actor-id="{{actorId}}" data-actor-uuid="{{actorUuid}}" data-token-id="{{tokenId}}" data-weapon-id="{{weaponId}}"
                               data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.APPLY_COATING_TOOLTIP'}}">
                         <i class="fas fa-flask"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.COAT_WEAPON_BTN"}}
                       </button>
@@ -284,7 +284,7 @@
                 {{#if hasInjectionTrait}}
                   {{#if isInjectionLoaded}}
                     <button type="button" class="injection-remove-btn" data-action="removeInjection"
-                            data-actor-id="{{actorId}}" data-weapon-id="{{weaponId}}"
+                            data-actor-id="{{actorId}}" data-actor-uuid="{{actorUuid}}" data-token-id="{{tokenId}}" data-weapon-id="{{weaponId}}"
                             data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.REMOVE_INJECTION'}}">
                       <i class="fas fa-times"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.REMOVE_INJECTION"}}
                     </button>
@@ -298,7 +298,7 @@
                           {{/each}}
                         </select>
                         <button type="button" class="injection-apply-btn" data-action="addInjection"
-                                data-actor-id="{{actorId}}" data-weapon-id="{{weaponId}}"
+                                data-actor-id="{{actorId}}" data-actor-uuid="{{actorUuid}}" data-token-id="{{tokenId}}" data-weapon-id="{{weaponId}}"
                                 data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.LOAD_INJECTION_TOOLTIP'}}">
                           <i class="fas fa-syringe"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.LOAD_INJECTION_BTN"}}
                         </button>

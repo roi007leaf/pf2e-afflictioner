@@ -242,7 +242,7 @@ async function checkWorldTimeCoatingExpiration(currentWorldTime) {
 
     if (!shouldExpire) continue;
 
-    const actor = game.actors.get(coating.actorId);
+    const actor = coating.actor || game.actors.get(coating.actorId);
     if (!actor) continue;
 
     await WeaponCoatingStore.removeCoating(actor, coating.weaponId);

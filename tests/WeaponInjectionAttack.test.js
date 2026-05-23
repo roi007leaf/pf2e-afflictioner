@@ -1,4 +1,4 @@
-import { onCreateChatMessage } from '../scripts/hooks/chat.js';
+import { onCreateChatMessage, onUpdateChatMessage } from '../scripts/hooks/chat.js';
 
 describe('weapon injection attack prompts', () => {
   beforeEach(() => {
@@ -88,5 +88,350 @@ describe('weapon injection attack prompts', () => {
     expect(ChatMessage.create.mock.calls[0][0].content).toContain('pf2e-afflictioner-inject-weapon-poison');
     expect(ChatMessage.create.mock.calls[0][0].content).toContain('data-weapon-id="weapon-1"');
     expect(ChatMessage.create.mock.calls[0][0].content).toContain('Giant%20Centipede%20Venom');
+  });
+
+  test('coated unlinked token attack looks up coating on the speaker actor instead of the base actor', async () => {
+    const baseActor = {
+      id: 'actor-1',
+      uuid: 'Actor.actor-1',
+      name: 'Blacknoon Apprentice',
+      type: 'npc',
+      getFlag: jest.fn(() => ({})),
+    };
+    const weapon = {
+      id: 'weapon-1',
+      uuid: 'Actor.actor-1.Item.weapon-1',
+      name: 'Dagger',
+      parent: baseActor,
+      system: {
+        traits: { value: [] },
+        damage: { damageType: 'piercing' },
+      },
+    };
+    const syntheticWeapon = { ...weapon, uuid: 'Scene.scene.Token.attacker-1.Actor.actor-1.Item.weapon-1' };
+    const syntheticActor = {
+      id: 'actor-1',
+      uuid: 'Scene.scene.Token.attacker-1.Actor.actor-1',
+      name: 'Blacknoon Apprentice',
+      type: 'npc',
+      items: Object.assign([], { get: jest.fn(() => syntheticWeapon) }),
+      getFlag: jest.fn((_moduleId, key) => {
+        if (key === 'weaponCoatings') {
+          return {
+            'weapon-1': {
+              poisonName: 'Giant Centipede Venom',
+              weaponName: 'Dagger',
+              afflictionData: {
+                name: 'Giant Centipede Venom',
+                type: 'poison',
+                traits: ['injury', 'poison'],
+                level: 1,
+              },
+            },
+          };
+        }
+        return {};
+      }),
+    };
+    syntheticWeapon.parent = syntheticActor;
+    const target = { id: 'target-1', name: 'Ogre' };
+
+    global.canvas = {
+      tokens: {
+        get: jest.fn(id => (id === 'target-1' ? target : null)),
+      },
+    };
+    global.fromUuid = jest.fn(async uuid => {
+      if (uuid === 'Actor.actor-1.Item.weapon-1') return weapon;
+      if (uuid === 'Scene.scene.Token.target-1') return { id: 'target-1' };
+      return null;
+    });
+
+    await onCreateChatMessage({
+      speakerActor: syntheticActor,
+      flags: {
+        pf2e: {
+          context: {
+            type: 'attack-roll',
+            outcome: 'success',
+            target: { token: 'Scene.scene.Token.target-1' },
+          },
+          origin: { uuid: 'Actor.actor-1.Item.weapon-1' },
+        },
+      },
+    });
+
+    expect(baseActor.getFlag).not.toHaveBeenCalledWith('pf2e-afflictioner', 'weaponCoatings');
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('PF2E_AFFLICTIONER.WEAPON_COATING.HIT_TITLE'),
+      whisper: ['gm-1'],
+    }));
+    expect(ChatMessage.create.mock.calls[0][0].content).toContain('data-actor-uuid="Scene.scene.Token.attacker-1.Actor.actor-1"');
+    expect(ChatMessage.create.mock.calls[0][0].content).toContain('Giant%20Centipede%20Venom');
+  });
+
+  test('coated NPC strike without origin uuid uses message item and roll degree', async () => {
+    const weapon = {
+      id: 'weapon-1',
+      uuid: 'Scene.scene.Token.attacker-1.Actor.actor-1.Item.weapon-1',
+      name: 'Hook Sword',
+      system: {
+        traits: { value: [] },
+        damage: { damageType: 'slashing' },
+      },
+    };
+    const actor = {
+      id: 'actor-1',
+      uuid: 'Scene.scene.Token.attacker-1.Actor.actor-1',
+      name: 'Giant Centipede',
+      type: 'npc',
+      items: Object.assign([], { get: jest.fn(() => weapon) }),
+      getFlag: jest.fn((_moduleId, key) => {
+        if (key === 'weaponCoatings') {
+          return {
+            'weapon-1': {
+              poisonName: 'Giant Centipede Venom',
+              weaponName: 'Hook Sword',
+              afflictionData: {
+                name: 'Giant Centipede Venom',
+                type: 'poison',
+                traits: ['injury', 'poison'],
+                level: 1,
+              },
+            },
+          };
+        }
+        return {};
+      }),
+    };
+    weapon.parent = actor;
+    const target = { id: 'target-1', name: 'Flint Glade' };
+
+    global.canvas = {
+      tokens: {
+        get: jest.fn(id => (id === 'target-1' ? target : null)),
+      },
+    };
+
+    await onCreateChatMessage({
+      id: 'attack-message-no-origin',
+      speakerActor: actor,
+      item: weapon,
+      rolls: [{ options: { degreeOfSuccess: 2 } }],
+      flags: {
+        pf2e: {
+          context: {
+            type: 'attack-roll',
+            target: { token: 'Scene.scene.Token.target-1' },
+          },
+        },
+      },
+    });
+
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('PF2E_AFFLICTIONER.WEAPON_COATING.HIT_TITLE'),
+      whisper: ['gm-1'],
+    }));
+  });
+
+  test('coated NPC melee strike uses damageRolls damage type', async () => {
+    const meleeAttack = {
+      id: 'melee-1',
+      name: 'Hook Sword',
+      system: {
+        traits: { value: [] },
+        damageRolls: {
+          main: { damage: '1d8', damageType: 'slashing' },
+        },
+      },
+    };
+    const actor = {
+      id: 'actor-1',
+      uuid: 'Scene.scene.Token.attacker-1.Actor.actor-1',
+      name: 'Giant Centipede',
+      type: 'npc',
+      items: Object.assign([meleeAttack], { get: jest.fn(id => (id === 'melee-1' ? meleeAttack : null)) }),
+      getFlag: jest.fn((_moduleId, key) => {
+        if (key === 'weaponCoatings') {
+          return {
+            'melee-1': {
+              poisonName: 'Giant Centipede Venom',
+              weaponName: 'Hook Sword',
+              afflictionData: {
+                name: 'Giant Centipede Venom',
+                type: 'poison',
+                traits: ['injury', 'poison'],
+                level: 1,
+              },
+            },
+          };
+        }
+        return {};
+      }),
+    };
+    meleeAttack.parent = actor;
+
+    global.canvas = { tokens: { get: jest.fn() } };
+
+    await onCreateChatMessage({
+      id: 'npc-melee-damage-rolls',
+      speakerActor: actor,
+      item: meleeAttack,
+      rolls: [{ options: { degreeOfSuccess: 2 } }],
+      flags: {
+        pf2e: {
+          context: {
+            type: 'attack-roll',
+            identifier: 'melee-1.hook-sword.melee',
+          },
+        },
+      },
+    });
+
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('PF2E_AFFLICTIONER.WEAPON_COATING.HIT_TITLE'),
+      whisper: ['gm-1'],
+    }));
+  });
+
+  test('linked NPC melee strike finds loaded injection stored on inventory weapon', async () => {
+    const inventoryWeapon = {
+      id: 'weapon-1',
+      name: 'Longsword',
+      system: {
+        traits: { value: ['injection'] },
+        damage: { damageType: 'slashing' },
+      },
+    };
+    const meleeAttack = {
+      id: 'melee-1',
+      name: 'Longsword',
+      flags: { pf2e: { linkedWeapon: 'weapon-1' } },
+      system: {
+        traits: { value: ['injection'] },
+        damageRolls: {
+          main: { damage: '1d8', damageType: 'slashing' },
+        },
+      },
+    };
+    const actor = {
+      id: 'actor-1',
+      uuid: 'Scene.scene.Token.attacker-1.Actor.actor-1',
+      name: 'Giant Centipede',
+      type: 'npc',
+      items: Object.assign([meleeAttack, inventoryWeapon], {
+        get: jest.fn(id => ({ 'melee-1': meleeAttack, 'weapon-1': inventoryWeapon }[id] || null)),
+      }),
+      getFlag: jest.fn((_moduleId, key) => {
+        if (key === 'weaponInjections') {
+          return {
+            'weapon-1': {
+              poisonName: 'Giant Centipede Venom',
+              weaponName: 'Longsword',
+              afflictionData: {
+                name: 'Giant Centipede Venom',
+                type: 'poison',
+                traits: ['injury', 'poison'],
+                level: 1,
+              },
+            },
+          };
+        }
+        return {};
+      }),
+    };
+    inventoryWeapon.parent = actor;
+    meleeAttack.parent = actor;
+
+    global.canvas = { tokens: { get: jest.fn() } };
+    game.user.targets.add({ id: 'target-1', name: 'Flint Glade' });
+
+    await onCreateChatMessage({
+      id: 'linked-npc-melee-injection',
+      speakerActor: actor,
+      item: meleeAttack,
+      rolls: [{ options: { degreeOfSuccess: 3 } }],
+      flags: {
+        pf2e: {
+          context: {
+            type: 'attack-roll',
+            identifier: 'melee-1.longsword.melee',
+          },
+        },
+      },
+    });
+
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_HIT_TITLE'),
+      whisper: ['gm-1'],
+    }));
+    expect(ChatMessage.create.mock.calls[0][0].content).toContain('data-weapon-id="weapon-1"');
+  });
+
+  test('updated strike card with hit text can trigger coated weapon prompt once', async () => {
+    const weapon = {
+      id: 'weapon-1',
+      name: 'Hook Sword',
+      system: {
+        traits: { value: [] },
+        damage: { damageType: 'slashing' },
+      },
+    };
+    const actor = {
+      id: 'actor-1',
+      uuid: 'Scene.scene.Token.attacker-2.Actor.actor-1',
+      name: 'Giant Centipede',
+      type: 'npc',
+      items: Object.assign([], { get: jest.fn(() => weapon) }),
+      getFlag: jest.fn((_moduleId, key) => {
+        if (key === 'weaponCoatings') {
+          return {
+            'weapon-1': {
+              poisonName: 'Giant Centipede Venom',
+              weaponName: 'Hook Sword',
+              afflictionData: {
+                name: 'Giant Centipede Venom',
+                type: 'poison',
+                traits: ['injury', 'poison'],
+                level: 1,
+              },
+            },
+          };
+        }
+        return {};
+      }),
+    };
+    weapon.parent = actor;
+    const target = { id: 'target-1', name: 'Flint Glade' };
+
+    global.canvas = {
+      tokens: {
+        get: jest.fn(id => (id === 'target-1' ? target : null)),
+      },
+    };
+
+    const message = {
+      id: 'updated-strike-card',
+      speakerActor: actor,
+      item: weapon,
+      content: '<div>Result: Hit by +4</div>',
+      flags: {
+        pf2e: {
+          context: {
+            type: 'attack-roll',
+            target: { token: 'Scene.scene.Token.target-1' },
+          },
+        },
+      },
+    };
+
+    await onUpdateChatMessage(message);
+    await onUpdateChatMessage(message);
+
+    expect(ChatMessage.create).toHaveBeenCalledTimes(1);
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('PF2E_AFFLICTIONER.WEAPON_COATING.HIT_TITLE'),
+      whisper: ['gm-1'],
+    }));
   });
 });

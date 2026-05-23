@@ -7,6 +7,26 @@ import { FeatsService } from './FeatsService.js';
 const K = 'PF2E_AFFLICTIONER.WEAPON_COATING';
 
 export class WeaponCoatingService {
+  static _getActorReference(actor) {
+    return actor?.uuid || actor?.id || null;
+  }
+
+  static async _resolveActor(actorRef) {
+    if (!actorRef) return null;
+    if (typeof actorRef !== 'string') return actorRef;
+
+    if (actorRef.includes('.') && typeof fromUuid === 'function') {
+      try {
+        const actor = await fromUuid(actorRef);
+        if (actor) return actor;
+      } catch {
+        // Fall back to world actor lookup below.
+      }
+    }
+
+    return game.actors.get(actorRef) || null;
+  }
+
   static async openCoatDialog(itemUuid, speakerActorId, speakerTokenId, targetTokenIds = []) {
     const i = game.i18n;
     const item = await fromUuid(itemUuid);
@@ -33,11 +53,12 @@ export class WeaponCoatingService {
     const groups = [];
     const groupIndex = new Map();
     weapons.forEach((w, idx) => {
-      if (!groupIndex.has(w.actorId)) {
-        groupIndex.set(w.actorId, groups.length);
+      const groupKey = w.groupKey ?? w.actorUuid ?? w.actorId;
+      if (!groupIndex.has(groupKey)) {
+        groupIndex.set(groupKey, groups.length);
         groups.push({ actorName: w.actorName, weapons: [] });
       }
-      groups[groupIndex.get(w.actorId)].weapons.push({ ...w, idx });
+      groups[groupIndex.get(groupKey)].weapons.push({ ...w, idx });
     });
 
     const sections = groups.map(g => `
@@ -97,7 +118,7 @@ export class WeaponCoatingService {
 
     if (!selected) return;
 
-    const actor = game.actors.get(selected.actorId);
+    const actor = await this._resolveActor(selected.actor || selected.actorUuid || selected.actorId);
     if (!actor) {
       ui.notifications.error(i.localize(`${K}.ACTOR_NOT_FOUND`));
       return;
@@ -174,11 +195,12 @@ export class WeaponCoatingService {
     const groups = [];
     const groupIndex = new Map();
     weapons.forEach((w, idx) => {
-      if (!groupIndex.has(w.actorId)) {
-        groupIndex.set(w.actorId, groups.length);
+      const groupKey = w.groupKey ?? w.actorUuid ?? w.actorId;
+      if (!groupIndex.has(groupKey)) {
+        groupIndex.set(groupKey, groups.length);
         groups.push({ actorName: w.actorName, weapons: [] });
       }
-      groups[groupIndex.get(w.actorId)].weapons.push({ ...w, idx });
+      groups[groupIndex.get(groupKey)].weapons.push({ ...w, idx });
     });
 
     const sections = groups.map(g => `
@@ -238,7 +260,7 @@ export class WeaponCoatingService {
 
     if (!selected) return;
 
-    const actor = game.actors.get(selected.actorId);
+    const actor = await this._resolveActor(selected.actor || selected.actorUuid || selected.actorId);
     if (!actor) {
       ui.notifications.error(i.localize(`${K}.ACTOR_NOT_FOUND`));
       return;
@@ -324,11 +346,12 @@ export class WeaponCoatingService {
     const groups = [];
     const groupIndex = new Map();
     weapons.forEach((w, idx) => {
-      if (!groupIndex.has(w.actorId)) {
-        groupIndex.set(w.actorId, groups.length);
+      const groupKey = w.groupKey ?? w.actorUuid ?? w.actorId;
+      if (!groupIndex.has(groupKey)) {
+        groupIndex.set(groupKey, groups.length);
         groups.push({ actorName: w.actorName, weapons: [] });
       }
-      groups[groupIndex.get(w.actorId)].weapons.push({ ...w, idx });
+      groups[groupIndex.get(groupKey)].weapons.push({ ...w, idx });
     });
 
     const sections = groups.map(g => `
@@ -388,7 +411,7 @@ export class WeaponCoatingService {
 
     if (!selected) return;
 
-    const actor = game.actors.get(selected.actorId);
+    const actor = await this._resolveActor(selected.actor || selected.actorUuid || selected.actorId);
     if (!actor) {
       ui.notifications.error(i.localize(`${K}.ACTOR_NOT_FOUND`));
       return;
@@ -484,11 +507,12 @@ export class WeaponCoatingService {
     const groups = [];
     const groupIndex = new Map();
     weapons.forEach((w, idx) => {
-      if (!groupIndex.has(w.actorId)) {
-        groupIndex.set(w.actorId, groups.length);
+      const groupKey = w.groupKey ?? w.actorUuid ?? w.actorId;
+      if (!groupIndex.has(groupKey)) {
+        groupIndex.set(groupKey, groups.length);
         groups.push({ actorName: w.actorName, weapons: [] });
       }
-      groups[groupIndex.get(w.actorId)].weapons.push({ ...w, idx });
+      groups[groupIndex.get(groupKey)].weapons.push({ ...w, idx });
     });
 
     const sections = groups.map(g => `
@@ -548,7 +572,7 @@ export class WeaponCoatingService {
 
     if (!selected) return;
 
-    const actor = game.actors.get(selected.actorId);
+    const actor = await this._resolveActor(selected.actor || selected.actorUuid || selected.actorId);
     if (!actor) {
       ui.notifications.error(i.localize(`${K}.ACTOR_NOT_FOUND`));
       return;
@@ -768,7 +792,16 @@ export class WeaponCoatingService {
    */
   static _findCombatantId(actor) {
     if (!game.combat?.started) return null;
-    const combatant = game.combat.combatants.find(c => c.actorId === actor.id);
+    const combatants = Array.from(game.combat.combatants ?? []);
+    const actorUuid = actor.uuid;
+    const combatant = combatants.find(c =>
+      c.actor === actor ||
+      (actorUuid && c.actor?.uuid === actorUuid) ||
+      c.token?.actor === actor ||
+      (actorUuid && c.token?.actor?.uuid === actorUuid) ||
+      (actor.token?.id && c.tokenId === actor.token.id) ||
+      c.actorId === actor.id
+    );
     return combatant?.id ?? null;
   }
 
@@ -906,6 +939,30 @@ export class WeaponCoatingService {
   static _getWeaponTraits(weapon) {
     const traits = weapon?.traits || weapon?.system?.traits?.value || [];
     return this._normalizeTraitCollection(traits);
+  }
+
+  static _getWeaponDamageType(weapon) {
+    const directDamageType = weapon?.system?.damage?.damageType;
+    if (directDamageType) return directDamageType;
+
+    const damageRolls = weapon?.system?.damageRolls;
+    const firstDamageRoll = Array.isArray(damageRolls)
+      ? damageRolls[0]
+      : Object.values(damageRolls || {})[0];
+    return firstDamageRoll?.damageType || 'unknown';
+  }
+
+  static _getCoatableWeaponItems(actor) {
+    const items = [
+      ...(actor?.itemTypes?.weapon || []),
+      ...(actor?.itemTypes?.melee || []),
+    ];
+    const seen = new Set();
+    return items.filter(item => {
+      if (!item?.id || seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
   }
 
   static _normalizeTraitCollection(traits) {
@@ -1124,8 +1181,8 @@ export class WeaponCoatingService {
     return result ?? null;
   }
 
-  static async _applyCoatingToActor(actorId, weaponId, coatingParams) {
-    const actor = game.actors.get(actorId);
+  static async _applyCoatingToActor(actorRef, weaponId, coatingParams) {
+    const actor = await this._resolveActor(actorRef);
     if (!actor) return false;
 
     const existing = WeaponCoatingStore.getCoating(actor, weaponId);
@@ -1168,8 +1225,8 @@ export class WeaponCoatingService {
     return true;
   }
 
-  static async _applyInjectionToActor(actorId, weaponId, injectionParams) {
-    const actor = game.actors.get(actorId);
+  static async _applyInjectionToActor(actorRef, weaponId, injectionParams) {
+    const actor = await this._resolveActor(actorRef);
     if (!actor) return false;
 
     const existing = WeaponCoatingStore.getInjection(actor, weaponId);
@@ -1195,15 +1252,15 @@ export class WeaponCoatingService {
     return true;
   }
 
-  static async _removeCoatingFromActor(actorId, weaponId) {
-    const actor = game.actors.get(actorId);
+  static async _removeCoatingFromActor(actorRef, weaponId) {
+    const actor = await this._resolveActor(actorRef);
     if (!actor) return false;
     await WeaponCoatingStore.removeCoating(actor, weaponId);
     return true;
   }
 
-  static async _removeInjectionFromActor(actorId, weaponId) {
-    const actor = game.actors.get(actorId);
+  static async _removeInjectionFromActor(actorRef, weaponId) {
+    const actor = await this._resolveActor(actorRef);
     if (!actor) return false;
     await WeaponCoatingStore.removeInjection(actor, weaponId);
     return true;
@@ -1214,11 +1271,11 @@ export class WeaponCoatingService {
    */
   static async _applyCoatingWithPermission(actor, weaponId, coatingParams) {
     if (actor.isOwner) {
-      return this._applyCoatingToActor(actor.id, weaponId, coatingParams);
+      return this._applyCoatingToActor(actor, weaponId, coatingParams);
     }
     const { SocketService } = await import('./SocketService.js');
     if (SocketService.socket) {
-      return SocketService.requestApplyWeaponCoating(actor.id, weaponId, coatingParams);
+      return SocketService.requestApplyWeaponCoating(this._getActorReference(actor), weaponId, coatingParams);
     }
     console.error('PF2e Afflictioner | socketlib is required for coating weapons on unowned actors');
     return false;
@@ -1226,11 +1283,11 @@ export class WeaponCoatingService {
 
   static async _applyInjectionWithPermission(actor, weaponId, injectionParams) {
     if (actor.isOwner) {
-      return this._applyInjectionToActor(actor.id, weaponId, injectionParams);
+      return this._applyInjectionToActor(actor, weaponId, injectionParams);
     }
     const { SocketService } = await import('./SocketService.js');
     if (SocketService.socket) {
-      return SocketService.requestApplyWeaponInjection(actor.id, weaponId, injectionParams);
+      return SocketService.requestApplyWeaponInjection(this._getActorReference(actor), weaponId, injectionParams);
     }
     console.error('PF2e Afflictioner | socketlib is required for loading injection weapons on unowned actors');
     return false;
@@ -1238,11 +1295,11 @@ export class WeaponCoatingService {
 
   static async removeCoatingWithPermission(actor, weaponId) {
     if (actor.isOwner) {
-      return this._removeCoatingFromActor(actor.id, weaponId);
+      return this._removeCoatingFromActor(actor, weaponId);
     }
     const { SocketService } = await import('./SocketService.js');
     if (SocketService.socket) {
-      return SocketService.requestRemoveWeaponCoating(actor.id, weaponId);
+      return SocketService.requestRemoveWeaponCoating(this._getActorReference(actor), weaponId);
     }
     console.error('PF2e Afflictioner | socketlib is required for removing coatings on unowned actors');
     return false;
@@ -1250,11 +1307,11 @@ export class WeaponCoatingService {
 
   static async removeInjectionWithPermission(actor, weaponId) {
     if (actor.isOwner) {
-      return this._removeInjectionFromActor(actor.id, weaponId);
+      return this._removeInjectionFromActor(actor, weaponId);
     }
     const { SocketService } = await import('./SocketService.js');
     if (SocketService.socket) {
-      return SocketService.requestRemoveWeaponInjection(actor.id, weaponId);
+      return SocketService.requestRemoveWeaponInjection(this._getActorReference(actor), weaponId);
     }
     console.error('PF2e Afflictioner | socketlib is required for removing injection loads on unowned actors');
     return false;
@@ -1269,14 +1326,22 @@ export class WeaponCoatingService {
       seen.add(token.id);
       const actor = token.actor;
       if (!actor) return;
-      for (const weapon of (actor.itemTypes?.weapon || [])) {
+      const actorUuid = this._getActorReference(actor);
+      const groupKey = token.document?.actorLink
+        ? (actorUuid || actor.id)
+        : (token.id || actorUuid || actor.id);
+      for (const weapon of this._getCoatableWeaponItems(actor)) {
         weapons.push({
+          actor,
           actorId: actor.id,
-          actorName: actor.name,
+          actorUuid,
+          tokenId: token.id,
+          groupKey,
+          actorName: token.name || actor.name,
           weaponId: weapon.id,
           weaponName: weapon.name,
           traits: weapon.system?.traits?.value || [],
-          damageType: weapon.system?.damage?.damageType || 'unknown',
+          damageType: this._getWeaponDamageType(weapon),
           img: weapon.img || 'icons/svg/sword.svg'
         });
       }
@@ -1286,8 +1351,13 @@ export class WeaponCoatingService {
     if (speakerTokenId) {
       addWeaponsForToken(canvas.tokens.get(speakerTokenId));
     } else if (speakerActorId) {
-      for (const token of canvas.tokens.placeables) {
-        if (token.actor?.id === speakerActorId) { addWeaponsForToken(token); break; }
+      const controlled = canvas.tokens.controlled?.find(t => t.actor?.id === speakerActorId);
+      if (controlled) {
+        addWeaponsForToken(controlled);
+      } else {
+        for (const token of canvas.tokens.placeables) {
+          if (token.actor?.id === speakerActorId) { addWeaponsForToken(token); break; }
+        }
       }
     }
 

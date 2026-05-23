@@ -48,7 +48,7 @@ export async function onDeleteCombat(_combat, _options, _userId) {
   for (const coating of allCoatings) {
     if (coating.expirationMode !== 'start-next-turn' && coating.expirationMode !== 'end-next-turn') continue;
 
-    const actor = game.actors.get(coating.actorId);
+    const actor = coating.actor || game.actors.get(coating.actorId);
     if (!actor) continue;
 
     await WeaponCoatingStore.removeCoating(actor, coating.weaponId);

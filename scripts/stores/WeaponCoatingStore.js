@@ -88,7 +88,10 @@ export function getAllCoatingsOnCanvas() {
     const coatings = getCoatings(actor);
     for (const [weaponId, coating] of Object.entries(coatings)) {
       result.push({
+        actor,
         actorId: actor.id,
+        actorUuid: actor.uuid || actor.id,
+        tokenId: token.id,
         actorName: actor.name,
         weaponId,
         ...coating

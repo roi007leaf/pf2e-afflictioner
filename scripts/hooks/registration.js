@@ -1,5 +1,5 @@
 import { onDamageRoll } from './damage.js';
-import { onCreateChatMessage } from './chat.js';
+import { onCreateChatMessage, onPreCreateChatMessage, onUpdateChatMessage } from './chat.js';
 import { onCombatUpdate, onPf2eStartTurn, onPf2eEndTurn, onDeleteCombat } from './combat.js';
 import { onDeleteItem } from './items.js';
 import { onWorldTimeUpdate } from './worldTime.js';
@@ -13,6 +13,8 @@ export function registerAfflictionHooks() {
   Hooks.on('pf2e.startTurn', onPf2eStartTurn);
   Hooks.on('pf2e.endTurn', onPf2eEndTurn);
   Hooks.on('createChatMessage', onCreateChatMessage);
+  Hooks.on('preCreateChatMessage', onPreCreateChatMessage);
+  Hooks.on('updateChatMessage', onUpdateChatMessage);
   Hooks.on('updateCombat', onCombatUpdate);
   Hooks.on('deleteCombat', onDeleteCombat);
   Hooks.on('deleteItem', onDeleteItem);

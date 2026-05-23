@@ -32,6 +32,7 @@ function poison(overrides = {}) {
 describe('WeaponCoatingService Double Poison support', () => {
   afterEach(() => {
     jest.restoreAllMocks();
+    delete global.canvas;
     delete global.foundry;
     delete global.fromUuid;
   });
@@ -232,6 +233,46 @@ describe('WeaponCoatingService Double Poison support', () => {
     expect(actor.createEmbeddedDocuments).toHaveBeenCalled();
   });
 
+  test('coating a synthetic token actor does not write to the base actor with the same id', async () => {
+    const syntheticFlags = {};
+    const baseFlags = {};
+    const makeActor = (name, uuid, flags) => ({
+      id: 'actor-1',
+      uuid,
+      name,
+      isOwner: true,
+      items: [],
+      getFlag: jest.fn((_moduleId, key) => flags[key] || {}),
+      setFlag: jest.fn(async (_moduleId, key, value) => {
+        flags[key] = value;
+      }),
+      unsetFlag: jest.fn(),
+      createEmbeddedDocuments: jest.fn(async () => [{ uuid: `${uuid}.Item.effect` }]),
+    });
+    const baseActor = makeActor('Blacknoon Apprentice', 'Actor.actor-1', baseFlags);
+    const syntheticActor = makeActor('Blacknoon Apprentice', 'Scene.scene-1.Token.token-1.Actor.actor-1', syntheticFlags);
+
+    game.actors = { get: jest.fn(() => baseActor) };
+    game.combat = null;
+    game.time = { worldTime: 1234 };
+
+    const applied = await WeaponCoatingService._applyCoatingWithPermission(syntheticActor, 'weapon-1', {
+      poisonItemUuid: 'Scene.scene-1.Token.token-1.Actor.actor-1.Item.poison-1',
+      poisonName: 'Giant Centipede Venom',
+      weaponName: 'Dagger',
+      afflictionData: poison({ name: 'Giant Centipede Venom', level: 1 }),
+      expirationMode: 'unlimited',
+      poisonImg: 'poison.webp',
+    });
+
+    expect(applied).toBe(true);
+    expect(syntheticActor.setFlag).toHaveBeenCalled();
+    expect(syntheticFlags.weaponCoatings['weapon-1'].poisonName).toBe('Giant Centipede Venom');
+    expect(syntheticActor.createEmbeddedDocuments).toHaveBeenCalled();
+    expect(baseActor.setFlag).not.toHaveBeenCalled();
+    expect(baseFlags.weaponCoatings).toBeUndefined();
+  });
+
   test('does not offer Double Poison when the existing coating is already a double poison', () => {
     const actor = {
       items: [{ type: 'feat', system: { slug: 'double-poison' } }],
@@ -297,5 +338,48 @@ describe('WeaponCoatingService Double Poison support', () => {
     };
 
     expect(WeaponCoatingService._isInjectionWeapon(weapon)).toBe(true);
+  });
+
+  test('collects NPC melee attacks and reads damageRolls damage type', () => {
+    const meleeAttack = {
+      id: 'melee-1',
+      name: 'Hook Sword',
+      img: 'hook.webp',
+      system: {
+        traits: { value: ['attack'] },
+        damageRolls: {
+          main: { damage: '1d8', damageType: 'slashing' },
+        },
+      },
+    };
+    const actor = {
+      id: 'actor-1',
+      uuid: 'Scene.scene.Token.token-1.Actor.actor-1',
+      name: 'Giant Centipede',
+      itemTypes: {
+        weapon: [],
+        melee: [meleeAttack],
+      },
+    };
+    const token = {
+      id: 'token-1',
+      name: 'Giant Centipede',
+      actor,
+      document: { actorLink: false },
+    };
+    global.canvas = {
+      tokens: {
+        get: jest.fn(() => token),
+      },
+    };
+
+    const weapons = WeaponCoatingService._collectWeapons(null, 'token-1');
+
+    expect(weapons).toEqual([expect.objectContaining({
+      weaponId: 'melee-1',
+      weaponName: 'Hook Sword',
+      damageType: 'slashing',
+      tokenId: 'token-1',
+    })]);
   });
 });
