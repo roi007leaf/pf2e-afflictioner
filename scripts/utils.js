@@ -19,8 +19,9 @@ export function shouldSkipPromptAffliction(affliction) {
 export function extractMessageAfflictionContext(message) {
   const context = {};
   const flags = getSystemFlags(message);
-  const flagDc = flags?.context?.dc?.value;
-  if (Number.isFinite(flagDc)) context.dc = flagDc;
+  const flagDcContext = flags?.context?.dc;
+  const flagDc = flagDcContext?.value;
+  if (Number.isFinite(flagDc) && isAfflictionSaveFlagDc(flags?.context, flagDcContext)) context.dc = flagDc;
 
   const content = message?.content || '';
   const root = createMessageContentRoot(content);
@@ -62,4 +63,11 @@ function createMessageContentRoot(content) {
 
 function isSaveType(value) {
   return ['fortitude', 'reflex', 'will'].includes(String(value || '').toLowerCase());
+}
+
+function isAfflictionSaveFlagDc(messageContext, dcContext) {
+  if (messageContext?.type === 'attack-roll') return false;
+  if (dcContext?.scope === 'attack') return false;
+  if (dcContext?.slug === 'armor') return false;
+  return true;
 }

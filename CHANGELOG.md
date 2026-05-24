@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Combat save prompt timing**: Scheduled affliction save prompts now fire while the current combatant's turn is ending, before Foundry advances to the next combatant, and cleared save prompts no longer retrigger on the following turn.
+- **Attack affliction DCs**: Afflictions triggered from attack roll chat cards no longer replace the affliction save DC with the target's AC from PF2e attack-roll flags.
 
 ## [3.3.2] - 2026-05-23
 
