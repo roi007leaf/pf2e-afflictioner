@@ -252,19 +252,24 @@ export class AfflictionTimerService {
     }
   }
 
-  static async checkForScheduledSaves(token, combat, AfflictionService) {
+  static async checkForScheduledSaves(token, combat, AfflictionService, combatant = null) {
     const afflictions = AfflictionStore.getAfflictions(token);
+    const triggerInitiative = combatant?.initiative ?? combat.combatant?.initiative;
 
     for (const [_id, affliction] of Object.entries(afflictions)) {
       if (affliction.inOnset) continue;
       if (shouldSkipAffliction(affliction)) continue;
+      if (affliction.nextSaveRound == null) continue;
 
       const isOverdue = combat.round > affliction.nextSaveRound;
       const isDueNow = combat.round === affliction.nextSaveRound &&
-        affliction.nextSaveInitiative === combat.combatant.initiative;
+        affliction.nextSaveInitiative === triggerInitiative;
 
       if (isOverdue || isDueNow) {
-        await AfflictionStore.updateAffliction(token, affliction.id, { nextSaveRound: null });
+        await AfflictionStore.updateAffliction(token, affliction.id, {
+          nextSaveRound: null,
+          nextSaveInitiative: null
+        });
         await AfflictionService.promptSave(token, affliction);
       }
     }

@@ -1,6 +1,14 @@
 import { AfflictionService } from '../services/AfflictionService.js';
 import * as WeaponCoatingStore from '../stores/WeaponCoatingStore.js';
 
+export async function onCombatPreUpdate(combat, changed, _options, _userId) {
+  if (!game.user.isGM) return;
+  if (!('turn' in changed) && !('round' in changed)) return;
+  if (!combat.started || !combat.combatant) return;
+
+  await checkScheduledSavesForCombatant(combat, combat.combatant);
+}
+
 export async function onCombatUpdate(combat, changed, options, userId) {
   if (!game.user.isGM) return;
   if (!changed.turn && !changed.round) return;
@@ -19,15 +27,6 @@ export async function onCombatUpdate(combat, changed, options, userId) {
 
 export async function onPf2eStartTurn(combatant, _encounter, _userId) {
   if (!game.user.isGM) return;
-  const combat = game.combat;
-  if (!combat) return;
-
-  for (const c of combat.combatants) {
-    const token = canvas.tokens.get(c.tokenId);
-    if (!token) continue;
-
-    await AfflictionService.checkForScheduledSaves(token, combat);
-  }
 
   // Check coating expiration for "start-next-turn" mode
   await checkCoatingExpiration(combatant, 'start-next-turn');
@@ -78,5 +77,14 @@ async function checkCoatingExpiration(combatant, triggerMode) {
       poisonName: coating.poisonName,
       weaponName: coating.weaponName
     }));
+  }
+}
+
+async function checkScheduledSavesForCombatant(combat, combatant) {
+  for (const c of combat.combatants) {
+    const token = canvas.tokens.get(c.tokenId);
+    if (!token) continue;
+
+    await AfflictionService.checkForScheduledSaves(token, combat, combatant);
   }
 }

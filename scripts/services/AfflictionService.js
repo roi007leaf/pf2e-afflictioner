@@ -356,8 +356,8 @@ export class AfflictionService {
     }));
   }
 
-  static async checkForScheduledSaves(token, combat) {
-    await AfflictionTimerService.checkForScheduledSaves(token, combat, this);
+  static async checkForScheduledSaves(token, combat, combatant = null) {
+    await AfflictionTimerService.checkForScheduledSaves(token, combat, this, combatant);
   }
 
   static async promptSave(token, affliction, actor = null) {
