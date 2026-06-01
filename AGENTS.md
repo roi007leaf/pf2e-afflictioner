@@ -1,65 +1,66 @@
 <claude-mem-context>
 # Memory Context
 
-# [pf2e-afflictioner] recent context, 2026-05-04 3:54pm GMT+3
+# [pf2e-afflictioner] recent context, 2026-06-01 2:45pm GMT+3
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (16,158t read) | 716,458t work | 98% savings
+Stats: 50 obs (18,955t read) | 231,471t work | 92% savings
 
-### May 4, 2026
-866 8:10a 🔵 AfflictionParser Returns traits Array — Bypass Check Can Match Directly
-867 " 🟣 TDD: Three Failing Tests Written for Immunity Bypass Feature
-868 " 🟣 Immunity Bypass Feature — Full Implementation Complete
-869 8:20a 🔵 Source Immunity Bypass UI Missing Dedicated "Overrides" Tab
-870 " 🔴 Overrides Tab Added — Bypass Rule Panel Moved Out of Coatings
-871 " 🔴 Overrides Tab Fix Verified — 10/10 Tests Pass
-872 8:21a 🔴 Overrides Tab Bug Fully Resolved — 155/155 Tests Green, Lint Clean
-873 8:23a ⚖️ Simplify Override Model: Single Bypass Trait List
-874 8:24a ✅ Tests Updated for Single-Trait Bypass Model (Red Phase)
-875 " 🔵 Red Phase Confirmed — Named-Key Bypass Test Fails as Expected
-876 " 🔄 Single-Trait Model Implemented — Store, Service, and Manager Updated
-877 " 🔄 Overrides Tab UI Simplified — Two Trait Inputs Collapsed to One
-878 8:25a 🔄 CSS and i18n Updated for Single-Trait UI Model
-879 " 🔴 Old Field Names Confirmed Removed from All Production Code
-880 " 🔄 Single-Trait Model Refactor Green — 10/10 Focused Tests Pass
-881 " 🔄 Single-Trait Model Refactor Complete — 155/155 Tests Green, Lint Clean
-882 " 🟣 New Red Test: Affliction Keys as Tag UI Instead of Textarea
-883 8:26a 🟣 New Feature Request: GM Chat Immunity Bypass Indicator
-884 8:42a 🔵 AfflictionChatService Immunity Notice Architecture
-885 8:43a 🟣 RED Tests: GM Chat Bypass Immunity Indicator
-886 " 🔵 RED Tests Confirmed: Bypass Chat Indicator Missing
-887 " 🔄 AfflictionService: getEffectiveActorAfflictionImmunities Refactored to Return Bypass Data
-888 " 🟣 AfflictionChatService.postImmunityBypassNotice Implemented
-889 " 🟣 i18n Keys Added for Immunity Bypass Chat Message
-890 " 🔵 Test i18n Mock Missing New Bypass Keys — Raw Key Strings in Content
-891 8:44a 🔵 Test Assertion String Mismatch — "bypassed poison immunity" Not Contiguous in Message
-892 " 🔴 Test Assertions Updated to Match Actual Bypass Message Format
-893 " 🟣 GM Immunity Bypass Chat Indicator — GREEN, All 9 Tests Pass
-894 8:45a 🟣 Full Suite GREEN: 159 Tests Pass, Lint Clean — GM Bypass Indicator Complete
-895 " ⚖️ Decision: Simplify Trait Options — Restrict to Affliction Immunity Categories Only
-896 8:49a 🔄 Simplification: Trait Options Reduced to ['curse', 'disease', 'poison'] Hardcoded Set
-897 " 🔵 RED Test Confirmed: _getTraitOptions Returns 15 Values, Target is 3
-898 " 🔄 _getTraitOptions Simplified to 3-Item Static Array
-959 2:30p 🔵 pf2e-afflictioner Module Architecture Mapped
-960 " 🔵 WeaponCoatingService and FeatsService Internals Mapped for Double Poison Implementation
-961 2:31p 🔵 Full Coating Hit Pipeline and UI Anatomy Confirmed for Double Poison Design
-967 " ⚖️ Double Poison Expiration Mode: Lenient (end-next-turn)
-968 " 🔵 Double Poison merge dialog not triggering in live Foundry — second poison replaces first
-969 3:43p 🔵 Root cause: Flayleaf is effect-only (no stages) — _isDoublePoisonCandidate must exclude isEffectOnly afflictions
-970 " 🟣 Defensive validation: "Add Second Poison" warns instead of replacing when selected item is invalid merge candidate
-971 3:44p 🔴 _isDoublePoisonCandidate now excludes stage-less afflictions; _getPreparedCoatingAfflictionData extracted
-972 " 🔵 RTK stale cache served identical failing test results (chunk 1f377d) after patches applied
-973 3:45p 🔴 AfflictionManagerDoublePoisonInvalid test: actor.items must be array not Map — FeatsService.hasFeat calls .some()
-974 3:46p 🔴 AfflictionManagerDoublePoisonInvalid test fixed: actor.items uses Object.assign array pattern for dual .some()/.get() support
-975 " 🟣 Test coverage: componentPoisons array on merged double poison now asserted with sourceItemUuid
-976 " 🟣 New UI: componentPoisonLinks — info buttons for each component poison in double-poison coating display
-977 " 🔵 Test run confirms: componentPoisons assertion passes; componentPoisonLinks template block missing
-978 3:47p 🟣 componentPoisonLinks implemented: context builder + HBS template block for per-component info buttons
-979 " 🟣 Double Poison / Poisoner's Twist implementation complete: 21/21 tests pass, ESLint pending
-980 " 🟣 New PF2e rule: Double Poison requires both poisons be at least 2 levels below actor level
+### May 10, 2026
+1605 9:30a ✅ Full Test Suite and Lint Pass Clean After Hero Point Reroll Fix
+1608 9:37a ✅ CHANGELOG.md Updated for Patch 3.2.4
+1609 " ✅ Patch 3.2.4 Contains Two Bugfixes in CHANGELOG.md
+1610 " ✅ Patch Incremented from 3.2.4 to 3.2.5; Changelog Entries Split Across Two Patches
+1611 9:52a 🔴 Shift-Click Afflictioner Button Broken When Dialogue Hidden by Default
+1612 " 🔵 Root Cause Traced: eventToRollParams skipDialog Toggle Mechanism
+1613 " 🔴 Fixed Shift-Click Dialog Toggle: saveButtons.js Now Forwards Click Event to roll()
+1614 9:53a 🔴 All Tests Green: Shift-Click Event Fix Verified and Changelogged
+1615 " ✅ Full Test Suite and Linter Pass Clean After Shift-Click Fix
+1616 10:06a 🔵 Shift Key Roll Dialog Skip Feature Not Working in saveButtons.js
+1617 " 🔵 PF2e System eventToRollParams Function: Shift Key Inverts Dialog Skip
+1618 10:07a 🔵 saveButtons.js Already Passes event to PF2e roll() — Root Cause Is Elsewhere
+1619 " 🔵 SaveButtonsRollMode Tests: Event Pass-Through is the Explicit Contract Being Tested
+1620 " 🔴 Fixed Shift-Click Roll Dialog Skip in pf2e-afflictioner Save Buttons
+1621 10:08a 🔴 Full Test Suite and Lint Pass After Shift-Click Fix
+1622 " 🔵 Other Roll Handlers in pf2e-afflictioner Also Missing skipDialog/event Pass-Through
+1623 " 🔵 AfflictionManager.rollSave Routes Through Chat Prompt, Not Direct Roll — Shift-Click Fix Already Covers It
+1624 10:09a ⚖️ Decided NOT to Pass Raw event to PF2e roll() — Only Explicit skipDialog Is Sent
+1625 " 🔵 Tests Fail: saveButtons.js Still Passes event in rollOptions After Test Contract Change
+1626 " 🔴 Removed event from rollOptions in All Three saveButtons.js Handlers
+1627 " 🔴 pf2e-afflictioner Shift-Click Dialog Skip Fix: Final Confirmed State
+1628 10:11a ✅ Shift-Click Fix Ships in pf2e-afflictioner v3.2.5 Alongside Hero Point Reroll Fix
+1629 10:12a ✅ Shift-Click Fix Moved to New v3.2.6 Release, Separated from Hero Point Fix in v3.2.5
+1630 " ✅ module.json Bumped to v3.2.6
+1631 " ✅ pf2e-afflictioner v3.2.6 Committed to main (4b7bed2)
+### Jun 1, 2026
+7243 2:21p 🔵 Afflictioner Custom Disease: Stage Condition Application Bug
+7244 2:22p 🔵 pf2e-afflictioner Stage Effect Architecture: ruleElements vs Conditions
+7245 " 🔵 Root Cause Found: `stage.ruleElements` Never Processed by AfflictionEffectBuilder
+7246 2:23p 🔵 Confirmed Fix Path: Append `stage.ruleElements` Directly in `_buildRulesFromStage`
+7249 " 🔵 Complete Call Chain Confirmed: ruleElements Present at applyStageEffects but Dropped in Builder
+7250 2:24p ✅ Failing Tests Added to Drive ruleElements Fix in AfflictionEffectBuilder
+7251 " 🔵 Tests Fail as Expected, Confirming Bug and Revealing Label Nuance
+7252 " 🔴 Fixed: AfflictionEffectBuilder Now Applies stage.ruleElements to PF2e Effect Rules
+7253 " 🔵 Fix Fails in Tests: `foundry.utils.deepClone` Not Available in Jest Environment
+7254 2:25p 🔴 All 5 Tests Pass: ruleElements Fix Complete with Environment-Safe Clone
+7255 " ✅ New Test Added to Probe Stage 4 Stupefied GrantItem Rule Generation
+7256 " 🔵 Stage 4 Stupefied Bug is NOT in AfflictionEffectBuilder — Condition Lookup Works Correctly
+7257 " 🔴 Full Test Suite and Linter Pass: ruleElements Fix Ships Clean
+7259 2:34p 🔵 Condition Array Construction in StageEditorDialog.updateFromForm()
+7261 2:35p 🔵 Dual-Path Condition Parsing in StageEditorDialog.updateFromForm() — Potential Single-Condition Bug
+7264 " 🔵 AfflictionEditorDialog Uses Index-Only Parsing for Onset Conditions — No Dual-Path Bug
+7265 " 🔵 Test Confirms Multi-Condition Bug in StageEditorDialog — Conditions Silently Dropped to Empty Array
+7266 2:36p 🔴 StageEditorDialog: collectIndexedFormEntries() Replaces Dual-Path Form Parsing for Conditions, Damage, Weakness
+7268 " 🔴 collectIndexedFormEntries() Fix Verified — All Targeted Tests Pass
+7269 " 🔴 AfflictionEffectBuilder: Rule Elements from Editor Now Included + FlatModifier Deduplication
+7278 2:44p 🔵 Afflictioner Custom Disease: Stage Penalties Not Applying Despite Editor Configuration
+7279 " 🔵 StageEditorDialog Correctly Builds FlatModifier Rule Elements for Stage Penalties
+7280 " 🔄 Simplified FlatModifier Rule Element Labels to "AfflictionName - Stage N" Format
+7281 " ✅ Tests Pass After buildRuleElementLabel Refactor
+7282 " ✅ Full pf2e-afflictioner Test Suite Green After Label Refactor
 
-Access 716k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 231k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

@@ -69,4 +69,66 @@ describe('AfflictionEffectBuilder condition lookup', () => {
       }),
     ]);
   });
+
+  test('builds GrantItem rules for multiple edited stage conditions', async () => {
+    const { AfflictionEffectBuilder } = await import('../scripts/services/AfflictionEffectBuilder.js');
+
+    const rules = await AfflictionEffectBuilder._buildRulesFromStage(
+      { name: 'Rust Creep' },
+      { conditions: [{ name: 'enfeebled', value: 1 }, { name: 'stupefied', value: 1 }] },
+      [],
+    );
+
+    expect(rules).toEqual([
+      expect.objectContaining({
+        key: 'GrantItem',
+        uuid: 'Compendium.pf2e.conditionitems.Item.enfeebled',
+      }),
+      expect.objectContaining({
+        key: 'GrantItem',
+        uuid: 'Compendium.pf2e.conditionitems.Item.stupefied',
+      }),
+    ]);
+  });
+
+  test('includes rule elements added through the affliction editor', async () => {
+    const { AfflictionEffectBuilder } = await import('../scripts/services/AfflictionEffectBuilder.js');
+
+    const editorRule = {
+      key: 'FlatModifier',
+      selector: 'athletics',
+      type: 'status',
+      value: -1,
+      label: 'Rust Creep - Stage 1',
+    };
+
+    const rules = await AfflictionEffectBuilder._buildRulesFromStage(
+      { name: 'Rust Creep' },
+      { effects: 'Athletics Penalty', ruleElements: [editorRule] },
+      [],
+    );
+
+    expect(rules).toContainEqual(editorRule);
+  });
+
+  test('does not duplicate editor rule elements that match parsed flat modifiers', async () => {
+    const { AfflictionEffectBuilder } = await import('../scripts/services/AfflictionEffectBuilder.js');
+
+    const editorRule = {
+      key: 'FlatModifier',
+      selector: 'athletics',
+      type: 'status',
+      value: -1,
+      label: 'Rust Creep - Stage 1',
+    };
+
+    const rules = await AfflictionEffectBuilder._buildRulesFromStage(
+      { name: 'Rust Creep' },
+      { ruleElements: [editorRule] },
+      [{ selector: 'athletics', type: 'status', value: -1 }],
+    );
+
+    expect(rules.filter(rule => rule.key === 'FlatModifier' && rule.selector === 'athletics')).toHaveLength(1);
+    expect(rules).toContainEqual(editorRule);
+  });
 });

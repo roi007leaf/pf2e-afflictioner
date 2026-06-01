@@ -175,7 +175,11 @@ export class AfflictionEffectBuilder {
   static async _buildRulesFromStage(affliction, stage, bonuses) {
     const rules = [];
 
-    rules.push(...bonuses.map(bonus => {
+    if (Array.isArray(stage.ruleElements)) {
+      rules.push(...stage.ruleElements.map(rule => this._cloneRuleElement(rule)));
+    }
+
+    for (const bonus of bonuses) {
       const rule = {
         key: 'FlatModifier',
         selector: bonus.selector,
@@ -184,8 +188,8 @@ export class AfflictionEffectBuilder {
         label: affliction.name
       };
       if (bonus.predicate) rule.predicate = bonus.predicate;
-      return rule;
-    }));
+      this._pushRuleIfNew(rules, rule);
+    }
 
     if (stage.weakness && stage.weakness.length > 0) {
       for (const weak of stage.weakness) {
@@ -227,6 +231,30 @@ export class AfflictionEffectBuilder {
     }
 
     return rules;
+  }
+
+  static _pushRuleIfNew(rules, rule) {
+    const flatModifierKey = candidate => {
+      if (candidate?.key !== 'FlatModifier') return null;
+      return JSON.stringify({
+        key: candidate.key,
+        selector: candidate.selector,
+        type: candidate.type,
+        value: candidate.value,
+        predicate: candidate.predicate || [],
+      });
+    };
+
+    const ruleKey = flatModifierKey(rule);
+    if (ruleKey && rules.some(existing => flatModifierKey(existing) === ruleKey)) return;
+
+    rules.push(rule);
+  }
+
+  static _cloneRuleElement(rule) {
+    return globalThis.foundry?.utils?.deepClone
+      ? foundry.utils.deepClone(rule)
+      : JSON.parse(JSON.stringify(rule));
   }
 
   static extractBonuses(effectText) {

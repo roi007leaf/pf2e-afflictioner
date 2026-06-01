@@ -365,8 +365,7 @@ export class StageEditorDialog extends foundry.applications.api.HandlebarsApplic
       }
 
       if (selector) {
-        const predicateText = predicate.length > 0 ? ` (${againstRaw})` : '';
-        const label = `${dialog.afflictionName} - Stage ${dialog.stageNumber}: ${match[1]} ${bonusType} ${bonusPenalty} to ${match[4]}${predicateText}`;
+        const label = StageEditorDialog.buildRuleElementLabel(dialog.afflictionName, dialog.stageNumber);
 
         const ruleElement = {
           key: 'FlatModifier',
@@ -647,20 +646,7 @@ export class StageEditorDialog extends foundry.applications.api.HandlebarsApplic
     if (!result) return;
 
     const finalPredicate = result.customPredicate?.trim() || result.predicate;
-
-    let predicateText = '';
-    if (finalPredicate) {
-      if (result.customPredicate?.trim()) {
-        predicateText = ` (${finalPredicate})`;
-      } else {
-        const predicateOption = button.querySelector(`select[name="predicate"] option[value="${finalPredicate}"]`);
-        predicateText = predicateOption ? ` (${predicateOption.textContent})` : ` (${finalPredicate})`;
-      }
-    }
-
-    const selectorName = button.querySelector(`select[name="selector"] option[value="${result.selector}"]`)?.textContent || result.selector;
-    const bonusPenalty = result.value >= 0 ? 'bonus' : 'penalty';
-    const label = `${dialog.afflictionName} - Stage ${dialog.stageNumber}: ${result.value >= 0 ? '+' : ''}${result.value} ${result.type} ${bonusPenalty} to ${selectorName}${predicateText}`;
+    const label = StageEditorDialog.buildRuleElementLabel(dialog.afflictionName, dialog.stageNumber);
 
     const ruleElement = {
       key: 'FlatModifier',
@@ -863,20 +849,7 @@ export class StageEditorDialog extends foundry.applications.api.HandlebarsApplic
     if (!result) return;
 
     const finalPredicate = result.customPredicate?.trim() || result.predicate;
-
-    let predicateText = '';
-    if (finalPredicate) {
-      if (result.customPredicate?.trim()) {
-        predicateText = ` (${finalPredicate})`;
-      } else {
-        const predicateOption = button.querySelector(`select[name="predicate"] option[value="${finalPredicate}"]`);
-        predicateText = predicateOption ? ` (${predicateOption.textContent})` : ` (${finalPredicate})`;
-      }
-    }
-
-    const selectorName = button.querySelector(`select[name="selector"] option[value="${result.selector}"]`)?.textContent || result.selector;
-    const bonusPenalty = result.value >= 0 ? 'bonus' : 'penalty';
-    const label = `${dialog.afflictionName} - Stage ${dialog.stageNumber}: ${result.value >= 0 ? '+' : ''}${result.value} ${result.type} ${bonusPenalty} to ${selectorName}${predicateText}`;
+    const label = StageEditorDialog.buildRuleElementLabel(dialog.afflictionName, dialog.stageNumber);
 
     dialog.stageData.ruleElements[index] = {
       key: 'FlatModifier',
@@ -1045,22 +1018,12 @@ export class StageEditorDialog extends foundry.applications.api.HandlebarsApplic
       }
     }
 
-    const damageArray = [];
-    if (formData.damage !== undefined) {
-      const arr = Array.isArray(formData.damage) ? formData.damage : [formData.damage];
-      damageArray.push(...arr);
-    } else {
-      let index = 0;
-      while (formData[`damage.${index}.diceType`] !== undefined) {
-        damageArray.push({
-          diceCount: formData[`damage.${index}.diceCount`],
-          diceType: formData[`damage.${index}.diceType`],
-          bonus: formData[`damage.${index}.bonus`],
-          damageType: formData[`damage.${index}.damageType`]
-        });
-        index++;
-      }
-    }
+    const damageArray = this.constructor.collectIndexedFormEntries(formData, 'damage', [
+      'diceCount',
+      'diceType',
+      'bonus',
+      'damageType',
+    ]);
 
     if (damageArray.length > 0) {
       this.stageData.damage = damageArray
@@ -1082,22 +1045,12 @@ export class StageEditorDialog extends foundry.applications.api.HandlebarsApplic
         });
     }
 
-    const conditionArray = [];
-    if (formData.condition !== undefined) {
-      const arr = Array.isArray(formData.condition) ? formData.condition : [formData.condition];
-      conditionArray.push(...arr);
-    } else {
-      let index = 0;
-      while (formData[`condition.${index}.name`] !== undefined) {
-        conditionArray.push({
-          name: formData[`condition.${index}.name`],
-          value: formData[`condition.${index}.value`],
-          persistentFormula: formData[`condition.${index}.persistentFormula`],
-          persistentType: formData[`condition.${index}.persistentType`]
-        });
-        index++;
-      }
-    }
+    const conditionArray = this.constructor.collectIndexedFormEntries(formData, 'condition', [
+      'name',
+      'value',
+      'persistentFormula',
+      'persistentType',
+    ]);
 
     if (conditionArray.length > 0) {
       this.stageData.conditions = conditionArray
@@ -1121,20 +1074,10 @@ export class StageEditorDialog extends foundry.applications.api.HandlebarsApplic
         });
     }
 
-    const weaknessArray = [];
-    if (formData.weakness !== undefined) {
-      const arr = Array.isArray(formData.weakness) ? formData.weakness : [formData.weakness];
-      weaknessArray.push(...arr);
-    } else {
-      let index = 0;
-      while (formData[`weakness.${index}.type`] !== undefined) {
-        weaknessArray.push({
-          type: formData[`weakness.${index}.type`],
-          value: formData[`weakness.${index}.value`]
-        });
-        index++;
-      }
-    }
+    const weaknessArray = this.constructor.collectIndexedFormEntries(formData, 'weakness', [
+      'type',
+      'value',
+    ]);
 
     if (weaknessArray.length > 0) {
       this.stageData.weakness = weaknessArray
@@ -1144,6 +1087,34 @@ export class StageEditorDialog extends foundry.applications.api.HandlebarsApplic
           value: parseInt(w.value) || 0
         }));
     }
+  }
+
+  static collectIndexedFormEntries(formData, fieldName, fields) {
+    const nested = formData[fieldName];
+
+    if (Array.isArray(nested)) return nested;
+
+    if (nested && typeof nested === 'object') {
+      if (fields.some(field => nested[field] !== undefined)) return [nested];
+
+      return Object.entries(nested)
+        .sort(([a], [b]) => Number(a) - Number(b))
+        .map(([, value]) => value)
+        .filter(value => value && typeof value === 'object');
+    }
+
+    const entries = [];
+    let index = 0;
+    while (fields.some(field => formData[`${fieldName}.${index}.${field}`] !== undefined)) {
+      const entry = {};
+      for (const field of fields) {
+        entry[field] = formData[`${fieldName}.${index}.${field}`];
+      }
+      entries.push(entry);
+      index++;
+    }
+
+    return entries;
   }
 
   static async toggleEffectInterval(_event, _button) {
@@ -1174,6 +1145,10 @@ export class StageEditorDialog extends foundry.applications.api.HandlebarsApplic
 
     ui.notifications.info(game.i18n.localize('PF2E_AFFLICTIONER.EDITOR.STAGE_CHANGES_SAVED'));
     await dialog.close();
+  }
+
+  static buildRuleElementLabel(afflictionName, stageNumber) {
+    return `${afflictionName || 'Affliction'} - Stage ${stageNumber}`;
   }
 
   static async cancelStageEdit(_event, _button) {

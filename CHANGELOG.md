@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.4] - 2026-06-01
+
+### Fixed
+
+- **Affliction editor stage rules**: Stage rule elements added through the Affliction Editor are now applied to active affliction effects, with rule labels shortened to the affliction name and stage.
+- **Multiple stage conditions**: Stages edited through the Affliction Editor now preserve multiple conditions, allowing combinations such as Enfeebled and Stupefied on the same stage to apply together.
+
 ## [3.3.3] - 2026-05-24
 
 ### Fixed
