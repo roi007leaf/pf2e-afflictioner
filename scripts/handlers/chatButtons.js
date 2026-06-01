@@ -3,6 +3,7 @@ import { registerAfflictionButtonHandlers } from './afflictionButtons.js';
 import { registerTreatmentButtonHandlers, addTreatmentAfflictionSelection } from './treatmentButtons.js';
 import { registerCounteractButtonHandlers, addCounteractAfflictionSelection, injectCounteractConfirmButton } from './counteractButtons.js';
 import { VishkanyaService } from '../services/VishkanyaService.js';
+import { AfflictionService } from '../services/AfflictionService.js';
 import { getSystemFlags } from '../systemCompat.js';
 import { MODULE_ID } from '../constants.js';
 
@@ -509,6 +510,7 @@ async function injectItemCardAfflictionButton(message, root) {
   if (!afflictionData || shouldSkipPromptAffliction(afflictionData)) return;
   afflictionData.originActorUuid = item.parent?.uuid || flags.origin?.actor || null;
   afflictionData.originActorId = item.parent?.id || message.speaker?.actor || null;
+  AfflictionService.applyOriginActorMetadata(afflictionData, item.parent);
   applyMessageAfflictionContext(afflictionData, message);
 
   root.dataset.itemAfflictionInjected = 'true';
@@ -525,7 +527,6 @@ async function injectItemCardAfflictionButton(message, root) {
       ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.CHAT.APPLY_AFFLICTION_NO_TARGET'));
       return;
     }
-    const { AfflictionService } = await import('../services/AfflictionService.js');
     const data = JSON.parse(decodeURIComponent(btn.dataset.afflictionData));
     for (const target of targets) {
       await AfflictionService.promptInitialSave(target, data);

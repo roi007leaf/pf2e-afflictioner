@@ -96,4 +96,23 @@ describe('message affliction context extraction', () => {
 
     expect(afflictionData.dc).toBe(31);
   });
+
+  test('records spell cast rank for incapacitation threshold', () => {
+    const afflictionData = { dc: 15, saveType: 'fortitude' };
+    const message = {
+      content: '',
+      flags: {
+        pf2e: {
+          origin: {
+            type: 'spell',
+            castRank: 4,
+          },
+        },
+      },
+    };
+
+    applyMessageAfflictionContext(afflictionData, message);
+
+    expect(afflictionData.incapacitationSpellRank).toBe(4);
+  });
 });

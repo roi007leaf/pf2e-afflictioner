@@ -8,6 +8,7 @@ describe('AfflictionItemResolver', () => {
   test('resolves a curse referenced by NPC action text', async () => {
     const curseItem = {
       name: 'Forbidden Cravings',
+      type: 'condition',
       uuid: 'Item.forbidden-cravings',
       system: {
         traits: { value: ['curse'] },
@@ -19,11 +20,15 @@ describe('AfflictionItemResolver', () => {
       },
     };
     const actor = {
+      id: 'ghoul-stalker',
       uuid: 'Actor.ghoul-stalker',
+      type: 'npc',
+      system: { details: { level: { value: 12 } } },
       items: [curseItem],
     };
     const actionItem = {
       name: 'Ghoul Whispers',
+      type: 'action',
       uuid: 'Item.ghoul-whispers',
       parent: actor,
       system: {
@@ -41,7 +46,11 @@ describe('AfflictionItemResolver', () => {
       type: 'curse',
       dc: 22,
       originActorUuid: 'Actor.ghoul-stalker',
+      originActorId: 'ghoul-stalker',
+      originActorLevel: 12,
+      originActorType: 'npc',
       triggerItemUuid: 'Item.ghoul-whispers',
+      triggerItemType: 'action',
     }));
   });
 });

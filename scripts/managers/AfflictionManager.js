@@ -302,6 +302,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     }
     afflictionData.originActorUuid = item.parent?.uuid || null;
     afflictionData.originActorId = item.parent?.id || null;
+    AfflictionService.applyOriginActorMetadata(afflictionData, item.parent);
 
     await this._applyDraggedAffliction(afflictionData, itemUuid);
   }

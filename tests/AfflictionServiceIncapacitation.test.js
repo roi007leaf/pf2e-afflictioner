@@ -123,6 +123,29 @@ describe('AfflictionService incapacitation handling', () => {
       .toBe(DEGREE_OF_SUCCESS.FAILURE);
   });
 
+  test('does not upgrade when a higher-level creature generated the incapacitation affliction', () => {
+    const token = buildToken(10);
+    const affliction = buildIncapacitationDisease({
+      originActorLevel: 12,
+      originActorType: 'npc',
+    });
+
+    expect(AfflictionService.calculateAfflictionDegreeOfSuccess(19, 20, null, token.actor, affliction))
+      .toBe(DEGREE_OF_SUCCESS.FAILURE);
+  });
+
+  test('uses spell rank instead of NPC caster level for spell incapacitation threshold', () => {
+    const token = buildToken(9);
+    const affliction = buildIncapacitationDisease({
+      originActorLevel: 12,
+      originActorType: 'npc',
+      incapacitationSpellRank: 4,
+    });
+
+    expect(AfflictionService.calculateAfflictionDegreeOfSuccess(19, 20, null, token.actor, affliction))
+      .toBe(DEGREE_OF_SUCCESS.SUCCESS);
+  });
+
   test('reports when incapacitation upgrades the save result', () => {
     const token = buildToken(6);
     const affliction = buildIncapacitationDisease();

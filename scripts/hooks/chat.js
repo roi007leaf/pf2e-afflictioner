@@ -114,6 +114,8 @@ export async function onCreateChatMessage(message, options, userId) {
 
   // Store the origin actor so referenced afflictions can look up items on it later
   afflictionData.originActorUuid = item.parent?.uuid || flags.origin?.actor || null;
+  afflictionData.originActorId = item.parent?.id || afflictionData.originActorId || null;
+  AfflictionService.applyOriginActorMetadata(afflictionData, item.parent);
 
   // Use the DC from the saving throw context — it includes elite/weak adjustments
   const contextDC = flags.context?.dc?.value;
@@ -429,6 +431,7 @@ async function postInjectionHitPrompt(actor, weapon, injection, flags, gmWhisper
     originActorUuid: injection.afflictionData.originActorUuid || actor.uuid || null,
     originActorId: injection.afflictionData.originActorId || actor.id || null,
   };
+  AfflictionService.applyOriginActorMetadata(buttonAfflictionData, actor);
 
   if (FeatsService.hasPerniciousPoison(actor) && injection.afflictionData.level > 0) {
     buttonAfflictionData = { ...buttonAfflictionData, perniciousPoisonLevel: injection.afflictionData.level };
@@ -549,6 +552,7 @@ async function handleAttackRoll(_message, flags) {
         originActorUuid: buttonAfflictionData.originActorUuid || actor.uuid || null,
         originActorId: buttonAfflictionData.originActorId || actor.id || null,
       };
+      AfflictionService.applyOriginActorMetadata(buttonAfflictionData, actor);
 
       // Pernicious Poison: mark affliction so success still deals flat poison damage
       if (FeatsService.hasPerniciousPoison(actor) && coating.afflictionData.level > 0) {
@@ -667,6 +671,8 @@ async function handleHazardAttackRoll(message, flags, actor) {
   if (!afflictionData) return;
 
   afflictionData.originActorUuid = actor.uuid;
+  afflictionData.originActorId = actor.id || afflictionData.originActorId || null;
+  AfflictionService.applyOriginActorMetadata(afflictionData, actor);
 
   const contextDC = flags.context?.dc?.value;
   if (contextDC) afflictionData.dc = contextDC;

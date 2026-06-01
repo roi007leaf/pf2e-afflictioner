@@ -3,6 +3,7 @@ import { AfflictionParser } from './AfflictionParser.js';
 import * as WeaponCoatingStore from '../stores/WeaponCoatingStore.js';
 import { VishkanyaService } from './VishkanyaService.js';
 import { FeatsService } from './FeatsService.js';
+import { AfflictionService } from './AfflictionService.js';
 
 const K = 'PF2E_AFFLICTIONER.WEAPON_COATING';
 
@@ -865,11 +866,12 @@ export class WeaponCoatingService {
 
   static _withOriginActor(actor, afflictionData) {
     if (!actor || !afflictionData) return afflictionData;
-    return {
+    const withOrigin = {
       ...afflictionData,
       originActorUuid: actor.uuid || afflictionData.originActorUuid || null,
       originActorId: actor.id || afflictionData.originActorId || null,
     };
+    return AfflictionService.applyOriginActorMetadata(withOrigin, actor);
   }
 
   static _canUseDoublePoison(actor) {

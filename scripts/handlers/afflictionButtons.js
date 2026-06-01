@@ -169,6 +169,8 @@ async function addApplyAfflictionButton(message, htmlElement) {
 
   // Store the origin actor so referenced afflictions can look up items on it later
   afflictionData.originActorUuid = actor.uuid;
+  afflictionData.originActorId = actor.id || afflictionData.originActorId || null;
+  AfflictionService.applyOriginActorMetadata(afflictionData, actor);
 
   // Always prefer DC and save type from the note — they're computed at roll time with elite/weak adjustments applied
   const noteDcMatch = afflictionNote.text?.match(/data-pf2-dc="(\d+)"/i);
@@ -307,6 +309,10 @@ async function addApplyAfflictionToSelectedButton(message, htmlElement) {
   // Store the origin actor so referenced afflictions can look up items on it later
   const originActorUuid = getSystemFlags(message)?.origin?.actor || message.actor?.uuid || null;
   if (originActorUuid) afflictionData.originActorUuid = originActorUuid;
+  if (message.actor?.id || item.parent?.id) {
+    afflictionData.originActorId = message.actor?.id || item.parent?.id;
+  }
+  AfflictionService.applyOriginActorMetadata(afflictionData, message.actor || item.parent);
 
   // Spell/action chat cards carry computed DCs after elite/weak and spellcasting adjustments.
   applyMessageAfflictionContext(afflictionData, message);

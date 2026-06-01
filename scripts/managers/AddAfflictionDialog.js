@@ -1,4 +1,5 @@
 import { AfflictionParser } from '../services/AfflictionParser.js';
+import { AfflictionService } from '../services/AfflictionService.js';
 import * as AfflictionDefinitionStore from '../stores/AfflictionDefinitionStore.js';
 import { shouldSkipPromptAffliction } from '../utils.js';
 import { AfflictionItemResolver } from '../services/AfflictionItemResolver.js';
@@ -141,8 +142,8 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
       }
       afflictionData.originActorUuid = item.parent?.uuid || null;
       afflictionData.originActorId = item.parent?.id || null;
+      AfflictionService.applyOriginActorMetadata(afflictionData, item.parent);
 
-      const { AfflictionService } = await import('../services/AfflictionService.js');
       await AfflictionService.promptInitialSave(this.token, afflictionData);
 
       this.close();
@@ -292,8 +293,8 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
     }
     afflictionData.originActorUuid = item.parent?.uuid || null;
     afflictionData.originActorId = item.parent?.id || null;
+    AfflictionService.applyOriginActorMetadata(afflictionData, item.parent);
 
-    const { AfflictionService } = await import('../services/AfflictionService.js');
     await AfflictionService.promptInitialSave(this.token, afflictionData);
 
     this.close();

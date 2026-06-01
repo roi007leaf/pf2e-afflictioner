@@ -1251,16 +1251,87 @@ export class AfflictionService {
     if (!traits.includes('incapacitation')) return false;
 
     const actorLevel = this.getActorLevel(actor);
-    const afflictionLevel = Number(affliction.level);
-    if (!Number.isFinite(actorLevel) || !Number.isFinite(afflictionLevel)) return false;
+    const referenceLevel = this.getIncapacitationReferenceLevel(affliction);
+    if (!Number.isFinite(actorLevel) || !Number.isFinite(referenceLevel)) return false;
 
-    return actorLevel > afflictionLevel;
+    return actorLevel > referenceLevel;
+  }
+
+  static getIncapacitationReferenceLevel(affliction) {
+    const spellRank = this.getNumberOrNull(affliction?.incapacitationSpellRank);
+    if (spellRank !== null) return spellRank * 2;
+
+    const explicitSourceLevel = this.getNumberOrNull(affliction?.incapacitationSourceLevel);
+    if (explicitSourceLevel !== null) return explicitSourceLevel;
+
+    const originActorLevel = this.getOriginActorLevel(affliction);
+    if (originActorLevel !== null && this.shouldUseOriginActorLevelForIncapacitation(affliction)) {
+      return originActorLevel;
+    }
+
+    return this.getNumberOrNull(affliction?.level);
+  }
+
+  static shouldUseOriginActorLevelForIncapacitation(affliction) {
+    const itemType = String(affliction?.triggerItemType || affliction?.sourceItemType || '').toLowerCase();
+    if (['spell', 'consumable', 'equipment', 'weapon', 'armor', 'shield', 'backpack', 'treasure'].includes(itemType)) {
+      return false;
+    }
+
+    const actorType = this.getOriginActorType(affliction);
+    if (['npc', 'hazard'].includes(actorType)) return true;
+
+    return ['action', 'melee', 'feat'].includes(itemType);
+  }
+
+  static getOriginActorLevel(affliction) {
+    const storedLevel = this.getNumberOrNull(affliction?.originActorLevel);
+    if (storedLevel !== null) return storedLevel;
+
+    const originActor = this.getStoredOriginActor(affliction);
+    return this.getActorLevel(originActor);
+  }
+
+  static getOriginActorType(affliction) {
+    const storedType = affliction?.originActorType;
+    if (storedType) return String(storedType).toLowerCase();
+
+    const originActor = this.getStoredOriginActor(affliction);
+    return String(originActor?.type || '').toLowerCase();
+  }
+
+  static getStoredOriginActor(affliction) {
+    const id = affliction?.originActorId || this.getActorIdFromUuid(affliction?.originActorUuid);
+    if (!id) return null;
+    return game.actors?.get?.(id) || null;
+  }
+
+  static getActorIdFromUuid(uuid) {
+    if (typeof uuid !== 'string') return null;
+    const match = uuid.match(/^Actor\.([^.]+)$/);
+    return match?.[1] || null;
   }
 
   static getActorLevel(actor) {
     const rawLevel = actor?.system?.details?.level?.value ?? actor?.level;
     const level = Number(rawLevel);
     return Number.isFinite(level) ? level : null;
+  }
+
+  static getNumberOrNull(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  static applyOriginActorMetadata(afflictionData, actor) {
+    if (!afflictionData || !actor) return afflictionData;
+
+    const level = this.getActorLevel(actor);
+    if (level !== null) afflictionData.originActorLevel = level;
+    if (actor.type) afflictionData.originActorType = actor.type;
+
+    return afflictionData;
   }
 
   static upgradeDegree(degree) {

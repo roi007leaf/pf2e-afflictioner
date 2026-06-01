@@ -23,6 +23,12 @@ export function extractMessageAfflictionContext(message) {
   const flagDc = flagDcContext?.value;
   if (Number.isFinite(flagDc) && isAfflictionSaveFlagDc(flags?.context, flagDcContext)) context.dc = flagDc;
 
+  const origin = flags?.origin;
+  const castRank = Number(origin?.castRank);
+  if (origin?.type === 'spell' && Number.isFinite(castRank)) {
+    context.incapacitationSpellRank = castRank;
+  }
+
   const content = message?.content || '';
   const root = createMessageContentRoot(content);
   if (root) {
@@ -51,6 +57,7 @@ export function applyMessageAfflictionContext(afflictionData, message) {
   const context = extractMessageAfflictionContext(message);
   if (context.dc) afflictionData.dc = context.dc;
   if (context.saveType) afflictionData.saveType = context.saveType;
+  if (context.incapacitationSpellRank) afflictionData.incapacitationSpellRank = context.incapacitationSpellRank;
   return afflictionData;
 }
 

@@ -31,6 +31,7 @@ export class AfflictionItemResolver {
       const refData = AfflictionParser.parseFromItem(refItem);
       if (shouldSkipPromptAffliction(refData)) continue;
 
+      refData.sourceItemType = refItem.type || null;
       this._applyOriginMetadata(refData, item, options);
       refData.referencedFromItemUuid = item.uuid;
       refData.triggerItemUuid = item.uuid;
@@ -53,5 +54,11 @@ export class AfflictionItemResolver {
     const originActor = options.originActor || item.parent || null;
     afflictionData.originActorUuid = originActor?.uuid || afflictionData.originActorUuid || null;
     afflictionData.originActorId = originActor?.id || afflictionData.originActorId || null;
+    afflictionData.sourceItemType = afflictionData.sourceItemType || item.type || null;
+    afflictionData.triggerItemType = afflictionData.triggerItemType || item.type || null;
+    if (item.type === 'spell') {
+      afflictionData.incapacitationSpellRank = item.system?.location?.heightenedLevel || item.system?.level?.value || null;
+    }
+    AfflictionService.applyOriginActorMetadata(afflictionData, originActor);
   }
 }

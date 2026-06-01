@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.5] - 2026-06-01
+
+### Fixed
+
+- **Incapacitation source level**: Incapacitation afflictions now compare non-spell effects against the item, creature, or hazard generating the effect, while spell effects use twice the spell rank. This prevents high-level creature afflictions from granting lower-level targets an incorrect degree-of-success upgrade.
+
 ## [3.3.4] - 2026-06-01
 
 ### Fixed
