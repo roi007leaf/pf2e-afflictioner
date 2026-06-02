@@ -596,7 +596,17 @@ export class AfflictionService {
       ui.notifications.warn(game.i18n.format('PF2E_AFFLICTIONER.NOTIFICATIONS.MANUAL_EFFECTS', {
         tokenName: token?.name || actor?.name || 'Unknown'
       }));
-      return;
+
+      const hasAutomaticStageEffects =
+        stage.isDead ||
+        stage.autoEffects?.length > 0 ||
+        stage.conditions?.length > 0 ||
+        stage.damage?.length > 0 ||
+        stage.weakness?.length > 0 ||
+        stage.ruleElements?.length > 0 ||
+        stage.referencedAfflictions?.length > 0;
+
+      if (!hasAutomaticStageEffects) return;
     }
 
     if (stage.isDead) {
