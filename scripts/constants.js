@@ -141,7 +141,12 @@ export const DEFAULT_SETTINGS = {
   }
 };
 
-export const PERSISTENT_CONDITIONS = ['frightened', 'drained', 'stunned', 'doomed', 'wounded'];
+// Conditions with their own PF2e recovery/removal rules should outlive affliction stages.
+// Stage-bound conditions without default removal stay attached to the affliction effect.
+export const PERSISTENT_CONDITIONS = [
+  'confused', 'doomed', 'drained', 'dying', 'fascinated', 'fatigued',
+  'frightened', 'prone', 'sickened', 'stunned', 'unconscious', 'wounded'
+];
 
 export const VALUELESS_CONDITIONS = [
   'blinded', 'concealed', 'confused', 'controlled', 'dazzled', 'deafened',

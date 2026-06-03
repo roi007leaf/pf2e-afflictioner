@@ -644,8 +644,6 @@ export class AfflictionService {
       }
     }
 
-    await AfflictionEffectBuilder.removePersistentDamage(actor, affliction.id);
-
     const effectUuid = token ? await AfflictionEffectBuilder.createOrUpdateEffect(token, actor, affliction, stage) : null;
     if (effectUuid && !affliction.appliedEffectUuid) {
       if (token) {
@@ -1000,10 +998,6 @@ export class AfflictionService {
       }
     }
 
-    const oldStage = oldStageData || affliction.stages[affliction.currentStage - 1];
-    if (!oldStage) return;
-
-    await AfflictionEffectBuilder.removePersistentDamage(actor, affliction.id);
   }
 
   static async updateOnsetTimers(token, combat) {

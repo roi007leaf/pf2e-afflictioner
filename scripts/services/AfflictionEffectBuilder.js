@@ -377,6 +377,8 @@ export class AfflictionEffectBuilder {
         continue;
       }
 
+      await this.removePersistentDamage(actor, affliction.id, damageType);
+
       const source = foundry.utils.mergeObject(baseCondition.toObject(), {
         system: { persistent: { formula, damageType, dc } },
         flags: { 'pf2e-afflictioner': { afflictionId: affliction.id, persistentDamage: true } }
@@ -386,11 +388,12 @@ export class AfflictionEffectBuilder {
     }
   }
 
-  static async removePersistentDamage(actor, afflictionId) {
+  static async removePersistentDamage(actor, afflictionId, damageType = null) {
     const persistentConditions = actor.itemTypes.condition.filter(c =>
       c.slug === 'persistent-damage' &&
       c.flags?.['pf2e-afflictioner']?.afflictionId === afflictionId &&
-      c.flags?.['pf2e-afflictioner']?.persistentDamage === true
+      c.flags?.['pf2e-afflictioner']?.persistentDamage === true &&
+      (damageType === null || c.system?.persistent?.damageType === damageType)
     );
 
     for (const condition of persistentConditions) {

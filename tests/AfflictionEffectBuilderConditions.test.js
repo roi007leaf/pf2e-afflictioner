@@ -91,6 +91,89 @@ describe('AfflictionEffectBuilder condition lookup', () => {
     ]);
   });
 
+  test('keeps conditions with built-in PF2e recovery rules out of temporary GrantItem rules', async () => {
+    const { AfflictionEffectBuilder } = await import('../scripts/services/AfflictionEffectBuilder.js');
+
+    const rules = await AfflictionEffectBuilder._buildRulesFromStage(
+      { name: 'Lingering Affliction' },
+      {
+        conditions: [
+          { name: 'sickened', value: 1 },
+          { name: 'fatigued', value: null },
+          { name: 'enfeebled', value: 1 },
+        ],
+      },
+      [],
+    );
+
+    expect(rules).toEqual([
+      expect.objectContaining({
+        key: 'GrantItem',
+        uuid: 'Compendium.pf2e.conditionitems.Item.enfeebled',
+      }),
+    ]);
+  });
+
+  test('persistent damage replaces same affliction damage type without clearing other lingering types', async () => {
+    const { AfflictionEffectBuilder } = await import('../scripts/services/AfflictionEffectBuilder.js');
+    const originalFoundry = global.foundry;
+    global.foundry = {
+      utils: {
+        mergeObject: (target, source) => ({
+          ...target,
+          ...source,
+          system: { ...target.system, ...source.system },
+          flags: { ...target.flags, ...source.flags },
+        }),
+      },
+    };
+
+    const existingFire = {
+      slug: 'persistent-damage',
+      system: { persistent: { damageType: 'fire' } },
+      flags: { 'pf2e-afflictioner': { afflictionId: 'affliction-1', persistentDamage: true } },
+      delete: jest.fn(),
+    };
+    const existingAcid = {
+      slug: 'persistent-damage',
+      system: { persistent: { damageType: 'acid' } },
+      flags: { 'pf2e-afflictioner': { afflictionId: 'affliction-1', persistentDamage: true } },
+      delete: jest.fn(),
+    };
+    const otherAfflictionFire = {
+      slug: 'persistent-damage',
+      system: { persistent: { damageType: 'fire' } },
+      flags: { 'pf2e-afflictioner': { afflictionId: 'affliction-2', persistentDamage: true } },
+      delete: jest.fn(),
+    };
+    const actor = {
+      itemTypes: { condition: [existingFire, existingAcid, otherAfflictionFire] },
+      createEmbeddedDocuments: jest.fn(),
+    };
+
+    game.pf2e.ConditionManager.getCondition = jest.fn(() => ({
+      toObject: () => ({ slug: 'persistent-damage', system: {}, flags: {} }),
+    }));
+
+    await AfflictionEffectBuilder.applyPersistentDamage(
+      actor,
+      { id: 'affliction-1', dc: 18 },
+      { conditions: [{ name: 'persistent-damage', persistentFormula: '1d6', persistentType: 'fire' }] },
+    );
+
+    expect(existingFire.delete).toHaveBeenCalledTimes(1);
+    expect(existingAcid.delete).not.toHaveBeenCalled();
+    expect(otherAfflictionFire.delete).not.toHaveBeenCalled();
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        system: { persistent: { formula: '1d6', damageType: 'fire', dc: 18 } },
+        flags: { 'pf2e-afflictioner': { afflictionId: 'affliction-1', persistentDamage: true } },
+      }),
+    ]);
+
+    global.foundry = originalFoundry;
+  });
+
   test('includes rule elements added through the affliction editor', async () => {
     const { AfflictionEffectBuilder } = await import('../scripts/services/AfflictionEffectBuilder.js');
 

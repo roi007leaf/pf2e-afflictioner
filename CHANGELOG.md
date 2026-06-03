@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.7] - 2026-06-03
+
+### Fixed
+
+- **Affliction condition cleanup**: Conditions with built-in PF2e recovery or removal rules now remain after an affliction stage or affliction ends, while stage-bound conditions continue to clear with the affliction effect.
+- **Persistent damage cleanup**: Persistent damage applied by affliction stages now follows PF2e recovery instead of being removed with the affliction, while reapplying the same affliction damage type replaces the older matching condition to prevent duplicates.
+
 ## [3.3.6] - 2026-06-02
 
 ### Fixed
