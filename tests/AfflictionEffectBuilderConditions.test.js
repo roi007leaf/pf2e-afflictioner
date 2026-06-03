@@ -100,6 +100,7 @@ describe('AfflictionEffectBuilder condition lookup', () => {
         conditions: [
           { name: 'sickened', value: 1 },
           { name: 'fatigued', value: null },
+          { name: 'paralyzed', value: null, duration: { value: 1, unit: 'minute', isDice: false } },
           { name: 'enfeebled', value: 1 },
         ],
       },
@@ -112,6 +113,50 @@ describe('AfflictionEffectBuilder condition lookup', () => {
         uuid: 'Compendium.pf2e.conditionitems.Item.enfeebled',
       }),
     ]);
+  });
+
+  test('applies explicitly timed stage-bound conditions as standalone condition items', async () => {
+    const { AfflictionEffectBuilder } = await import('../scripts/services/AfflictionEffectBuilder.js');
+    const originalFoundry = global.foundry;
+    const originalFromUuid = global.fromUuid;
+    global.foundry = {
+      utils: {
+        setProperty: (object, path, value) => {
+          const parts = path.split('.');
+          let target = object;
+          for (const part of parts.slice(0, -1)) {
+            target[part] = target[part] || {};
+            target = target[part];
+          }
+          target[parts.at(-1)] = value;
+        },
+      },
+    };
+    global.fromUuid = jest.fn(async () => ({
+      toObject: () => ({ slug: 'paralyzed', system: {}, flags: {} }),
+    }));
+    const actor = {
+      itemTypes: { condition: [] },
+      createEmbeddedDocuments: jest.fn(),
+    };
+
+    await AfflictionEffectBuilder.applyPersistentConditions(
+      actor,
+      { id: 'affliction-1' },
+      { conditions: [{ name: 'paralyzed', duration: { value: 1, unit: 'minute', isDice: false } }] },
+    );
+
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        system: {
+          duration: { value: 1, unit: 'minutes', expiry: 'turn-start', sustained: false },
+        },
+        flags: { 'pf2e-afflictioner': { afflictionId: 'affliction-1', persistentCondition: true } },
+      }),
+    ]);
+
+    global.foundry = originalFoundry;
+    global.fromUuid = originalFromUuid;
   });
 
   test('persistent damage replaces same affliction damage type without clearing other lingering types', async () => {

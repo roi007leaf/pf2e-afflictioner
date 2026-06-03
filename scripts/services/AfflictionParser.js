@@ -158,10 +158,14 @@ export class AfflictionParser {
 
   static extractConditionsFromStructured(effects) {
     if (!Array.isArray(effects)) return [];
-    return effects.filter(e => PF2E_CONDITIONS.includes(e.name?.toLowerCase() || e.condition?.toLowerCase())).map(e => ({
-      name: e.name || e.condition,
-      value: e.value || null
-    }));
+    return effects.filter(e => PF2E_CONDITIONS.includes(e.name?.toLowerCase() || e.condition?.toLowerCase())).map(e => {
+      const condition = {
+        name: e.name || e.condition,
+        value: e.value || null
+      };
+      if (e.duration) condition.duration = this.parseDuration(e.duration);
+      return condition;
+    });
   }
 
   static extractWeaknessFromStructured(effects) {
@@ -366,7 +370,7 @@ export class AfflictionParser {
         rawText: `${label[0].replace(/^[;；。]\s*/, '')} ${rawContent}`.trim(),
         duration,
         damage: this.extractDamage(effects),
-        conditions: this.extractConditions(effects),
+        conditions: this.extractConditions(rawContent),
         weakness: this.extractWeakness(effects),
         requiresManualHandling: this.detectManualHandling(effects),
         isDead: this.detectDeath(effects),
@@ -630,11 +634,15 @@ export class AfflictionParser {
       const isAscii = /^[\x20-\x7e]+$/.test(displayName);
       const bStart = isAscii ? b : (locale.useWordBoundaries ? '(?:^|[\\s,;.])' : '');
       const bEnd = isAscii ? b : (locale.useWordBoundaries ? '(?=[\\s,;.]|$)' : '');
-      const regex = new RegExp(`${bStart}${escaped}\\s*(\\d+)?${bEnd}`, 'gi');
-      const match = plainText.match(regex);
+      const regex = new RegExp(`${bStart}(${escaped}\\s*(\\d+)?)(?:\\s+for\\s+((?:\\d+d\\d+|\\d+)\\s+\\w+))?${bEnd}`, 'gi');
+      const match = regex.exec(plainText);
       if (match) {
-        const valueMatch = match[0].match(/\d+/);
-        conditions.push({ name: conditionKey, value: valueMatch ? parseInt(valueMatch[0]) : null });
+        const condition = {
+          name: conditionKey,
+          value: match[2] ? parseInt(match[2]) : null
+        };
+        if (match[3]) condition.duration = this.parseDuration(match[3]);
+        conditions.push(condition);
         foundConditions.add(condKey);
       }
     }

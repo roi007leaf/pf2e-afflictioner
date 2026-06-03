@@ -205,6 +205,7 @@ export class AfflictionEffectBuilder {
     if (stage.conditions && stage.conditions.length > 0) {
       for (const condition of stage.conditions) {
         if (condition.name === 'persistent damage' || condition.name === 'persistent-damage') continue;
+        if (condition.duration) continue;
         if (PERSISTENT_CONDITIONS.includes(condition.name)) continue;
 
         const conditionUuid = await this.getConditionUuid(condition.name);
@@ -405,7 +406,7 @@ export class AfflictionEffectBuilder {
     if (!stage.conditions) return;
 
     for (const condition of stage.conditions) {
-      if (!PERSISTENT_CONDITIONS.includes(condition.name)) continue;
+      if (!condition.duration && !PERSISTENT_CONDITIONS.includes(condition.name)) continue;
 
       const slug = condition.name.toLowerCase();
       const conditionUuid = await this.getConditionUuid(slug);
@@ -431,8 +432,23 @@ export class AfflictionEffectBuilder {
         foundry.utils.setProperty(source, 'system.value.value', condition.value);
       }
 
+      if (condition.duration) {
+        source.system = source.system || {};
+        source.system.duration = this._buildConditionDurationConfig(condition.duration);
+      }
+
       await actor.createEmbeddedDocuments('Item', [source]);
     }
+  }
+
+  static _buildConditionDurationConfig(duration) {
+    if (!duration) return null;
+    return {
+      value: duration.value ?? -1,
+      unit: this._normalizeUnit(duration.unit || 'round'),
+      expiry: 'turn-start',
+      sustained: false
+    };
   }
 
   static async getConditionUuid(conditionName) {

@@ -135,6 +135,21 @@ describe('AfflictionParser — English', () => {
     );
   });
 
+  test('extracts condition-specific explicit duration from plain text', () => {
+    const text = 'clumsy 2 for 1 minute and enfeebled 1';
+    const conditions = AfflictionParser.extractConditions(text);
+    expect(conditions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'clumsy',
+          value: 2,
+          duration: { value: 1, unit: 'minute', isDice: false },
+        }),
+        expect.objectContaining({ name: 'enfeebled', value: 1 }),
+      ]),
+    );
+  });
+
   // ── detectManualHandling ─────────────────────────────────────────────────
 
   test('does not flag "or" substring in words like "history"', () => {
@@ -428,6 +443,13 @@ describe('AfflictionParser — English', () => {
     const stages = AfflictionParser.extractStages(html);
     expect(stages).toHaveLength(1);
     expect(stages[0].duration).toEqual({ value: 1, unit: 'round', isDice: false });
+  });
+
+  test('preserves explicit condition duration in plain semicolon stages', () => {
+    const stages = AfflictionParser.extractStages('Stage 1 clumsy 2 for 1 minute; Stage 2 enfeebled 1 (1 round)');
+    expect(stages[0].conditions).toEqual([
+      { name: 'clumsy', value: 2, duration: { value: 1, unit: 'minute', isDice: false } },
+    ]);
   });
 
   test('parses legacy Curse of Death semicolon stages', () => {
