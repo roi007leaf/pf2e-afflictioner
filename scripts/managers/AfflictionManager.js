@@ -26,6 +26,24 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     return this._getTargetToken(options)?.actor || null;
   }
 
+  static _getStageNumber(affliction) {
+    if (affliction?.currentStage === null || affliction?.currentStage === undefined || affliction?.currentStage === '') {
+      return null;
+    }
+    const stageNumber = Number(affliction?.currentStage);
+    return Number.isInteger(stageNumber) ? stageNumber : null;
+  }
+
+  static _getStageCount(affliction) {
+    return Array.isArray(affliction?.stages) ? affliction.stages.length : 0;
+  }
+
+  static _getCurrentStageData(affliction) {
+    const stageNumber = this._getStageNumber(affliction);
+    if (stageNumber === null || stageNumber < 1 || !Array.isArray(affliction?.stages)) return undefined;
+    return affliction.stages[stageNumber - 1];
+  }
+
   static canOpenLimitedCoatingView(options = {}) {
     if (game.user.isGM) return true;
     if (!game.settings.get('pf2e-afflictioner', 'allowPlayerWeaponCoatingAccess')) return false;
@@ -329,17 +347,21 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
 
   _enrichAfflictions(afflictions) {
     return Object.values(afflictions).map(aff => {
-      const stageIndex = aff.currentStage - 1;
-      const currentStage = (stageIndex >= 0 && aff.stages) ? aff.stages[stageIndex] : undefined;
-      const hasDamage = currentStage && currentStage.damage && currentStage.damage.length > 0;
+      const stageNumber = this.constructor._getStageNumber(aff);
+      const stageCount = this.constructor._getStageCount(aff);
+      const currentStage = this.constructor._getCurrentStageData(aff);
+      const hasDamage = !!(currentStage?.damage?.length > 0);
+      const stageDisplay = stageNumber === -1
+        ? game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.INITIAL_SAVE')
+        : aff.inOnset
+          ? game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.ONSET')
+          : stageNumber === null
+            ? 'Stage information unavailable'
+            : `${game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.STAGE')} ${stageNumber}`;
 
       return {
         ...aff,
-        stageDisplay: aff.currentStage === -1
-          ? game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.INITIAL_SAVE')
-          : aff.inOnset
-            ? game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.ONSET')
-            : `${game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.STAGE')} ${aff.currentStage}`,
+        stageDisplay,
         nextSaveDisplay: this.formatNextSave(aff),
         treatmentDisplay: this.formatTreatment(aff),
         hasWarning: currentStage?.requiresManualHandling || false,
@@ -348,8 +370,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
         isVirulent: aff.isVirulent || false,
         hasMultipleExposure: aff.multipleExposure?.enabled || false,
         multipleExposureIncrease: aff.multipleExposure?.stageIncrease || 0,
-        canProgressStage: aff.currentStage < (aff.stages?.length ?? 0),
-        canRegressStage: aff.currentStage > 1
+        canProgressStage: stageNumber !== null && stageNumber < stageCount,
+        canRegressStage: stageNumber !== null && stageNumber > 1
       };
     });
   }
@@ -375,7 +397,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
           const needsMigration = !affliction.nextSaveTimestamp || affliction.nextSaveTimestamp > 1000000000000;
 
           if (needsMigration) {
-            const currentStage = affliction.stages?.[affliction.currentStage - 1];
+            const currentStage = this.constructor._getCurrentStageData(affliction);
             if (currentStage?.duration) {
               const durationSeconds = AfflictionParser.durationToSeconds(currentStage.duration);
               const nextSaveTimestamp = game.time.worldTime + durationSeconds;
@@ -519,7 +541,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       return game.i18n.format('PF2E_AFFLICTIONER.MANAGER.ONSET_PREFIX', { duration: AfflictionParser.formatDuration(affliction.onsetRemaining) });
     }
 
-    const stage = affliction.stages?.[affliction.currentStage - 1];
+    const stage = this.constructor._getCurrentStageData(affliction);
     const durationUnit = stage?.duration?.unit?.toLowerCase();
 
     if (combat && affliction.nextSaveRound) {
@@ -629,7 +651,9 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
   }
 
   formatStageTooltip(affliction) {
-    if (affliction.currentStage === -1) {
+    const stageNumber = this.constructor._getStageNumber(affliction);
+
+    if (stageNumber === -1) {
       return `Awaiting initial Fortitude save (DC ${affliction.dc}) to determine if afflicted`;
     }
 
@@ -640,16 +664,16 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       return 'Onset period - No effects yet';
     }
 
-    if (affliction.currentStage === 0) {
+    if (stageNumber === 0) {
       return 'Not yet afflicted';
     }
 
-    const stage = affliction.stages[affliction.currentStage - 1];
+    const stage = this.constructor._getCurrentStageData(affliction);
     if (!stage) {
       return 'Stage information unavailable';
     }
 
-    let tooltip = `Stage ${affliction.currentStage}:\n`;
+    let tooltip = `Stage ${stageNumber}:\n`;
 
     if (stage.effects) {
       const cleanEffects = this.constructor.cleanTooltipText(stage.effects);
@@ -765,9 +789,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       ? AfflictionStore.getAffliction(token, afflictionId)
       : AfflictionStore.getAfflictionForActor(actor, afflictionId);
 
-    const oldStageData = affliction?.currentStage > 0
-      ? affliction.stages[affliction.currentStage - 1]
-      : null;
+    const oldStageData = AfflictionManager._getCurrentStageData(affliction) ?? null;
 
     if (token) {
       await AfflictionStore.removeAffliction(token, afflictionId);
@@ -849,9 +871,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
 
       for (const afflictionId of afflictionIds) {
         const affliction = afflictions[afflictionId];
-        const oldStageData = affliction?.currentStage > 0
-          ? affliction.stages[affliction.currentStage - 1]
-          : null;
+        const oldStageData = AfflictionManager._getCurrentStageData(affliction) ?? null;
 
         await AfflictionStore.removeAffliction(token, afflictionId);
         await AfflictionService.removeStageEffects(token, affliction, oldStageData, null);
@@ -911,7 +931,14 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       return;
     }
 
-    if (affliction.currentStage >= affliction.stages.length) {
+    const stageNumber = AfflictionManager._getStageNumber(affliction);
+    const stageCount = AfflictionManager._getStageCount(affliction);
+    if (stageNumber === null || stageCount === 0) {
+      ui.notifications.warn(game.i18n.format('PF2E_AFFLICTIONER.NOTIFICATIONS.NO_STAGES_DEFINED', { name: affliction.name }));
+      return;
+    }
+
+    if (stageNumber >= stageCount) {
       ui.notifications.warn(game.i18n.format('PF2E_AFFLICTIONER.NOTIFICATIONS.MAX_STAGE', {
         tokenName: entityName,
         afflictionName: affliction.name
@@ -939,7 +966,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       return;
     }
 
-    if (affliction.currentStage <= 1) {
+    const stageNumber = AfflictionManager._getStageNumber(affliction);
+    if (stageNumber === null || stageNumber <= 1) {
       ui.notifications.info(game.i18n.format('PF2E_AFFLICTIONER.MANAGER.AT_STAGE_ONE', { tokenName: entityName, afflictionName: affliction.name }));
       return;
     }

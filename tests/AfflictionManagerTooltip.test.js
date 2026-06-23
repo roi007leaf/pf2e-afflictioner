@@ -47,4 +47,25 @@ describe('AfflictionManager coating tooltips', () => {
     expect(tooltip).toContain('Belladonna: Sickened 1');
     expect(tooltip).not.toContain('Aconite stage 1<br>Belladonna stage 1');
   });
+
+  test('does not crash when saved affliction stage data is malformed', async () => {
+    const { AfflictionManager } = await import('../scripts/managers/AfflictionManager.js');
+    const manager = Object.create(AfflictionManager.prototype);
+
+    const [affliction] = manager._enrichAfflictions({
+      broken: {
+        id: 'broken',
+        name: 'Broken Affliction',
+        type: 'disease',
+        dc: 22,
+        currentStage: Number.NaN,
+        needsInitialSave: false,
+      },
+    });
+
+    expect(affliction.stageTooltip).toBe('Stage information unavailable');
+    expect(affliction.hasDamage).toBe(false);
+    expect(affliction.canProgressStage).toBe(false);
+    expect(affliction.canRegressStage).toBe(false);
+  });
 });

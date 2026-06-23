@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.9] - 2026-06-23
+
+### Fixed
+
+- **Affliction manager malformed stage data**: Opening or refreshing the Affliction Manager no longer crashes when saved affliction flag data has an invalid current stage or missing stage list. The row now shows fallback stage information, disables invalid stage controls, and remains removable.
+
 ## [3.3.8] - 2026-06-03
 
 ### Fixed

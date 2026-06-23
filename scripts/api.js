@@ -29,7 +29,7 @@ export class Pf2eAfflictionerApi {
 
   static async removeAffliction(token, afflictionId) {
     const affliction = AfflictionStore.getAffliction(token, afflictionId);
-    const oldStageData = affliction?.stages[affliction.currentStage - 1];
+    const oldStageData = affliction?.stages?.[affliction.currentStage - 1];
     await AfflictionStore.removeAffliction(token, afflictionId);
     await AfflictionService.removeStageEffects(token, affliction, oldStageData, null);
     await VisualService.removeAfflictionIndicator(token);
