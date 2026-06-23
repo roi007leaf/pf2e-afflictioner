@@ -3,6 +3,7 @@ import { AfflictionService } from '../services/AfflictionService.js';
 import * as AfflictionDefinitionStore from '../stores/AfflictionDefinitionStore.js';
 import { shouldSkipPromptAffliction } from '../utils.js';
 import { AfflictionItemResolver } from '../services/AfflictionItemResolver.js';
+import { DEFAULT_AFFLICTION_ICON } from '../constants.js';
 
 export class AddAfflictionDialog extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2
@@ -86,7 +87,7 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
         type: edit.type || 'affliction',
         dc: edit.dc || 15,
         stageCount: edit.stages?.length || 0,
-        img: 'icons/svg/hazard.svg'
+        img: edit.img || DEFAULT_AFFLICTION_ICON
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -214,7 +215,8 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
       onset: null,
       maxDuration: null,
       isVirulent: false,
-      multipleExposure: null
+      multipleExposure: null,
+      img: DEFAULT_AFFLICTION_ICON
     };
 
     const { AfflictionService } = await import('../services/AfflictionService.js');

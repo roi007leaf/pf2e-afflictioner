@@ -1,4 +1,5 @@
 export const MODULE_ID = 'pf2e-afflictioner';
+export const DEFAULT_AFFLICTION_ICON = 'icons/svg/hazard.svg';
 
 export const AFFLICTION_TYPES = {
   POISON: 'poison',

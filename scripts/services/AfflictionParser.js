@@ -1,5 +1,6 @@
 import { PF2E_CONDITIONS, DURATION_MULTIPLIERS } from '../constants.js';
 import { getParserLocale, getEnParserLocale, withLocale } from '../locales/parser-locales.js';
+import { DEFAULT_AFFLICTION_ICON } from '../constants.js';
 
 export class AfflictionParser {
   static extractAfflictionTypeFromDescription(description) {
@@ -69,6 +70,7 @@ export class AfflictionParser {
       multipleExposure: this.extractMultipleExposure(description),
       sourceItemUuid: item.uuid,
       level: item.system?.level?.value || 0,
+      img: item.img || DEFAULT_AFFLICTION_ICON,
       traits,
     });
 
@@ -135,6 +137,7 @@ export class AfflictionParser {
       multipleExposure: this.extractMultipleExposure(description),
       sourceItemUuid: item.uuid,
       level: item.system?.level?.value || 0,
+      img: item.img || DEFAULT_AFFLICTION_ICON,
       traits: itemTraits
     };
   }
@@ -821,6 +824,7 @@ export class AfflictionParser {
       isVirulent: traits.includes('virulent'),
       sourceItemUuid: item.uuid,
       level: item.system?.level?.value || 0,
+      img: item.img || DEFAULT_AFFLICTION_ICON,
       traits,
       requiresManualHandling: this.detectManualHandling(strippedEffect),
     };

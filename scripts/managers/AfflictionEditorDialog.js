@@ -3,7 +3,7 @@ import * as AfflictionStore from '../stores/AfflictionStore.js';
 import { AfflictionEditorService } from '../services/AfflictionEditorService.js';
 import { AfflictionService } from '../services/AfflictionService.js';
 import { StageEditorDialog } from './StageEditorDialog.js';
-import { VALUELESS_CONDITIONS } from '../constants.js';
+import { DEFAULT_AFFLICTION_ICON, VALUELESS_CONDITIONS } from '../constants.js';
 
 export class AfflictionEditorDialog extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2
@@ -34,6 +34,7 @@ export class AfflictionEditorDialog extends foundry.applications.api.HandlebarsA
       addOnsetWeakness: AfflictionEditorDialog.addOnsetWeakness,
       removeOnsetWeakness: AfflictionEditorDialog.removeOnsetWeakness,
       toggleMaxDuration: AfflictionEditorDialog.toggleMaxDuration,
+      pickIcon: AfflictionEditorDialog.pickIcon,
       saveChanges: AfflictionEditorDialog.saveChanges,
       cancelEdit: AfflictionEditorDialog.cancelEdit,
       resetToDefault: AfflictionEditorDialog.resetToDefault
@@ -294,6 +295,31 @@ export class AfflictionEditorDialog extends foundry.applications.api.HandlebarsA
     await dialog.render({ force: true });
   }
 
+  static async pickIcon(_event, _button) {
+    const dialog = this;
+    const input = dialog.element?.querySelector('input[name="img"]');
+    const preview = dialog.element?.querySelector('.affliction-icon-preview');
+    const current = input?.value || dialog.editedData.img || DEFAULT_AFFLICTION_ICON;
+    const FilePickerClass = globalThis.FilePicker || foundry.applications?.apps?.FilePicker?.implementation;
+
+    if (!FilePickerClass) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.EDITOR.FILE_PICKER_UNAVAILABLE'));
+      return;
+    }
+
+    const picker = new FilePickerClass({
+      type: 'image',
+      current,
+      callback: path => {
+        const nextPath = path || DEFAULT_AFFLICTION_ICON;
+        dialog.editedData.img = nextPath;
+        if (input) input.value = nextPath;
+        if (preview) preview.src = nextPath;
+      }
+    });
+    picker.browse();
+  }
+
   static async saveChanges(_event, _button) {
     const dialog = this;
     const FormDataClass = foundry.applications?.ux?.FormDataExtended || FormDataExtended;
@@ -306,6 +332,8 @@ export class AfflictionEditorDialog extends foundry.applications.api.HandlebarsA
     if (formData.saveType) {
       dialog.editedData.saveType = formData.saveType.toLowerCase();
     }
+
+    dialog.editedData.img = formData.img?.trim() || DEFAULT_AFFLICTION_ICON;
 
     dialog.editedData.isVirulent = formData.isVirulent === true || formData.isVirulent === 'true';
 
@@ -395,6 +423,7 @@ export class AfflictionEditorDialog extends foundry.applications.api.HandlebarsA
             type: editedData.type,
             dc: editedData.dc,
             saveType: editedData.saveType,
+            img: editedData.img || DEFAULT_AFFLICTION_ICON,
             stages: editedData.stages,
             isVirulent: editedData.isVirulent,
             multipleExposure: editedData.multipleExposure,

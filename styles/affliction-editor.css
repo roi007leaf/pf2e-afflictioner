@@ -71,6 +71,7 @@
 }
 
 .affliction-editor .form-group input[type="number"],
+.affliction-editor .form-group input[type="text"],
 .affliction-editor .form-group select {
   flex: 1;
   padding: 6px 10px;
@@ -82,10 +83,43 @@
 }
 
 .affliction-editor .form-group input[type="number"]:focus,
+.affliction-editor .form-group input[type="text"]:focus,
 .affliction-editor .form-group select:focus {
   outline: none;
   border-color: var(--afflictioner-primary);
   box-shadow: 0 0 0 2px rgba(139, 0, 0, 0.2);
+}
+
+.affliction-editor .icon-group {
+  align-items: center;
+}
+
+.affliction-editor .affliction-icon-preview {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border: 1px solid var(--afflictioner-border);
+  border-radius: 4px;
+  background: var(--afflictioner-bg-medium);
+}
+
+.affliction-editor .icon-picker-btn {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: var(--afflictioner-primary);
+  border: 1px solid var(--afflictioner-primary-hover);
+  border-radius: 4px;
+  color: var(--afflictioner-text-light);
+  cursor: pointer;
+}
+
+.affliction-editor .icon-picker-btn:hover {
+  background: var(--afflictioner-primary-hover);
 }
 
 .affliction-editor .onset-group,

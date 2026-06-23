@@ -1,5 +1,5 @@
 import * as AfflictionStore from '../stores/AfflictionStore.js';
-import { PERSISTENT_CONDITIONS } from '../constants.js';
+import { DEFAULT_AFFLICTION_ICON, PERSISTENT_CONDITIONS } from '../constants.js';
 import { getParserLocale } from '../locales/parser-locales.js';
 import { getConditionPack, getConditionUuidFromEntry } from '../systemCompat.js';
 
@@ -22,8 +22,8 @@ export class AfflictionEffectBuilder {
       const badgeConfig = this._buildBadgeConfig(affliction);
       const durationConfig = this._buildDurationConfig(affliction, stage);
 
-      let itemImg = 'icons/svg/hazard.svg';
-      if (affliction.sourceItemUuid) {
+      let itemImg = affliction.img || DEFAULT_AFFLICTION_ICON;
+      if (!affliction.img && affliction.sourceItemUuid) {
         try {
           const notify = ui.notifications.notify;
           ui.notifications.notify = () => { };
@@ -81,13 +81,16 @@ export class AfflictionEffectBuilder {
         });
       }
 
-      await effect.update({
+      const updateData = {
         'system.badge': badgeConfig,
         'system.duration': durationConfig,
         'system.rules': rules,
         'system.description.value': stageDesc,
         'system.unidentified': shouldBeUnidentified
-      });
+      };
+      if (affliction.img) updateData.img = affliction.img;
+
+      await effect.update(updateData);
 
       return effect.uuid;
     } catch (error) {

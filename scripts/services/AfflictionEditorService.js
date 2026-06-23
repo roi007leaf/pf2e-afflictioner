@@ -1,6 +1,6 @@
 import * as AfflictionDefinitionStore from '../stores/AfflictionDefinitionStore.js';
 import { AfflictionParser } from './AfflictionParser.js';
-import { PF2E_CONDITIONS } from '../constants.js';
+import { DEFAULT_AFFLICTION_ICON, PF2E_CONDITIONS } from '../constants.js';
 
 export class AfflictionEditorService {
   static hasEditedVersion(afflictionData) {
@@ -25,6 +25,7 @@ export class AfflictionEditorService {
     if (editedDef.onsetWeakness !== undefined) merged.onsetWeakness = editedDef.onsetWeakness;
     if (editedDef.stages !== undefined) merged.stages = editedDef.stages;
     if (editedDef.isVirulent !== undefined) merged.isVirulent = editedDef.isVirulent;
+    if (editedDef.img !== undefined) merged.img = editedDef.img;
 
     return merged;
   }
@@ -167,6 +168,7 @@ export class AfflictionEditorService {
       type: afflictionData.type || 'affliction',
       dc: afflictionData.dc || 15,
       saveType: afflictionData.saveType || 'fortitude',
+      img: afflictionData.img || DEFAULT_AFFLICTION_ICON,
       isVirulent: afflictionData.isVirulent || false,
       onset: afflictionData.onset || null,
       onsetEffectInterval: afflictionData.onsetEffectInterval || null,

@@ -5,6 +5,15 @@
   <section class="editor-section basic-properties">
     <h4>{{localize 'PF2E_AFFLICTIONER.EDITOR.BASIC_PROPERTIES'}}</h4>
 
+    <div class="form-group icon-group">
+      <label for="affliction-img">{{localize 'PF2E_AFFLICTIONER.EDITOR.ICON'}}</label>
+      <img class="affliction-icon-preview" src="{{affliction.img}}" alt="{{affliction.name}}" />
+      <input type="text" id="affliction-img" name="img" value="{{affliction.img}}" />
+      <button type="button" data-action="pickIcon" class="icon-picker-btn" data-tooltip="{{localize 'PF2E_AFFLICTIONER.EDITOR.PICK_ICON'}}">
+        <i class="fas fa-image"></i>
+      </button>
+    </div>
+
     <div class="form-group">
       <label for="affliction-dc">{{localize 'PF2E_AFFLICTIONER.EDITOR.DC'}}</label>
       <input type="number" id="affliction-dc" name="dc" value="{{affliction.dc}}" min="1" max="50" />
