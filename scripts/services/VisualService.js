@@ -13,6 +13,17 @@ function getActiveTokensForActor(actor) {
   return placeables.filter(token => token.actor?.id === actor.id);
 }
 
+function canModifyToken(token) {
+  const doc = token?.document;
+  if (!doc) return false;
+
+  return (
+    game.user.isGM ||
+    doc.canUserModify?.(game.user, 'update') ||
+    doc.isOwner === true
+  );
+}
+
 function hasChangedProperty(changes, path) {
   if (!changes || !path) return false;
 
@@ -68,6 +79,8 @@ export class VisualService {
   }
 
   static async addIndicatorElement(token) {
+    if (!canModifyToken(token)) return;
+
     await token.document.setFlag(MODULE_ID, 'hasAffliction', true);
 
     if (!token.document.texture.tint) {
@@ -76,6 +89,8 @@ export class VisualService {
   }
 
   static async removeIndicatorElement(token) {
+    if (!canModifyToken(token)) return;
+
     await token.document.unsetFlag(MODULE_ID, 'hasAffliction');
 
     if (token.document.texture.tint === '#ff000020') {

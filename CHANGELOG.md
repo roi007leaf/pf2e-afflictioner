@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.1] - 2026-06-30
+
+### Fixed
+
+- **Player-side token permission errors**: Visual indicator refresh no longer attempts to write token flags or tint on tokens the player cannot modify. Document writes are now guarded so only a GM or token owner persists indicator state, preventing the permission errors that appeared on `canvasReady` when players were moved to a new scene.
+
 ## [3.4.0] - 2026-06-23
 
 ### Added
