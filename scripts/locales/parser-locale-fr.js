@@ -70,12 +70,12 @@ export const FR_PARSER_LOCALE = {
   dcPattern:           /DD\s+(\d+)/i,
   deathPattern:        /\bmort\b|\bmeurt\b|\bmort\s+instantanée\b/i,
   // "for 1 round" / "for 2d6 hours" at end of plain-text stage content
-  forDurationPattern:  /\b(\d+d\d+\s+\w+|\d+\s+\w+)\s*$/i,
+  forDurationPattern:  /\b(\d+d\d+(?:\s*[+-]\s*\d+)?\s+\w+|\d+\s+\w+)\s*$/i,
   // "1d6 fire or cold damage"
   orDamagePattern:     /(\d+d\d+(?:\s*[+-]\s*\d+)?)\s+(\w+)\s+ou\s+(\w+)\s+dégâts/gi,
 
   // ── Duration ───────────────────────────────────────────────────────────────
-  durationDiceRegex:  /(\d+d\d+)\s+(\S+)/i,
+  durationDiceRegex:  /(\d+d\d+(?:\s*[+-]\s*\d+)?)\s+(\S+)/i,
   durationFixedRegex: /(\d+)\s+(\S+)/i,
   durationUnitMap: {
     // French forms (singular, plural)

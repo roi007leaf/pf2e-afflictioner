@@ -55,6 +55,13 @@ describe('AfflictionParser — English', () => {
     expect(stages[0].duration).toEqual({ formula: '2d6', value: null, unit: 'hour', isDice: true });
   });
 
+  test('preserves arithmetic modifiers in variable stage durations', () => {
+    const html = '<p><strong>Stage 1</strong> sickened 1 (1d4+1 minutes)</p>';
+    const stages = AfflictionParser.extractStages(html);
+    expect(stages).toHaveLength(1);
+    expect(stages[0].duration).toEqual({ formula: '1d4+1', value: null, unit: 'minute', isDice: true });
+  });
+
   // ── extractDC ─────────────────────────────────────────────────────────────
 
   test('extracts DC from @Check enricher', () => {

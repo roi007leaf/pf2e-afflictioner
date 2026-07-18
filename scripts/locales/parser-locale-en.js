@@ -21,12 +21,12 @@ export const EN_PARSER_LOCALE = {
   dcPattern:           /DC\s+(\d+)/i,
   deathPattern:        /\bdead\b|\bdies\b|\binstant\s+death\b/i,
   // "for 1 round" / "for 2d6 hours" at end of plain-text stage content
-  forDurationPattern:  /\bfor\s+(\d+d\d+\s+\w+|\d+\s+\w+)\s*$/i,
+  forDurationPattern:  /\bfor\s+(\d+d\d+(?:\s*[+-]\s*\d+)?\s+\w+|\d+\s+\w+)\s*$/i,
   // "1d6 fire or cold damage"
   orDamagePattern:     /(\d+d\d+(?:\s*[+-]\s*\d+)?)\s+(\w+)\s+or\s+(\w+)\s+damage/gi,
 
   // ── Duration ───────────────────────────────────────────────────────────────
-  durationDiceRegex:  /(\d+d\d+)\s+(\w+)/i,
+  durationDiceRegex:  /(\d+d\d+(?:\s*[+-]\s*\d+)?)\s+(\w+)/i,
   durationFixedRegex: /(\d+)\s+(\w+)/i,
   // Maps any text token that appears as a unit to the canonical DURATION_MULTIPLIERS key.
   durationUnitMap: {

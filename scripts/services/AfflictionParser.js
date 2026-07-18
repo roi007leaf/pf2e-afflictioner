@@ -637,7 +637,7 @@ export class AfflictionParser {
       const isAscii = /^[\x20-\x7e]+$/.test(displayName);
       const bStart = isAscii ? b : (locale.useWordBoundaries ? '(?:^|[\\s,;.])' : '');
       const bEnd = isAscii ? b : (locale.useWordBoundaries ? '(?=[\\s,;.]|$)' : '');
-      const regex = new RegExp(`${bStart}(${escaped}\\s*(\\d+)?)(?:\\s+for\\s+((?:\\d+d\\d+|\\d+)\\s+\\w+))?${bEnd}`, 'gi');
+      const regex = new RegExp(`${bStart}(${escaped}\\s*(\\d+)?)(?:\\s+for\\s+((?:\\d+d\\d+(?:\\s*[+-]\\s*\\d+)?|\\d+)\\s+\\w+))?${bEnd}`, 'gi');
       const match = regex.exec(plainText);
       if (match) {
         const condition = {

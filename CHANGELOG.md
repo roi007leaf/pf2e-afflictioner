@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.2] - 2026-07-18
+
+### Fixed
+
+- **Variable stage duration modifiers**: Stage durations such as `1d4+1 minutes` now roll the complete formula and schedule the next save from that result instead of being treated as a fixed 1-minute duration.
+
 ## [3.4.1] - 2026-06-30
 
 ### Fixed

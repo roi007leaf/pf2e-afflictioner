@@ -75,12 +75,12 @@ export const RU_PARSER_LOCALE = {
   // \b doesn't work with Cyrillic in JS — use (?:^|\\s) / (?:\\s|$) boundaries instead.
   deathPattern:       /(?:^|\s)(?:мёртв|мертв|умирает|смерть)(?:\s|$)|\bdead\b|\bdies\b|\binstant\s+death\b/i,
   // "на 1 раунд" / "на 2d6 часов" at end of plain-text stage content
-  forDurationPattern: /\bна\s+(\d+d\d+\s+\S+|\d+\s+\S+)\s*$/i,
+  forDurationPattern: /\bна\s+(\d+d\d+(?:\s*[+-]\s*\d+)?\s+\S+|\d+\s+\S+)\s*$/i,
   // "1d6 урон огнём или холодом"
   orDamagePattern:    /(\d+d\d+(?:\s*[+-]\s*\d+)?)\s+(?:урон\s+)?(\S+)\s+или\s+(\S+)(?:\s+урон)?/gi,
 
   // ── Duration ───────────────────────────────────────────────────────────────
-  durationDiceRegex:  /(\d+d\d+)\s+(\S+)/i,
+  durationDiceRegex:  /(\d+d\d+(?:\s*[+-]\s*\d+)?)\s+(\S+)/i,
   durationFixedRegex: /(\d+)\s+(\S+)/i,
   durationUnitMap: {
     // Russian forms (singular, genitive singular, genitive plural)

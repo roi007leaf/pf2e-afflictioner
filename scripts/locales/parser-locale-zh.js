@@ -69,13 +69,13 @@ export const ZH_PARSER_LOCALE = {
   // 死亡 = dead/dies, 即死 = instant death
   deathPattern:       /死亡|即死/i,
   // Duration at end of plain-text stage content, e.g. "持续 1 轮"
-  forDurationPattern: /持续\s*(\d+d\d+\s*[\u4e00-\u9fff]+|\d+\s*[\u4e00-\u9fff]+)\s*$/i,
+  forDurationPattern: /持续\s*(\d+d\d+(?:\s*[+-]\s*\d+)?\s*[\u4e00-\u9fff]+|\d+\s*[\u4e00-\u9fff]+)\s*$/i,
   // "1d6 火焰 或 寒冷 伤害"
   orDamagePattern:    /(\d+d\d+(?:\s*[+-]\s*\d+)?)\s*([\u4e00-\u9fff]+)\s*或\s*([\u4e00-\u9fff]+)\s*伤害/gi,
 
   // ── Duration ───────────────────────────────────────────────────────────────
   // CJK unit characters follow the number directly or with a space: "1轮" or "1 轮".
-  durationDiceRegex:  /(\d+d\d+)\s*([\u4e00-\u9fff]+|\w+)/i,
+  durationDiceRegex:  /(\d+d\d+(?:\s*[+-]\s*\d+)?)\s*([\u4e00-\u9fff]+|\w+)/i,
   durationFixedRegex: /(\d+)\s*([\u4e00-\u9fff]+|\w+)/i,
   durationUnitMap: {
     '轮':   'round',
