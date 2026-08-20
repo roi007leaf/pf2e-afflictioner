@@ -6,6 +6,7 @@ import { AfflictionEditorService } from './AfflictionEditorService.js';
 import { AfflictionEffectBuilder } from './AfflictionEffectBuilder.js';
 import { AfflictionChatService } from './AfflictionChatService.js';
 import { AfflictionTimerService } from './AfflictionTimerService.js';
+import { RecoveryRestrictionService } from './RecoveryRestrictionService.js';
 import { FeatsService } from './FeatsService.js';
 import * as ImmunityBypassRuleStore from '../stores/ImmunityBypassRuleStore.js';
 
@@ -457,6 +458,14 @@ export class AfflictionService {
     actor = actor || token?.actor;
     const entityName = token?.name || actor?.name || 'Unknown';
     const combat = game.combat;
+    const minimumStage = RecoveryRestrictionService.getMinimumStage(affliction);
+    if (newStage < minimumStage) {
+      newStage = minimumStage;
+      ui.notifications.warn(game.i18n.format('PF2E_AFFLICTIONER.NOTIFICATIONS.RECOVERY_RESTRICTION_PREVENTED', {
+        afflictionName: affliction.name,
+        stage: minimumStage,
+      }));
+    }
 
     if (newStage === 0) {
       const oldStageData = affliction.stages[affliction.currentStage - 1];

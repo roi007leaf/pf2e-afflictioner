@@ -262,7 +262,9 @@
       "NO_STAGES_DEFINED": "Для недуга {name} не указаны стадии",
       "REFERENCED_NO_DC": "Упоминаемый недуг \"{name}\" (из {parentName}) не имеет КС — невозможно запросить спасбросок",
       "REFERENCED_RESISTED": "{tokenName} сопротивляется {afflictionName}",
-      "REFERENCED_AFFLICTED": "{tokenName} поражён {afflictionName}"
+      "REFERENCED_AFFLICTED": "{tokenName} поражён {afflictionName}",
+      "RECOVERY_RESTRICTION_PREVENTED": "{afflictionName} нельзя ослабить ниже стадии {stage}, пока специальное лечение не будет успешным.",
+      "RECOVERY_RESTRICTION_CLEARED": "Ограничения восстановления от {afflictionName} сняты для {tokenName}. Недуг остаётся на стадии {stage}, но теперь может быть вылечен обычным способом."
     },
     "FEATS": {
       "BLOWGUN_POISONER_APPLIED": "Отравитель с духовой трубкой: степень успеха первичного спасброска {targetName} против {afflictionName} снижена на одну степень.",
@@ -548,6 +550,8 @@
       "DAMAGE_HEADING": "{afflictionName} урон",
       "TAKES_DAMAGE": "получает урон от недуга",
       "DAMAGE_LABEL": "Урон:",
+      "UNHEALABLE_DAMAGE_ENTRY": "{afflictionName}: {amount} ОЗ",
+      "UNHEALABLE_DAMAGE_REMAINS": "Исцеление не может восстановить урон от недуга: {summary}.",
       "CLICK_DAMAGE_LINK": "Нажмите на ссылку на урон выше и примените эффект",
       "TARGET_ACTOR": "Цель: {actorName}",
       "CHOOSE_ONE": "Выберите одно:",

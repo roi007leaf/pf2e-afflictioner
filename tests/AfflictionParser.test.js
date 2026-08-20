@@ -431,6 +431,21 @@ describe('AfflictionParser — English', () => {
     expect(AfflictionParser.extractMultipleExposure(desc)).toBeNull();
   });
 
+  // ── Recovery restrictions ─────────────────────────────────────────────────
+
+  test('extracts Bog Rot stage floor, unhealable damage, and counteract unlock', () => {
+    const desc = '<p>This affliction can’t be reduced below stage 1, nor can the damage from it be healed, until it’s successfully treated with remove curse or a similar effect.</p>';
+    expect(AfflictionParser.extractRecoveryRestriction(desc)).toEqual({
+      minimumStage: 1,
+      unhealableDamage: true,
+      requiresCounteract: true,
+    });
+  });
+
+  test('returns null when an affliction has no recovery restriction', () => {
+    expect(AfflictionParser.extractRecoveryRestriction('<p>A normal disease.</p>')).toBeNull();
+  });
+
   // ── extractEmbeddedAfflictionName ─────────────────────────────────────────
 
   test('extracts embedded affliction name from spell', () => {

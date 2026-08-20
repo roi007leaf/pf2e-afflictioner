@@ -25,6 +25,7 @@ export class AfflictionEditorService {
     if (editedDef.onsetWeakness !== undefined) merged.onsetWeakness = editedDef.onsetWeakness;
     if (editedDef.stages !== undefined) merged.stages = editedDef.stages;
     if (editedDef.isVirulent !== undefined) merged.isVirulent = editedDef.isVirulent;
+    if (editedDef.recoveryRestriction !== undefined) merged.recoveryRestriction = editedDef.recoveryRestriction;
     if (editedDef.img !== undefined) merged.img = editedDef.img;
 
     return merged;
@@ -176,6 +177,7 @@ export class AfflictionEditorService {
       onsetConditions: afflictionData.onsetConditions || [],
       onsetWeakness: afflictionData.onsetWeakness || [],
       maxDuration: afflictionData.maxDuration || null,
+      recoveryRestriction: afflictionData.recoveryRestriction || null,
       stages: afflictionData.stages || [],
       sourceItemUuid: afflictionData.sourceItemUuid || null
     };

@@ -68,6 +68,7 @@ export class AfflictionParser {
       maxDuration: item.system?.maxDuration ? this.parseDuration(item.system.maxDuration) : this.extractMaxDuration(description),
       isVirulent,
       multipleExposure: this.extractMultipleExposure(description),
+      recoveryRestriction: this.extractRecoveryRestriction(description),
       sourceItemUuid: item.uuid,
       level: item.system?.level?.value || 0,
       img: item.img || DEFAULT_AFFLICTION_ICON,
@@ -135,6 +136,7 @@ export class AfflictionParser {
       maxDuration: item.system?.maxDuration ? this.parseDuration(item.system.maxDuration) : this.extractMaxDuration(description),
       isVirulent: isVirulent,
       multipleExposure: this.extractMultipleExposure(description),
+      recoveryRestriction: this.extractRecoveryRestriction(description),
       sourceItemUuid: item.uuid,
       level: item.system?.level?.value || 0,
       img: item.img || DEFAULT_AFFLICTION_ICON,
@@ -755,6 +757,22 @@ export class AfflictionParser {
     }
 
     return null;
+  }
+
+  static extractRecoveryRestriction(description) {
+    if (!description) return null;
+    const plainText = description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const locale = getParserLocale();
+    const minimumStageMatch = locale.minimumStagePattern?.exec(plainText) || null;
+    const unhealableDamage = (locale.unhealableDamagePatterns || []).some(pattern => pattern.test(plainText));
+    const requiresCounteract = (locale.counteractUnlockPatterns || []).some(pattern => pattern.test(plainText));
+
+    if (!minimumStageMatch && !unhealableDamage) return null;
+    return {
+      minimumStage: minimumStageMatch ? parseInt(minimumStageMatch[1]) : null,
+      unhealableDamage,
+      requiresCounteract,
+    };
   }
 
   static extractReferencedAfflictions(text) {

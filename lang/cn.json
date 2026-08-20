@@ -247,7 +247,9 @@
       "NO_STAGES_DEFINED": "苦难 {name} 未定义任何阶段",
       "REFERENCED_NO_DC": "引用的苦难 \"{name}\"（来自 {parentName}）没有DC — 无法请求豁免",
       "REFERENCED_RESISTED": "{tokenName} 抵抗了 {afflictionName}",
-      "REFERENCED_AFFLICTED": "{tokenName} 被 {afflictionName} 影响"
+      "REFERENCED_AFFLICTED": "{tokenName} 被 {afflictionName} 影响",
+      "RECOVERY_RESTRICTION_PREVENTED": "在特殊治疗成功前，{afflictionName} 无法降至阶段 {stage} 以下。",
+      "RECOVERY_RESTRICTION_CLEARED": "{tokenName} 的 {afflictionName} 恢复限制已解除。该病害仍处于阶段 {stage}，现在可以正常恢复。"
     },
     "FEATS": {
       "BLOWGUN_POISONER_APPLIED": "吹箭投毒者：{targetName} 对 {afflictionName} 的初始豁免被降低一个等级。",
@@ -531,6 +533,8 @@
       "DAMAGE_HEADING": "{afflictionName} 伤害",
       "TAKES_DAMAGE": "受到来自苦难的伤害",
       "DAMAGE_LABEL": "伤害：",
+      "UNHEALABLE_DAMAGE_ENTRY": "{afflictionName}：{amount} 点生命值",
+      "UNHEALABLE_DAMAGE_REMAINS": "治疗无法恢复苦难造成的伤害：{summary}。",
       "CLICK_DAMAGE_LINK": "点击上方的伤害链接进行掷骰并应用",
       "TARGET_ACTOR": "目标 {actorName}",
       "CHOOSE_ONE": "选择其中一项：",

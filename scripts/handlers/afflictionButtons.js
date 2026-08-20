@@ -6,6 +6,7 @@ import { AfflictionItemResolver } from '../services/AfflictionItemResolver.js';
 import { FeatsService } from '../services/FeatsService.js';
 import { getSystemFlags } from '../systemCompat.js';
 import { DEGREE_OF_SUCCESS } from '../constants.js';
+import { RecoveryRestrictionService } from '../services/RecoveryRestrictionService.js';
 
 export function registerAfflictionButtonHandlers(root, message) {
   registerDamageButtons(root);
@@ -69,9 +70,7 @@ function registerDamageButtons(root) {
 
           const damageRoll = await new Roll(cleanFormula).evaluate({ async: true });
 
-          const enrichedFlavor = type !== 'untyped'
-            ? `${affliction.name} - Stage ${affliction.currentStage}: @Damage[${cleanFormula}[${type}]]`
-            : `${affliction.name} - Stage ${affliction.currentStage}: @Damage[${cleanFormula}]`;
+          const enrichedFlavor = `${affliction.name} - Stage ${affliction.currentStage}: ${RecoveryRestrictionService.buildDamageLink(cleanFormula, type, affliction)}`;
 
           await damageRoll.toMessage({
             speaker: ChatMessage.getSpeaker({ token: token }),

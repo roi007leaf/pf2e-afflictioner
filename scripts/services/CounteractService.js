@@ -2,6 +2,7 @@ import { AfflictionService } from './AfflictionService.js';
 import * as AfflictionStore from '../stores/AfflictionStore.js';
 import { AfflictionParser } from './AfflictionParser.js';
 import { DEGREE_OF_SUCCESS } from '../constants.js';
+import { RecoveryRestrictionService } from './RecoveryRestrictionService.js';
 
 export class CounteractService {
   static async calculateAfflictionRank(affliction) {
@@ -207,6 +208,22 @@ export class CounteractService {
 
     const oldStageData = affliction.currentStage > 0 ? affliction.stages[affliction.currentStage - 1] : null;
 
+    if (RecoveryRestrictionService.requiresCounteract(affliction)) {
+      const updates = { recoveryRestrictionResolved: true };
+      if (token) {
+        await AfflictionStore.updateAffliction(token, affliction.id, updates);
+      } else if (actor) {
+        await AfflictionStore.updateAfflictionForActor(actor, affliction.id, updates);
+      }
+      await RecoveryRestrictionService.releaseAll(actor, affliction);
+      ui.notifications.info(game.i18n.format('PF2E_AFFLICTIONER.NOTIFICATIONS.RECOVERY_RESTRICTION_CLEARED', {
+        afflictionName: affliction.name,
+        tokenName: entityName,
+        stage: affliction.currentStage,
+      }));
+      return true;
+    }
+
     if (token) {
       await AfflictionStore.removeAffliction(token, affliction.id);
 
@@ -232,7 +249,10 @@ export class CounteractService {
 
   static async reduceAfflictionStage(token, affliction, actor = null) {
     actor = actor || token?.actor;
-    const newStage = affliction.currentStage - 1;
+    const newStage = Math.max(
+      RecoveryRestrictionService.getMinimumStage(affliction),
+      affliction.currentStage - 1,
+    );
     const combat = game.combat;
 
     const oldStageData = affliction.stages[affliction.currentStage - 1];

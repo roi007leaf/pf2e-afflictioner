@@ -2,6 +2,7 @@ import * as AfflictionStore from '../stores/AfflictionStore.js';
 import { DEFAULT_AFFLICTION_ICON, PERSISTENT_CONDITIONS } from '../constants.js';
 import { getParserLocale } from '../locales/parser-locales.js';
 import { getConditionPack, getConditionUuidFromEntry } from '../systemCompat.js';
+import { RecoveryRestrictionService } from './RecoveryRestrictionService.js';
 
 export class AfflictionEffectBuilder {
   static async createOrUpdateEffect(token, actor, affliction, stage) {
@@ -51,7 +52,10 @@ export class AfflictionEffectBuilder {
         flags: {
           'pf2e-afflictioner': {
             afflictionId: affliction.id,
-            isAfflictionEffect: true
+            isAfflictionEffect: true,
+            tracksUnhealableDamage: RecoveryRestrictionService.preventsHealing(affliction),
+            unhealableDamage: 0,
+            unhealableDamageApplications: {}
           }
         }
       };
@@ -69,7 +73,8 @@ export class AfflictionEffectBuilder {
       const effect = await fromUuid(affliction.appliedEffectUuid);
       if (!effect) return null;
 
-      const rules = await this._buildRulesFromStage(affliction, stage, bonuses);
+      let rules = await this._buildRulesFromStage(affliction, stage, bonuses);
+      rules = RecoveryRestrictionService.preserveDebtRule(rules, effect, affliction);
       const stageDesc = this._buildStageDescription(affliction, stage);
       const shouldBeUnidentified = this.shouldBeUnidentified(affliction);
       const badgeConfig = this._buildBadgeConfig(affliction);
@@ -88,6 +93,7 @@ export class AfflictionEffectBuilder {
         'system.description.value': stageDesc,
         'system.unidentified': shouldBeUnidentified
       };
+      updateData['flags.pf2e-afflictioner.tracksUnhealableDamage'] = RecoveryRestrictionService.preventsHealing(affliction);
       if (affliction.img) updateData.img = affliction.img;
 
       await effect.update(updateData);

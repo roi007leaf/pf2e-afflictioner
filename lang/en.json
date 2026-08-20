@@ -288,7 +288,9 @@
       "NO_STAGES_DEFINED": "Affliction {name} has no stages defined",
       "REFERENCED_NO_DC": "Referenced affliction \"{name}\" (from {parentName}) has no DC — cannot prompt save",
       "REFERENCED_RESISTED": "{tokenName} resisted {afflictionName}",
-      "REFERENCED_AFFLICTED": "{tokenName} is afflicted by {afflictionName}"
+      "REFERENCED_AFFLICTED": "{tokenName} is afflicted by {afflictionName}",
+      "RECOVERY_RESTRICTION_PREVENTED": "{afflictionName} cannot be reduced below stage {stage} until its special treatment succeeds.",
+      "RECOVERY_RESTRICTION_CLEARED": "{afflictionName}'s recovery restrictions were removed for {tokenName}. It remains at stage {stage} and can now recover normally."
     },
     "FEATS": {
       "BLOWGUN_POISONER_APPLIED": "Blowgun Poisoner: {targetName}'s initial save against {afflictionName} was degraded one step.",
@@ -594,6 +596,8 @@
       "DAMAGE_HEADING": "{afflictionName} Damage",
       "TAKES_DAMAGE": "takes damage from affliction",
       "DAMAGE_LABEL": "Damage:",
+      "UNHEALABLE_DAMAGE_ENTRY": "{afflictionName}: {amount} HP",
+      "UNHEALABLE_DAMAGE_REMAINS": "Healing cannot restore affliction damage: {summary}.",
       "CLICK_DAMAGE_LINK": "Click the damage link above to roll and apply",
       "TARGET_ACTOR": "Target {actorName}",
       "CHOOSE_ONE": "Choose one:",

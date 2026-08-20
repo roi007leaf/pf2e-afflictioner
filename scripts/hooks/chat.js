@@ -8,6 +8,7 @@ import { DEGREE_OF_SUCCESS, MODULE_ID } from '../constants.js';
 import { getSystemFlags } from '../systemCompat.js';
 import { FeatsService } from '../services/FeatsService.js';
 import { shouldSkipPromptAffliction } from '../utils.js';
+import { RecoveryRestrictionService } from '../services/RecoveryRestrictionService.js';
 
 const processedAttackMessageIds = new Set();
 
@@ -82,6 +83,15 @@ async function ensureInjuryPoisonItemCardWhispered(message) {
 
 export async function onCreateChatMessage(message, options, userId) {
   if (!game.user.isGM) return;
+
+  if (!game.users?.activeGM || game.users.activeGM.id === game.user.id) {
+    try {
+      await RecoveryRestrictionService.recordAppliedDamage(message);
+      await RecoveryRestrictionService.annotateHealingMessage(message);
+    } catch (error) {
+      console.error('PF2e Afflictioner | Failed to process unhealable damage:', error);
+    }
+  }
 
   await ensureInjuryPoisonItemCardWhispered(message);
 
@@ -175,6 +185,7 @@ export async function onCreateChatMessage(message, options, userId) {
     addedInCombat: !!combat,
     combatId: combat?.id
   };
+  let afflictionStored = false;
 
   if (afflictionData.onset) {
     if (combat) {
@@ -195,10 +206,12 @@ export async function onCreateChatMessage(message, options, userId) {
       }
     }
 
+    await AfflictionStore.addAffliction(token, affliction);
+    afflictionStored = true;
     await AfflictionService.applyStageEffects(token, affliction, firstStage);
   }
 
-  await AfflictionStore.addAffliction(token, affliction);
+  if (!afflictionStored) await AfflictionStore.addAffliction(token, affliction);
 
   const { VisualService } = await import('../services/VisualService.js');
   await VisualService.addAfflictionIndicator(token);
@@ -211,6 +224,13 @@ export async function onCreateChatMessage(message, options, userId) {
 
 export async function onUpdateChatMessage(message) {
   if (!game.user.isGM) return;
+  if (!game.users?.activeGM || game.users.activeGM.id === game.user.id) {
+    try {
+      await RecoveryRestrictionService.releaseRevertedDamage(message);
+    } catch (error) {
+      console.error('PF2e Afflictioner | Failed to release reverted unhealable damage:', error);
+    }
+  }
   if (!game.settings.get('pf2e-afflictioner', 'autoDetectAfflictions')) return;
 
   const flags = getSystemFlags(message);

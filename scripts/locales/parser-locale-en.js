@@ -100,4 +100,14 @@ export const EN_PARSER_LOCALE = {
       minStage: null,
     },
   ],
+
+  // ── Recovery restrictions ─────────────────────────────────────────────────
+  minimumStagePattern: /can(?:not|['’]t)\s+be\s+reduced\s+below\s+stage\s+(\d+)/i,
+  unhealableDamagePatterns: [
+    /damage\s+from\s+(?:it|this\s+affliction)\s+can(?:not|['’]t)\s+be\s+healed/i,
+    /nor\s+can\s+the\s+damage\s+from\s+(?:it|this\s+affliction)\s+be\s+healed/i,
+  ],
+  counteractUnlockPatterns: [
+    /until\s+(?:it(?:['’]s|\s+is)\s+)?successfully\s+treated\s+with\s+(?:@UUID\[[^\]]+\]\{)?remove\s+curse/i,
+  ],
 };

@@ -427,6 +427,7 @@ export class AfflictionEditorDialog extends foundry.applications.api.HandlebarsA
             stages: editedData.stages,
             isVirulent: editedData.isVirulent,
             multipleExposure: editedData.multipleExposure,
+            recoveryRestriction: editedData.recoveryRestriction,
             onset: editedData.onset || null
           };
 

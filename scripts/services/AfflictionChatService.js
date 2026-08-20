@@ -1,4 +1,5 @@
 import { MODULE_ID } from '../constants.js';
+import { RecoveryRestrictionService } from './RecoveryRestrictionService.js';
 
 export class AfflictionChatService {
   static _capitalize(str) {
@@ -232,8 +233,8 @@ export class AfflictionChatService {
       const cleanFormula = formula.trim().replace(/\[.*$/, '');
 
       if (isChoice && altType) {
-        const link1 = `@Damage[${cleanFormula}[${type}]]`;
-        const link2 = `@Damage[${cleanFormula}[${altType}]]`;
+        const link1 = RecoveryRestrictionService.buildDamageLink(cleanFormula, type, affliction);
+        const link2 = RecoveryRestrictionService.buildDamageLink(cleanFormula, altType, affliction);
         return `<div style="background: rgba(255, 165, 0, 0.15); padding: 8px; border-radius: 4px; border-left: 3px solid #992001; margin: 4px 0;">
           <div style="font-weight: bold; color: #ff3300; margin-bottom: 4px; font-size: 0.9em;">${game.i18n.localize('PF2E_AFFLICTIONER.CHAT.CHOOSE_ONE')}</div>
           <div style="margin-left: 8px;">${link1}</div>
@@ -242,9 +243,7 @@ export class AfflictionChatService {
         </div>`;
       }
 
-      return type !== 'untyped'
-        ? `@Damage[${cleanFormula}[${type}]]`
-        : `@Damage[${cleanFormula}]`;
+      return RecoveryRestrictionService.buildDamageLink(cleanFormula, type, affliction);
     }).join(', ');
 
     const content = `
@@ -414,6 +413,9 @@ export class AfflictionChatService {
     const bgColor = newStage > oldStage ? 'rgba(255, 107, 0, 0.1)' : 'rgba(74, 124, 42, 0.1)';
 
     const newStageData = affliction.stages[newStage - 1];
+    const stageEffects = newStageData?.effects
+      ? RecoveryRestrictionService.tagDamageLinks(newStageData.effects, affliction)
+      : '';
 
     let effectsSummary = '';
     if (newStageData) {
@@ -459,7 +461,7 @@ export class AfflictionChatService {
           </div>
         </div>
         ${effectsSummary}
-        ${newStageData && newStageData.effects ? `<div style="margin: 8px 0; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; font-style: italic; color: #f5f5f5; font-size: 0.9em; border-left: 3px solid ${stageColor}; padding-left: 10px;">${newStageData.effects}</div>` : ''}
+        ${stageEffects ? `<div style="margin: 8px 0; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; font-style: italic; color: #f5f5f5; font-size: 0.9em; border-left: 3px solid ${stageColor}; padding-left: 10px;">${stageEffects}</div>` : ''}
         ${fastRecoveryNote}
         ${targetButton}
       </div>
@@ -563,9 +565,7 @@ export class AfflictionChatService {
       const damageLinks = affliction.onsetDamage.map(d => {
         const formula = (typeof d === 'string' ? d : d.formula || '').trim().replace(/\[.*$/, '');
         const type = typeof d === 'object' ? d.type : 'untyped';
-        return type && type !== 'untyped'
-          ? `@Damage[${formula}[${type}]]`
-          : `@Damage[${formula}]`;
+        return RecoveryRestrictionService.buildDamageLink(formula, type, affliction);
       }).join(', ');
       damageSection = `
         <p><strong>${game.i18n.localize('PF2E_AFFLICTIONER.CHAT.DAMAGE_LABEL')}</strong> ${damageLinks}</p>
@@ -631,12 +631,12 @@ export class AfflictionChatService {
         if (isChoice && altType) {
           return `<div style="background: rgba(255, 165, 0, 0.15); padding: 8px; border-radius: 4px; border-left: 3px solid #992001; margin: 4px 0;">
             <div style="font-weight: bold; color: #ff3300; margin-bottom: 4px; font-size: 0.9em;">${game.i18n.localize('PF2E_AFFLICTIONER.CHAT.CHOOSE_ONE')}</div>
-            <div style="margin-left: 8px;">@Damage[${formula}[${type}]]</div>
+            <div style="margin-left: 8px;">${RecoveryRestrictionService.buildDamageLink(formula, type, affliction)}</div>
             <div style="margin: 4px 0 0 8px;"><strong style="color: #ff3300;">${game.i18n.localize('PF2E_AFFLICTIONER.CHAT.OR')}</strong></div>
-            <div style="margin-left: 8px;">@Damage[${formula}[${altType}]]</div>
+            <div style="margin-left: 8px;">${RecoveryRestrictionService.buildDamageLink(formula, altType, affliction)}</div>
           </div>`;
         }
-        return type && type !== 'untyped' ? `@Damage[${formula}[${type}]]` : `@Damage[${formula}]`;
+        return RecoveryRestrictionService.buildDamageLink(formula, type, affliction);
       }).join(', ');
 
       damageSection = `
