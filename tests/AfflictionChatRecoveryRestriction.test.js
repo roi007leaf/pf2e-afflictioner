@@ -49,7 +49,7 @@ describe('AfflictionChatService recovery restrictions', () => {
 
     expect(ChatMessage.create).toHaveBeenCalledTimes(1);
     expect(ChatMessage.create.mock.calls[0][0].content).toContain(
-      '@Damage[3d6[void]|options:pf2e-afflictioner:unhealable-damage:bog-rot-id]',
+      '@Damage[3d6[void]|options:pf2e-afflictioner:unhealable-damage:bog-rot-id|immutable]',
     );
   });
 });

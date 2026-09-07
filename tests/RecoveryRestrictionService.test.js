@@ -75,18 +75,18 @@ describe('RecoveryRestrictionService', () => {
   test('builds tagged PF2e damage links only while restriction is active', () => {
     const affliction = activeAffliction();
     expect(RecoveryRestrictionService.buildDamageLink('3d6', 'void', affliction)).toBe(
-      '@Damage[3d6[void]|options:pf2e-afflictioner:unhealable-damage:bog-rot-id]',
+      '@Damage[3d6[void]|immutable|options:pf2e-afflictioner:unhealable-damage:bog-rot-id]',
     );
 
     affliction.recoveryRestrictionResolved = true;
-    expect(RecoveryRestrictionService.buildDamageLink('3d6', 'void', affliction)).toBe('@Damage[3d6[void]]');
+    expect(RecoveryRestrictionService.buildDamageLink('3d6', 'void', affliction)).toBe('@Damage[3d6[void]|immutable]');
   });
 
   test('tags raw damage enrichers without losing nested formulas or existing options', () => {
     const text = '@Damage[(max(4,(@item.rank)-1))d6[void]|immutable|options:foo] and @Damage[2d6[void]]';
 
     expect(RecoveryRestrictionService.tagDamageLinks(text, activeAffliction())).toBe(
-      '@Damage[(max(4,(@item.rank)-1))d6[void]|immutable|options:foo,pf2e-afflictioner:unhealable-damage:bog-rot-id] and @Damage[2d6[void]|options:pf2e-afflictioner:unhealable-damage:bog-rot-id]',
+      '@Damage[(max(4,(@item.rank)-1))d6[void]|immutable|options:foo,pf2e-afflictioner:unhealable-damage:bog-rot-id] and @Damage[2d6[void]|options:pf2e-afflictioner:unhealable-damage:bog-rot-id|immutable]',
     );
   });
 

@@ -43,14 +43,14 @@ export class RecoveryRestrictionService {
   static buildDamageLink(formula, type, affliction) {
     const typedFormula = type && type !== 'untyped' ? `${formula}[${type}]` : formula;
     const option = this.getDamageRollOption(affliction);
-    return `@Damage[${typedFormula}${option ? `|options:${option}` : ''}]`;
+    // Damage is suffered by the speaker, not dealt using their damage bonuses.
+    return `@Damage[${typedFormula}|immutable${option ? `|options:${option}` : ''}]`;
   }
 
   static tagDamageLinks(text, affliction) {
     if (typeof text !== 'string' || !text.includes('@Damage[')) return text;
 
     const option = this.getDamageRollOption(affliction);
-    if (!option) return text;
 
     const marker = '@Damage[';
     let result = '';
@@ -85,7 +85,7 @@ export class RecoveryRestrictionService {
       const optionsMatch = content.match(optionsPattern);
       let taggedContent = content;
 
-      if (optionsMatch) {
+      if (option && optionsMatch) {
         const options = optionsMatch[2].split(',').map(value => value.trim()).filter(Boolean);
         if (!options.includes(option)) {
           taggedContent = content.replace(
@@ -93,8 +93,12 @@ export class RecoveryRestrictionService {
             `${optionsMatch[1]}options:${[...options, option].join(',')}`,
           );
         }
-      } else {
+      } else if (option) {
         taggedContent = `${content}|options:${option}`;
+      }
+
+      if (!taggedContent.split('|').some(param => param.trim() === 'immutable')) {
+        taggedContent += '|immutable';
       }
 
       result += `${marker}${taggedContent}]`;
