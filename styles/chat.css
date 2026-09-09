@@ -17,6 +17,58 @@ ul:has(> li.chat-message) {
   padding-inline-start: 0 !important;
 }
 
+/* Stage changes contain variable-length PF2e enrichers and must grow with them. */
+.pf2e-afflictioner-stage-change {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+.pf2e-afflictioner-stage-change > *,
+.pf2e-afflictioner-stage-change__header {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.pf2e-afflictioner-stage-change__heading {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pf2e-afflictioner-stage-change__summary,
+.pf2e-afflictioner-stage-change__note,
+.pf2e-afflictioner-stage-change__effects {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.pf2e-afflictioner-stage-change__effects :is(a.content-link, a.inline-roll, a.inline-check) {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.pf2e-afflictioner-stage-change .affliction-target-token {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .pf2e-afflictioner-save-request {
   box-sizing: border-box;
   max-width: 100%;

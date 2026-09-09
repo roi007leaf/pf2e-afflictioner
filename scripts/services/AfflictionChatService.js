@@ -1,5 +1,6 @@
 import { MODULE_ID } from '../constants.js';
 import { RecoveryRestrictionService } from './RecoveryRestrictionService.js';
+import { AfflictionParser } from './AfflictionParser.js';
 
 export class AfflictionChatService {
   static _capitalize(str) {
@@ -412,7 +413,7 @@ export class AfflictionChatService {
     const stageColor = newStage > oldStage ? '#ff6b00' : '#4a7c2a';
     const bgColor = newStage > oldStage ? 'rgba(255, 107, 0, 0.1)' : 'rgba(74, 124, 42, 0.1)';
 
-    const newStageData = affliction.stages[newStage - 1];
+    const newStageData = AfflictionParser.normalizeStageVisibility(affliction.stages[newStage - 1]);
     const stageEffects = newStageData?.effects
       ? RecoveryRestrictionService.tagDamageLinks(newStageData.effects, affliction)
       : '';
@@ -435,12 +436,12 @@ export class AfflictionChatService {
         effects.push(`${game.i18n.localize('PF2E_AFFLICTIONER.CHAT.WEAKNESS_PREFIX')} ${newStageData.weakness.map(w => `${w.type} ${w.value}`).join(', ')}`);
       }
       if (effects.length > 0) {
-        effectsSummary = `<div style="margin: 8px 0; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px; font-size: 0.9em;">${effects.join(' • ')}</div>`;
+        effectsSummary = `<div class="pf2e-afflictioner-stage-change__summary" style="margin: 8px 0; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px; font-size: 0.9em;">${effects.join(' • ')}</div>`;
       }
     }
 
     const fastRecoveryNote = (options.fastRecovery && newStage < oldStage)
-      ? `<div style="margin-top:6px;padding:5px 8px;background:rgba(0,0,0,0.3);border-left:3px solid #4a9c2a;border-radius:3px;font-size:0.85em;color:#f5f5f5;"><i class="fas fa-bolt" style="margin-right:4px;"></i>${game.i18n.format('PF2E_AFFLICTIONER.FEATS.FAST_RECOVERY_STAGE_CHANGE', { tokenName: entityName, afflictionName: affliction.name, stages: oldStage - newStage })}</div>`
+      ? `<div class="pf2e-afflictioner-stage-change__note" style="margin-top:6px;padding:5px 8px;background:rgba(0,0,0,0.3);border-left:3px solid #4a9c2a;border-radius:3px;font-size:0.85em;color:#f5f5f5;"><i class="fas fa-bolt" style="margin-right:4px;"></i>${game.i18n.format('PF2E_AFFLICTIONER.FEATS.FAST_RECOVERY_STAGE_CHANGE', { tokenName: entityName, afflictionName: affliction.name, stages: oldStage - newStage })}</div>`
       : '';
 
     const hasDamage = (newStageData?.damage?.length > 0) ||
@@ -453,15 +454,15 @@ export class AfflictionChatService {
 
     const content = `
       <div class="pf2e-afflictioner-stage-change" style="border-left: 5px solid ${stageColor}; padding: 12px; background: ${bgColor}; border-radius: 4px; margin: 8px 0;">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+        <div class="pf2e-afflictioner-stage-change__header" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
           <i class="fas ${stageIcon}" style="color: ${stageColor}; font-size: 24px;"></i>
-          <div style="flex: 1;">
+          <div class="pf2e-afflictioner-stage-change__heading" style="flex: 1;">
             <h3 style="margin: 0; font-size: 1.2em; color: ${stageColor};">${affliction.name} - ${stageDirection}</h3>
             <p style="margin: 4px 0 0 0; font-size: 0.95em;"><strong>${entityName}</strong> ${game.i18n.format('PF2E_AFFLICTIONER.CHAT.IS_NOW_AT_STAGE', { stage: newStage })} <span style="color: #888;">${game.i18n.format('PF2E_AFFLICTIONER.CHAT.WAS_STAGE', { stage: oldStageText })}</span></p>
           </div>
         </div>
         ${effectsSummary}
-        ${stageEffects ? `<div style="margin: 8px 0; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; font-style: italic; color: #f5f5f5; font-size: 0.9em; border-left: 3px solid ${stageColor}; padding-left: 10px;">${stageEffects}</div>` : ''}
+        ${stageEffects ? `<div class="pf2e-afflictioner-stage-change__effects" style="margin: 8px 0; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; font-style: italic; color: #f5f5f5; font-size: 0.9em; border-left: 3px solid ${stageColor}; padding-left: 10px;">${stageEffects}</div>` : ''}
         ${fastRecoveryNote}
         ${targetButton}
       </div>

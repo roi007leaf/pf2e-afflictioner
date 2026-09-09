@@ -9,6 +9,7 @@ import { AfflictionTimerService } from './AfflictionTimerService.js';
 import { RecoveryRestrictionService } from './RecoveryRestrictionService.js';
 import { FeatsService } from './FeatsService.js';
 import * as ImmunityBypassRuleStore from '../stores/ImmunityBypassRuleStore.js';
+import { VisionerIntegrationService } from './VisionerIntegrationService.js';
 
 export class AfflictionService {
   static async promptInitialSave(token, afflictionData, actor = null) {
@@ -327,6 +328,8 @@ export class AfflictionService {
       }
       if (initialDurationCopy?.value > 0) {
         updates.currentStageResolvedDuration = { value: initialDurationCopy.value, unit: initialDurationCopy.unit };
+      } else {
+        updates.currentStageResolvedDuration = null;
       }
 
       if (initialStage.effectInterval) {
@@ -505,6 +508,8 @@ export class AfflictionService {
 
     const updates = {
       currentStage: finalStage,
+      durationElapsed: 0,
+      currentStageResolvedDuration: null,
       treatmentBonus: 0,
       treatedThisStage: false,
       virulentConsecutiveSuccesses: newVirulentConsecutiveSuccesses
@@ -600,6 +605,7 @@ export class AfflictionService {
   static async applyStageEffects(token, affliction, stage) {
     const actor = token?.actor;
     if (!actor || !stage) return;
+    stage = AfflictionParser.normalizeStageVisibility(stage);
 
     if (stage.requiresManualHandling) {
       ui.notifications.warn(game.i18n.format('PF2E_AFFLICTIONER.NOTIFICATIONS.MANUAL_EFFECTS', {
@@ -613,6 +619,7 @@ export class AfflictionService {
         stage.damage?.length > 0 ||
         stage.weakness?.length > 0 ||
         stage.ruleElements?.length > 0 ||
+        stage.visibilityEffects?.length > 0 ||
         stage.referencedAfflictions?.length > 0;
 
       if (!hasAutomaticStageEffects) return;
@@ -661,6 +668,8 @@ export class AfflictionService {
         });
       }
     }
+
+    await VisionerIntegrationService.applyStageVisibility(token, affliction, stage);
 
     await AfflictionEffectBuilder.applyPersistentConditions(actor, affliction, stage);
     await AfflictionEffectBuilder.applyPersistentDamage(actor, affliction, stage);
@@ -947,6 +956,8 @@ export class AfflictionService {
     const actor = token?.actor;
     if (!actor) return;
 
+    await VisionerIntegrationService.removeStageVisibility(token, affliction);
+
     if (!newStageData) {
       let effectRemoved = false;
 
@@ -1141,6 +1152,8 @@ export class AfflictionService {
 
     const updates = {
       currentStage: newStage,
+      durationElapsed: 0,
+      currentStageResolvedDuration: null,
       stageStartRound: combat ? combat.round : existingAffliction.stageStartRound
     };
 

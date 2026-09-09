@@ -25,7 +25,7 @@ async function processAfflictionsForToken(token, afflictions, delta) {
         const stageDurationSeconds = await AfflictionParser.resolveStageDuration(durationCopy, `${affliction.name} Stage ${targetStage}`);
         const resolvedDuration = durationCopy?.value > 0
           ? { value: durationCopy.value, unit: durationCopy.unit }
-          : undefined;
+          : null;
 
         const onsetUpdates = {
           inOnset: false,
@@ -33,7 +33,7 @@ async function processAfflictionsForToken(token, afflictions, delta) {
           onsetRemaining: 0,
           durationElapsed: 0,
           nextSaveTimestamp: game.time.worldTime + stageDurationSeconds,
-          ...(resolvedDuration && { currentStageResolvedDuration: resolvedDuration })
+          currentStageResolvedDuration: resolvedDuration
         };
 
         if (stageData.effectInterval) {
@@ -88,7 +88,7 @@ async function processAfflictionsForOffSceneActor(actor, afflictions, delta) {
         const stageDurationSeconds = await AfflictionParser.resolveStageDuration(durationCopy, `${affliction.name} Stage ${targetStage}`);
         const resolvedDuration = durationCopy?.value > 0
           ? { value: durationCopy.value, unit: durationCopy.unit }
-          : undefined;
+          : null;
 
         const onsetUpdates = {
           inOnset: false,
@@ -96,7 +96,7 @@ async function processAfflictionsForOffSceneActor(actor, afflictions, delta) {
           onsetRemaining: 0,
           durationElapsed: 0,
           nextSaveTimestamp: game.time.worldTime + stageDurationSeconds,
-          ...(resolvedDuration && { currentStageResolvedDuration: resolvedDuration })
+          currentStageResolvedDuration: resolvedDuration
         };
 
         if (stageData.effectInterval) {
@@ -146,7 +146,8 @@ async function processAfflictionsForOffSceneActor(actor, afflictions, delta) {
       const stage = affliction.stages?.[affliction.currentStage - 1];
       if (!stage?.duration) continue;
 
-      const stageDurationSeconds = AfflictionParser.durationToSeconds(stage.duration);
+      const stageDurationSeconds = AfflictionParser.durationToSeconds(AfflictionParser.getStageDuration(affliction, stage));
+      if (stageDurationSeconds <= 0) continue;
       const newElapsed = (affliction.durationElapsed || 0) + delta;
 
       if (newElapsed >= stageDurationSeconds) {

@@ -292,7 +292,7 @@ export class AfflictionParser {
         rawText: match[0],
         duration: duration,
         damage: this.extractDamage(effects),
-        conditions: this.extractConditions(effects),
+        ...this.extractStageConditionData(effects),
         weakness: this.extractWeakness(effects),
         requiresManualHandling: this.detectManualHandling(effects),
         isDead: this.detectDeath(effects),
@@ -331,7 +331,7 @@ export class AfflictionParser {
         rawText: match[0],
         duration: duration,
         damage: this.extractDamage(rawContent),
-        conditions: this.extractConditions(rawContent),
+        ...this.extractStageConditionData(rawContent),
         weakness: this.extractWeakness(rawContent),
         requiresManualHandling: this.detectManualHandling(plainText),
         isDead: this.detectDeath(rawContent),
@@ -375,7 +375,7 @@ export class AfflictionParser {
         rawText: `${label[0].replace(/^[;；。]\s*/, '')} ${rawContent}`.trim(),
         duration,
         damage: this.extractDamage(effects),
-        conditions: this.extractConditions(rawContent),
+        ...this.extractStageConditionData(rawContent),
         weakness: this.extractWeakness(effects),
         requiresManualHandling: this.detectManualHandling(effects),
         isDead: this.detectDeath(effects),
@@ -460,6 +460,7 @@ export class AfflictionParser {
       stage.damage = ref.damage;
       stage.conditions = ref.conditions;
       stage.weakness = ref.weakness;
+      if (ref.visibilityEffects) stage.visibilityEffects = ref.visibilityEffects;
       stage.requiresManualHandling = ref.requiresManualHandling;
       stage.isDead = ref.isDead;
     }
@@ -655,6 +656,48 @@ export class AfflictionParser {
     return conditions;
   }
 
+  static extractStageConditionData(text) {
+    const visibilityEffects = this.extractVisibilityEffects(text);
+    const relativeStates = new Set(visibilityEffects.map(effect => effect.state));
+    const conditions = this.extractConditions(text).filter(condition => !relativeStates.has(condition.name));
+    return visibilityEffects.length > 0
+      ? { conditions, visibilityEffects }
+      : { conditions };
+  }
+
+  static normalizeStageVisibility(stage) {
+    if (!stage) return stage;
+
+    const parsedEffects = this.extractVisibilityEffects(stage.effects || stage.rawText || '');
+    const visibilityEffects = stage.visibilityEffects?.length > 0
+      ? stage.visibilityEffects
+      : parsedEffects;
+    if (visibilityEffects.length === 0) return stage;
+
+    const relativeStates = new Set(visibilityEffects.map(effect => effect.state));
+    return {
+      ...stage,
+      conditions: (stage.conditions ?? []).filter(condition => !relativeStates.has(condition.name)),
+      visibilityEffects,
+    };
+  }
+
+  static extractVisibilityEffects(text) {
+    const effects = [];
+    const seen = new Set();
+    const plainText = this.stripEnrichment(text);
+    const relativeDarkvisionPattern = /\bcreatures?\s+you\s+can\s+see\s+only\s+with\s+darkvision\s+are\s+(concealed|hidden)\s+from\s+you\b/gi;
+
+    for (const match of plainText.matchAll(relativeDarkvisionPattern)) {
+      const state = match[1].toLowerCase();
+      if (seen.has(state)) continue;
+      effects.push({ state, sense: 'darkvision', only: true });
+      seen.add(state);
+    }
+
+    return effects;
+  }
+
   static extractMaxDuration(description) {
     const locale = getParserLocale();
     const maxMatch = description.match(new RegExp(`${locale.maxDurationLabelRe}(?:<\\/[^>]+>)?${locale.afterLabel}([^;.<]+)`, 'i'));
@@ -667,6 +710,14 @@ export class AfflictionParser {
     const unit = duration.unit.toLowerCase();
     const multiplier = DURATION_MULTIPLIERS[unit] || DURATION_MULTIPLIERS['round'];
     return (duration.value ?? 0) * multiplier;
+  }
+
+  static getStageDuration(affliction, stage = affliction.stages?.[affliction.currentStage - 1]) {
+    if (!stage?.duration) return null;
+    // Stage definitions retain their formula; the roll belongs to this stage visit.
+    return stage.duration.isDice
+      ? affliction.currentStageResolvedDuration ?? stage.duration
+      : stage.duration;
   }
 
   static async resolveStageDuration(duration, stageName = 'Stage') {

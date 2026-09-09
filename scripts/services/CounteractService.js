@@ -260,13 +260,19 @@ export class CounteractService {
 
     const updates = {
       currentStage: newStage,
+      durationElapsed: 0,
+      currentStageResolvedDuration: null,
       treatmentBonus: 0,
       treatedThisStage: false
     };
 
     if (newStageData) {
+      const durationCopy = newStageData.duration ? { ...newStageData.duration } : null;
+      const durationSeconds = await AfflictionParser.resolveStageDuration(durationCopy, `${affliction.name} Stage ${newStage}`);
+      if (durationCopy?.value > 0) {
+        updates.currentStageResolvedDuration = { value: durationCopy.value, unit: durationCopy.unit };
+      }
       if (combat) {
-        const durationSeconds = await AfflictionParser.resolveStageDuration(newStageData.duration, `${affliction.name} Stage ${newStage}`);
         const durationRounds = Math.ceil(durationSeconds / 6);
         updates.nextSaveRound = combat.round + durationRounds;
         if (token) {
@@ -275,7 +281,6 @@ export class CounteractService {
         }
         updates.stageStartRound = combat.round;
       } else {
-        const durationSeconds = await AfflictionParser.resolveStageDuration(newStageData.duration, `${affliction.name} Stage ${newStage}`);
         updates.nextSaveTimestamp = game.time.worldTime + durationSeconds;
       }
     }

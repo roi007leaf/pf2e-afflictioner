@@ -26,4 +26,13 @@ describe('Affliction Manager styles', () => {
     expect(css).toMatch(/\.pf2e-afflictioner-save-request button \{[\s\S]*box-sizing:\s*border-box;[\s\S]*min-width:\s*0;[\s\S]*white-space:\s*normal;/);
     expect(css).toMatch(/\.pf2e-afflictioner-apply-item-affliction \{[\s\S]*box-sizing:\s*border-box;[\s\S]*min-width:\s*0;[\s\S]*white-space:\s*normal;/);
   });
+
+  test('stage-change cards grow and wrap long enriched stage text', () => {
+    const css = fs.readFileSync(path.resolve('styles/chat.css'), 'utf8');
+
+    expect(css).toMatch(/\.pf2e-afflictioner-stage-change \{[\s\S]*max-width:\s*100%;[\s\S]*min-width:\s*0;[\s\S]*height:\s*auto;[\s\S]*max-height:\s*none;[\s\S]*overflow:\s*visible;/);
+    expect(css).toMatch(/\.pf2e-afflictioner-stage-change__heading \{[\s\S]*min-width:\s*0;[\s\S]*overflow-wrap:\s*anywhere;/);
+    expect(css).toMatch(/\.pf2e-afflictioner-stage-change__summary,[\s\S]*\.pf2e-afflictioner-stage-change__effects \{[\s\S]*height:\s*auto;[\s\S]*max-height:\s*none;[\s\S]*white-space:\s*normal;[\s\S]*overflow-wrap:\s*anywhere;/);
+    expect(css).toMatch(/\.pf2e-afflictioner-stage-change__effects :is\(a\.content-link, a\.inline-roll, a\.inline-check\) \{[\s\S]*white-space:\s*nowrap;[\s\S]*overflow-wrap:\s*normal;[\s\S]*word-break:\s*normal;/);
+  });
 });

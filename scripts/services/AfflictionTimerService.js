@@ -28,14 +28,14 @@ export class AfflictionTimerService {
           const tokenCombatant = combat.combatants.find(c => c.tokenId === token.id);
           const resolvedDuration = durationCopy?.value > 0
             ? { value: durationCopy.value, unit: durationCopy.unit }
-            : undefined;
+            : null;
           const onsetUpdates = {
             inOnset: false,
             currentStage: targetStage,
             onsetRemaining: 0,
             durationElapsed: 0,
             nextSaveRound: combat.round + durationRounds,
-            ...(resolvedDuration && { currentStageResolvedDuration: resolvedDuration }),
+            currentStageResolvedDuration: resolvedDuration,
             nextSaveInitiative: tokenCombatant?.initiative
           };
 
@@ -235,7 +235,8 @@ export class AfflictionTimerService {
     const stage = affliction.stages[affliction.currentStage - 1];
     if (!stage || !stage.duration) return;
 
-    const stageDurationSeconds = AfflictionParser.durationToSeconds(stage.duration);
+    const stageDurationSeconds = AfflictionParser.durationToSeconds(AfflictionParser.getStageDuration(affliction, stage));
+    if (stageDurationSeconds <= 0) return;
 
     const newElapsed = (affliction.durationElapsed || 0) + deltaSeconds;
 
@@ -275,7 +276,7 @@ export class AfflictionTimerService {
     }
   }
 
-  static buildExpirationData(_affliction, stage, token) {
+  static buildExpirationData(affliction, stage, token) {
     const combat = game.combat;
 
     if (!stage.duration) {
@@ -283,7 +284,7 @@ export class AfflictionTimerService {
     }
 
     if (combat) {
-      const durationSeconds = AfflictionParser.durationToSeconds(stage.duration);
+      const durationSeconds = AfflictionParser.durationToSeconds(AfflictionParser.getStageDuration(affliction, stage));
       const durationRounds = Math.ceil(durationSeconds / 6);
       const tokenCombatant = combat.combatants.find(c => c.tokenId === token.id);
 
@@ -294,7 +295,7 @@ export class AfflictionTimerService {
         timestamp: null
       };
     } else {
-      const durationSeconds = AfflictionParser.durationToSeconds(stage.duration);
+      const durationSeconds = AfflictionParser.durationToSeconds(AfflictionParser.getStageDuration(affliction, stage));
       return {
         type: "worldTime",
         round: null,

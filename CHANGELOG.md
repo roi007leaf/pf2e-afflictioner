@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.2] - 2026-09-09
+
+### Fixed
+
+- **Dice-valued stage durations**: Save timers, the monitor, and stage-effect expiration now use the rolled duration instead of treating dice formulas as zero seconds. Prevents a save prompt on every world-time tick for on-scene and off-scene actors. Stage changes clear old timing, and chat-detected afflictions and counteract reductions correctly store fresh rolls. Fixes #32.
+- **Darkvision-dependent stage effects**: Affliction stages that conceal or hide creatures seen only through darkvision now apply relative visibility through PF2e Visioner when available, rather than placing a blanket condition on the afflicted actor. Stage cleanup restores tracked visibility.
+- **Stage-change chat cards**: Long stage descriptions and headings wrap within the card while condition links and roll buttons stay together.
+
 ## [3.5.1] - 2026-09-07
 
 ### Fixed

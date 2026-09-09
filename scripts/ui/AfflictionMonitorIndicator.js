@@ -1,4 +1,4 @@
-import { MODULE_ID, DURATION_MULTIPLIERS } from '../constants.js';
+import { MODULE_ID } from '../constants.js';
 import * as AfflictionStore from '../stores/AfflictionStore.js';
 import { AfflictionParser } from '../services/AfflictionParser.js';
 
@@ -122,11 +122,9 @@ class AfflictionMonitorIndicator {
     if (!combat && !affliction.inOnset) {
       const stage = affliction.stages?.[affliction.currentStage - 1];
       if (stage?.duration) {
-        const unit = stage.duration.unit?.toLowerCase() || 'round';
-        const multiplier = DURATION_MULTIPLIERS[unit] || DURATION_MULTIPLIERS['round'];
-        const totalDuration = stage.duration.value * multiplier;
+        const totalDuration = AfflictionParser.durationToSeconds(AfflictionParser.getStageDuration(affliction, stage));
         const elapsed = affliction.durationElapsed || 0;
-        if (elapsed >= totalDuration) return true;
+        if (totalDuration > 0 && elapsed >= totalDuration) return true;
       }
     }
 
@@ -295,9 +293,8 @@ class AfflictionMonitorIndicator {
         return remaining <= 0 ? game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.SAVE_DUE') : game.i18n.format('PF2E_AFFLICTIONER.MONITOR.ROUNDS_UNTIL_SAVE', { rounds: remaining });
       }
 
-      const unit = stage.duration.unit?.toLowerCase() || 'round';
-      const multiplier = DURATION_MULTIPLIERS[unit] || DURATION_MULTIPLIERS['round'];
-      const totalDuration = stage.duration.value * multiplier;
+      const totalDuration = AfflictionParser.durationToSeconds(AfflictionParser.getStageDuration(a, stage));
+      if (totalDuration <= 0) return game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.NOT_AVAILABLE');
       const elapsed = a.durationElapsed || 0;
       const remainingSeconds = Math.max(0, totalDuration - elapsed);
       return remainingSeconds <= 0 ? game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.SAVE_DUE') : game.i18n.format('PF2E_AFFLICTIONER.MONITOR.TIME_UNTIL_SAVE', { duration: AfflictionParser.formatDuration(remainingSeconds) });

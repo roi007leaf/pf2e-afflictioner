@@ -399,7 +399,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
           if (needsMigration) {
             const currentStage = this.constructor._getCurrentStageData(affliction);
             if (currentStage?.duration) {
-              const durationSeconds = AfflictionParser.durationToSeconds(currentStage.duration);
+              const durationSeconds = AfflictionParser.durationToSeconds(AfflictionParser.getStageDuration(affliction, currentStage));
               const nextSaveTimestamp = game.time.worldTime + durationSeconds;
 
               await AfflictionStore.updateAffliction(token, id, {
@@ -577,7 +577,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       }
 
       if (stage?.duration) {
-        const durationSeconds = this.constructor.durationToSeconds(stage.duration);
+        const durationSeconds = AfflictionParser.durationToSeconds(AfflictionParser.getStageDuration(affliction, stage));
         const hours = Math.floor(durationSeconds / 3600);
         const minutes = Math.ceil((durationSeconds % 3600) / 60);
 

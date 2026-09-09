@@ -48,6 +48,42 @@ describe('AfflictionParser — English', () => {
     );
   });
 
+  test('parses Darkening Poison damage without applying its relative visibility as actor conditions', () => {
+    const html =
+      '<p><strong>Stage 1</strong> @Damage[1d6[poison]] (1 round)</p>' +
+      '<p><strong>Stage 2</strong> 1d6 poison and creatures you can see only with darkvision are @UUID[Compendium.pf2e.conditionitems.Item.concealed]{Concealed} from you (1 round)</p>' +
+      '<p><strong>Stage 3</strong> 1d6 poison and creatures you can see only with darkvision are @UUID[Compendium.pf2e.conditionitems.Item.hidden]{Hidden} from you (1 round)</p>';
+
+    const stages = AfflictionParser.extractStages(html);
+
+    expect(stages.map(stage => stage.damage)).toEqual([
+      [{ formula: '1d6', type: 'poison' }],
+      [{ formula: '1d6', type: 'poison' }],
+      [{ formula: '1d6', type: 'poison' }],
+    ]);
+    expect(stages[1].conditions).toEqual([]);
+    expect(stages[1].visibilityEffects).toEqual([
+      { state: 'concealed', sense: 'darkvision', only: true },
+    ]);
+    expect(stages[2].conditions).toEqual([]);
+    expect(stages[2].visibilityEffects).toEqual([
+      { state: 'hidden', sense: 'darkvision', only: true },
+    ]);
+  });
+
+  test('normalizes legacy stored Darkening Poison stages at runtime', () => {
+    const stage = {
+      effects: '1d6 poison and creatures you can see only with darkvision are Concealed from you',
+      conditions: [{ name: 'concealed', value: null }],
+    };
+
+    expect(AfflictionParser.normalizeStageVisibility(stage)).toEqual({
+      ...stage,
+      conditions: [],
+      visibilityEffects: [{ state: 'concealed', sense: 'darkvision', only: true }],
+    });
+  });
+
   test('parses stages with dice duration', () => {
     const html = '<p><strong>Stage 1</strong> 1d6 fire damage (2d6 hours)</p>';
     const stages = AfflictionParser.extractStages(html);
@@ -1076,6 +1112,17 @@ describe('AfflictionParser — stage references', () => {
     const stages = AfflictionParser.extractStages(html);
     expect(stages).toHaveLength(2);
     expect(stages[1].damage).toEqual(stages[0].damage);
+  });
+
+  test('copies relative visibility effects through stage references', () => {
+    setLang('en');
+    const html =
+      '<p><strong>Stage 1</strong> 1d6 poison and creatures you can see only with darkvision are concealed from you (1 round)</p>' +
+      '<p><strong>Stage 2</strong> as stage 1 (1 round)</p>';
+
+    const stages = AfflictionParser.extractStages(html);
+
+    expect(stages[1].visibilityEffects).toEqual(stages[0].visibilityEffects);
   });
 
   test('resolves "как стадия N" in Russian', () => {
