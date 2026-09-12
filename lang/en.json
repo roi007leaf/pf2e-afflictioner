@@ -1,6 +1,8 @@
 {
   "PF2E_AFFLICTIONER": {
     "SETTINGS": {
+      "ADJUST_AFFLICTION_DAMAGE_NAME": "Apply Elite/Weak Affliction Damage",
+      "ADJUST_AFFLICTION_DAMAGE_HINT": "Adjust affliction damage by +2 for an Elite source creature or -2 for a Weak source creature. Disable to roll the base damage. Applies to newly generated damage cards and persistent damage; existing chat cards keep their formulas.",
       "EDITED_AFFLICTIONS_MENU": "Edited Afflictions",
       "EDITED_AFFLICTIONS_LABEL": "Manage Edited Afflictions",
       "EDITED_AFFLICTIONS_HINT": "View and manage all customized affliction definitions",

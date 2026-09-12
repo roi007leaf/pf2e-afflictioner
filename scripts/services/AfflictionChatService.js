@@ -382,7 +382,7 @@ export class AfflictionChatService {
     const level = affliction.perniciousPoisonLevel || 0;
     if (!level) return;
 
-    const damageLink = RecoveryRestrictionService.buildDamageLink(level, 'poison', affliction);
+    const damageLink = RecoveryRestrictionService.buildDamageLink(level, 'poison', affliction, false);
 
     const content = `
       <div class="pf2e-afflictioner-save-request">

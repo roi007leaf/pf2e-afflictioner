@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.3] - 2026-09-12
+
+### Added
+
+- **Elite/Weak damage setting**: Added a GM world setting, enabled by default, to apply source creature adjustments to affliction damage. Disable it to use base damage. Newly generated damage cards and persistent damage use the setting; existing chat cards retain their formulas.
+
+### Fixed
+
+- **Elite/Weak affliction damage**: Affliction damage now includes +2 from an Elite source or -2 from a Weak source across stage and onset cards, stage-description links, direct rolls, and persistent damage. Recipient damage bonuses remain excluded, and Pernicious Poison retains its fixed damage.
+
 ## [3.5.2] - 2026-09-09
 
 ### Fixed

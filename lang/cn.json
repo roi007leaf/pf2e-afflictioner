@@ -1,6 +1,8 @@
 {
   "PF2E_AFFLICTIONER": {
     "SETTINGS": {
+      "ADJUST_AFFLICTION_DAMAGE_NAME": "应用精英/弱化生物的苦难伤害调整",
+      "ADJUST_AFFLICTION_DAMAGE_HINT": "若来源生物为精英，苦难伤害+2；若为弱化，伤害-2。禁用后使用基础伤害。适用于新生成的伤害卡和持续伤害；现有聊天卡保留原公式。",
       "EDITED_AFFLICTIONS_MENU": "已编辑苦难",
       "EDITED_AFFLICTIONS_LABEL": "管理已编辑的苦难",
       "EDITED_AFFLICTIONS_HINT": "查看和管理所有自定义的苦难定义",

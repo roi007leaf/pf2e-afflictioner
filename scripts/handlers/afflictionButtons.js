@@ -7,6 +7,7 @@ import { FeatsService } from '../services/FeatsService.js';
 import { getSystemFlags } from '../systemCompat.js';
 import { DEGREE_OF_SUCCESS } from '../constants.js';
 import { RecoveryRestrictionService } from '../services/RecoveryRestrictionService.js';
+import { AfflictionDamageService } from '../services/AfflictionDamageService.js';
 
 export function registerAfflictionButtonHandlers(root, message) {
   registerDamageButtons(root);
@@ -68,7 +69,7 @@ function registerDamageButtons(root) {
 
           const cleanFormula = formula.trim().replace(/\[.*$/, '');
 
-          const damageRoll = await new Roll(cleanFormula).evaluate({ async: true });
+          const damageRoll = await new Roll(AfflictionDamageService.adjustFormula(cleanFormula, affliction)).evaluate({ async: true });
 
           const enrichedFlavor = `${affliction.name} - Stage ${affliction.currentStage}: ${RecoveryRestrictionService.buildDamageLink(cleanFormula, type, affliction)}`;
 

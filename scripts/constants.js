@@ -15,6 +15,15 @@ export const DEGREE_OF_SUCCESS = {
 };
 
 export const DEFAULT_SETTINGS = {
+  'adjustAfflictionDamage': {
+    name: 'PF2E_AFFLICTIONER.SETTINGS.ADJUST_AFFLICTION_DAMAGE_NAME',
+    hint: 'PF2E_AFFLICTIONER.SETTINGS.ADJUST_AFFLICTION_DAMAGE_HINT',
+    scope: 'world',
+    type: Boolean,
+    default: true,
+    config: true,
+    restricted: true
+  },
   'showVisualIndicators': {
     name: 'PF2E_AFFLICTIONER.SETTINGS.SHOW_INDICATORS_NAME',
     hint: 'PF2E_AFFLICTIONER.SETTINGS.SHOW_INDICATORS_HINT',

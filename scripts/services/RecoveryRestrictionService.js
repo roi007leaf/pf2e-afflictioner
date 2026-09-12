@@ -1,5 +1,6 @@
 import { MODULE_ID } from '../constants.js';
 import { getSystemFlags } from '../systemCompat.js';
+import { AfflictionDamageService } from './AfflictionDamageService.js';
 
 const DAMAGE_OPTION_PREFIX = `${MODULE_ID}:unhealable-damage:`;
 const DEBT_RULE_SLUG = `${MODULE_ID}-unhealable-damage`;
@@ -40,14 +41,14 @@ export class RecoveryRestrictionService {
       : null;
   }
 
-  static buildDamageLink(formula, type, affliction) {
+  static buildDamageLink(formula, type, affliction, adjustDamage = true) {
     const typedFormula = type && type !== 'untyped' ? `${formula}[${type}]` : formula;
     const option = this.getDamageRollOption(affliction);
     // Damage is suffered by the speaker, not dealt using their damage bonuses.
-    return `@Damage[${typedFormula}|immutable${option ? `|options:${option}` : ''}]`;
+    return this.tagDamageLinks(`@Damage[${typedFormula}|immutable${option ? `|options:${option}` : ''}]`, affliction, adjustDamage);
   }
 
-  static tagDamageLinks(text, affliction) {
+  static tagDamageLinks(text, affliction, adjustDamage = true) {
     if (typeof text !== 'string' || !text.includes('@Damage[')) return text;
 
     const option = this.getDamageRollOption(affliction);
@@ -99,6 +100,15 @@ export class RecoveryRestrictionService {
 
       if (!taggedContent.split('|').some(param => param.trim() === 'immutable')) {
         taggedContent += '|immutable';
+      }
+
+      const adjustmentOption = `${MODULE_ID}:adjusted-damage`;
+      if (adjustDamage && AfflictionDamageService.getAdjustment(affliction) && !taggedContent.includes(adjustmentOption)) {
+        const [formula, ...parameters] = taggedContent.split('|');
+        const optionsIndex = parameters.findIndex(param => param.startsWith('options:'));
+        if (optionsIndex >= 0) parameters[optionsIndex] += `,${adjustmentOption}`;
+        else parameters.push(`options:${adjustmentOption}`);
+        taggedContent = [AfflictionDamageService.adjustFormula(formula, affliction), ...parameters].join('|');
       }
 
       result += `${marker}${taggedContent}]`;

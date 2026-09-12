@@ -3,6 +3,7 @@ import { DEFAULT_AFFLICTION_ICON, PERSISTENT_CONDITIONS } from '../constants.js'
 import { getParserLocale } from '../locales/parser-locales.js';
 import { getConditionPack, getConditionUuidFromEntry } from '../systemCompat.js';
 import { RecoveryRestrictionService } from './RecoveryRestrictionService.js';
+import { AfflictionDamageService } from './AfflictionDamageService.js';
 
 export class AfflictionEffectBuilder {
   static async createOrUpdateEffect(token, actor, affliction, stage) {
@@ -377,7 +378,7 @@ export class AfflictionEffectBuilder {
     for (const condition of stage.conditions) {
       if (condition.name !== 'persistent damage' && condition.name !== 'persistent-damage') continue;
 
-      const formula = condition.persistentFormula || '1d6';
+      const formula = AfflictionDamageService.adjustFormula(condition.persistentFormula || '1d6', affliction);
       const damageType = condition.persistentType || 'untyped';
       const dc = affliction.dc || 15;
 
