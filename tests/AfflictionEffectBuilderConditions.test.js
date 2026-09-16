@@ -115,7 +115,7 @@ describe('AfflictionEffectBuilder condition lookup', () => {
     ]);
   });
 
-  test('applies explicitly timed stage-bound conditions as standalone condition items', async () => {
+  test('applies explicitly timed stage-bound conditions through expiring effect wrappers', async () => {
     const { AfflictionEffectBuilder } = await import('../scripts/services/AfflictionEffectBuilder.js');
     const originalFoundry = global.foundry;
     const originalFromUuid = global.fromUuid;
@@ -133,6 +133,8 @@ describe('AfflictionEffectBuilder condition lookup', () => {
       },
     };
     global.fromUuid = jest.fn(async () => ({
+      name: 'Paralyzed',
+      img: 'icons/svg/paralysis.svg',
       toObject: () => ({ slug: 'paralyzed', system: {}, flags: {} }),
     }));
     const actor = {
@@ -148,10 +150,20 @@ describe('AfflictionEffectBuilder condition lookup', () => {
 
     expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
       expect.objectContaining({
+        type: 'effect',
         system: {
+          description: { value: '<p>Paralyzed</p>' },
+          tokenIcon: { show: true },
           duration: { value: 1, unit: 'minutes', expiry: 'turn-start', sustained: false },
+          badge: null,
+          rules: [expect.objectContaining({
+            key: 'GrantItem',
+            uuid: 'Compendium.pf2e.conditionitems.Item.paralyzed',
+          })],
+          slug: 'paralyzed-timed-affliction-condition',
+          unidentified: false,
         },
-        flags: { 'pf2e-afflictioner': { afflictionId: 'affliction-1', persistentCondition: true } },
+        flags: { 'pf2e-afflictioner': { afflictionId: 'affliction-1', persistentCondition: true, timedCondition: true } },
       }),
     ]);
 

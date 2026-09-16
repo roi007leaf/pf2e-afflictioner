@@ -1,6 +1,12 @@
 import { MODULE_ID } from '../constants.js';
 import * as AfflictionStore from '../stores/AfflictionStore.js';
 
+const AFFLICTION_TINT = '#ffdfdf';
+
+function getStoredTint(token) {
+  return token?.document?._source?.texture?.tint ?? token?.document?.texture?.tint;
+}
+
 function getItemActor(item) {
   return item?.actor ?? (typeof item?.parent?.getActiveTokens === 'function' ? item.parent : null);
 }
@@ -51,20 +57,20 @@ export class VisualService {
   static async addAfflictionIndicator(token) {
     if (!game.settings.get(MODULE_ID, 'showVisualIndicators')) return;
 
-    this.refreshTokenIndicator(token);
+    await this.refreshTokenIndicator(token);
   }
 
   static async removeAfflictionIndicator(token) {
     const afflictions = AfflictionStore.getAfflictions(token);
 
     if (Object.keys(afflictions).length === 0) {
-      this.refreshTokenIndicator(token);
+      await this.refreshTokenIndicator(token);
     }
   }
 
-  static refreshTokenIndicator(token) {
+  static async refreshTokenIndicator(token) {
     if (!game.settings.get(MODULE_ID, 'showVisualIndicators')) {
-      this.removeIndicatorElement(token);
+      await this.removeIndicatorElement(token);
       return;
     }
 
@@ -72,9 +78,9 @@ export class VisualService {
     const hasAfflictions = Object.keys(afflictions).length > 0;
 
     if (hasAfflictions) {
-      this.addIndicatorElement(token);
+      await this.addIndicatorElement(token);
     } else {
-      this.removeIndicatorElement(token);
+      await this.removeIndicatorElement(token);
     }
   }
 
@@ -83,8 +89,9 @@ export class VisualService {
 
     await token.document.setFlag(MODULE_ID, 'hasAffliction', true);
 
-    if (!token.document.texture.tint) {
-      await token.document.update({ 'texture.tint': '#ff000020' });
+    const tint = getStoredTint(token);
+    if (!tint || String(tint) === '#ffffff') {
+      await token.document.update({ 'texture.tint': AFFLICTION_TINT });
     }
   }
 
@@ -93,17 +100,15 @@ export class VisualService {
 
     await token.document.unsetFlag(MODULE_ID, 'hasAffliction');
 
-    if (token.document.texture.tint === '#ff000020') {
+    if (String(getStoredTint(token)) === AFFLICTION_TINT) {
       await token.document.update({ 'texture.tint': null });
     }
   }
 
-  static refreshAllIndicators() {
+  static async refreshAllIndicators() {
     if (!canvas.tokens) return;
 
-    for (const token of canvas.tokens.placeables) {
-      this.refreshTokenIndicator(token);
-    }
+    await Promise.all(canvas.tokens.placeables.map(token => this.refreshTokenIndicator(token)));
   }
 }
 

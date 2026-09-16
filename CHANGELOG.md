@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.0] - 2026-09-16
+
+### Added
+
+- **Automated live Foundry validation**: Added isolated GM and player workflows covering affliction parsing, lifecycle, effects, recovery, weapon poison handling, permissions, regions, settings, and optional integrations in the shared disposable QA world.
+- **Feature coverage guard**: Every focused unit feature suite must map to automated live evidence, preventing new features from silently bypassing Foundry runtime validation.
+
+### Fixed
+
+- **Explicit condition durations**: Conditions with their own duration now use expiring PF2e Effect wrappers that grant the condition, so Foundry preserves and enforces the configured duration instead of normalizing it to unlimited.
+- **Foundry 14 token indicators**: Afflicted-token tinting now handles Foundry's Color objects and default-white stored tint correctly, while cleanup removes only Afflictioner's own tint.
+
 ## [3.5.3] - 2026-09-12
 
 ### Added

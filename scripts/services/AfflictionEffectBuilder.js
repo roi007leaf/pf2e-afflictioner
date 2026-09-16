@@ -434,17 +434,52 @@ export class AfflictionEffectBuilder {
       const conditionItem = await fromUuid(conditionUuid);
       if (!conditionItem) continue;
 
+      if (condition.duration) {
+        const grantRule = {
+          key: 'GrantItem',
+          uuid: conditionUuid,
+          allowDuplicate: true,
+          inMemoryOnly: true,
+          onDeleteActions: { grantee: 'restrict' }
+        };
+        if (condition.value) {
+          grantRule.alterations = [{
+            mode: 'override',
+            property: 'badge-value',
+            value: condition.value
+          }];
+        }
+
+        await actor.createEmbeddedDocuments('Item', [{
+          type: 'effect',
+          name: `${affliction.name || 'Affliction'} - ${conditionItem.name || slug}`,
+          img: conditionItem.img || DEFAULT_AFFLICTION_ICON,
+          system: {
+            description: { value: `<p>${conditionItem.name || slug}</p>` },
+            tokenIcon: { show: true },
+            duration: this._buildConditionDurationConfig(condition.duration),
+            badge: null,
+            rules: [grantRule],
+            slug: `${slug}-timed-affliction-condition`,
+            unidentified: false
+          },
+          flags: {
+            'pf2e-afflictioner': {
+              afflictionId: affliction.id,
+              persistentCondition: true,
+              timedCondition: true
+            }
+          }
+        }]);
+        continue;
+      }
+
       const source = conditionItem.toObject();
       source.flags = source.flags || {};
       source.flags['pf2e-afflictioner'] = { afflictionId: affliction.id, persistentCondition: true };
 
       if (condition.value) {
         foundry.utils.setProperty(source, 'system.value.value', condition.value);
-      }
-
-      if (condition.duration) {
-        source.system = source.system || {};
-        source.system.duration = this._buildConditionDurationConfig(condition.duration);
       }
 
       await actor.createEmbeddedDocuments('Item', [source]);

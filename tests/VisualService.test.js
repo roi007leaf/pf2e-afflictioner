@@ -94,4 +94,31 @@ describe('VisualService hook registration', () => {
     hooks.get('controlToken')(token, true);
     expect(refreshSpy).toHaveBeenCalledWith(token);
   });
+
+  test('tints Foundry 14 default-white tokens and removes only its own tint', async () => {
+    const { VisualService } = await importVisualService();
+    const document = {
+      texture: { tint: { toString: () => '#ffffff' } },
+      _source: { texture: { tint: '#ffffff' } },
+      setFlag: jest.fn(),
+      unsetFlag: jest.fn(),
+      update: jest.fn(async change => {
+        document.texture.tint = change['texture.tint'] ?? '#ffffff';
+        document._source.texture.tint = change['texture.tint'];
+      }),
+    };
+    const token = { document };
+
+    await VisualService.addIndicatorElement(token);
+    expect(document.update).toHaveBeenCalledWith({ 'texture.tint': '#ffdfdf' });
+
+    await VisualService.removeIndicatorElement(token);
+    expect(document.update).toHaveBeenLastCalledWith({ 'texture.tint': null });
+
+    document.texture.tint = '#123456';
+    document._source.texture.tint = '#123456';
+    document.update.mockClear();
+    await VisualService.removeIndicatorElement(token);
+    expect(document.update).not.toHaveBeenCalled();
+  });
 });

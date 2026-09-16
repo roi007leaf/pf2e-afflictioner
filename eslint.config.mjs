@@ -6,7 +6,7 @@ import globals from 'globals';
 export default [
   // Top-level ignore for generated artifacts and large folders
   {
-    ignores: ['coverage/**'],
+    ignores: ['coverage/**', 'artifacts/**'],
   },
   js.configs.recommended,
   prettier,
