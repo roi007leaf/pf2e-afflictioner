@@ -1,6 +1,8 @@
 {
   "PF2E_AFFLICTIONER": {
     "SETTINGS": {
+      "POISON_SUCCESS_STAGE_ONE_NAME": "房规：初次豁免成功仍然中毒",
+      "POISON_SUCCESS_STAGE_ONE_HINT": "首次接触新毒素时，豁免成功仍会中毒，但最高阶段为1。大成功避免中毒。再次接触时豁免失败会解除限制，并正常提高阶段。潜伏期和恢复规则仍然适用。",
       "ADJUST_AFFLICTION_DAMAGE_NAME": "应用精英/弱化生物的苦难伤害调整",
       "ADJUST_AFFLICTION_DAMAGE_HINT": "若来源生物为精英，苦难伤害+2；若为弱化，伤害-2。禁用后使用基础伤害。适用于新生成的伤害卡和持续伤害；现有聊天卡保留原公式。",
       "EDITED_AFFLICTIONS_MENU": "已编辑苦难",
@@ -218,6 +220,7 @@
       "CREATING_NEW": "正在创建新的 {name} 自定义设置"
     },
     "NOTIFICATIONS": {
+      "POISON_STAGE_ONE_CAP": "{tokenName}：{afflictionName}的最高阶段为1，直到再次接触时豁免失败（房规）。",
       "NO_DC_FOUND": "未在苦难物品 \"{itemName}\" 中找到 DC。",
       "RESISTED": "{tokenName} 抵抗了 {afflictionName}！",
       "AFFLICTED": "{tokenName} 受到 {afflictionName} 影响！",

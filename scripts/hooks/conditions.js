@@ -22,7 +22,7 @@ export async function onPreUpdateItem(item, changes, options, userId) {
           }
 
           if (affliction && affliction.currentStage !== badgeChange) {
-            const maxStage = affliction.stages?.length || 4;
+            const maxStage = affliction.successStageLimit === 1 ? 1 : (affliction.stages?.length || 4);
             const newStage = Math.max(0, Math.min(badgeChange, maxStage));
 
             setTimeout(async () => {

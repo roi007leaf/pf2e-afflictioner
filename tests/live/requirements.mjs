@@ -1,6 +1,7 @@
 import { casePassed } from './coverage.mjs';
 
 export const requirements = [
+  ['Optional poison success house rule', ['poison-success-house-rule']],
   ['Public API and actor-backed storage', ['runtime-api-crud', 'off-scene-actor-storage']],
   ['PF2e item parsing', ['parser-native-item', 'parser-advanced-syntax', 'parser-locales', 'parser-structured-and-effect-only']],
   ['Initial saves and stage lifecycle', ['initial-save-failure', 'initial-save-resisted', 'stage-advance-and-recovery', 'manual-stage-and-incapacitation', 'multiple-exposure-and-virulent']],

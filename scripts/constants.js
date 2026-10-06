@@ -15,6 +15,15 @@ export const DEGREE_OF_SUCCESS = {
 };
 
 export const DEFAULT_SETTINGS = {
+  'poisonSuccessStageOne': {
+    name: 'PF2E_AFFLICTIONER.SETTINGS.POISON_SUCCESS_STAGE_ONE_NAME',
+    hint: 'PF2E_AFFLICTIONER.SETTINGS.POISON_SUCCESS_STAGE_ONE_HINT',
+    scope: 'world',
+    type: Boolean,
+    default: false,
+    config: true,
+    restricted: true
+  },
   'adjustAfflictionDamage': {
     name: 'PF2E_AFFLICTIONER.SETTINGS.ADJUST_AFFLICTION_DAMAGE_NAME',
     hint: 'PF2E_AFFLICTIONER.SETTINGS.ADJUST_AFFLICTION_DAMAGE_HINT',

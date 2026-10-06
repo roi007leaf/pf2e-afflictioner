@@ -89,7 +89,7 @@ export function preflight() {
 
 export function settingsSnapshot() {
   const values = {};
-  for (const key of ['showVisualIndicators', 'allowPlayerWeaponCoatingAccess', 'anonymizeSaveMessages', 'editedAfflictions']) {
+  for (const key of ['showVisualIndicators', 'allowPlayerWeaponCoatingAccess', 'anonymizeSaveMessages', 'editedAfflictions', 'poisonSuccessStageOne']) {
     values[key] = foundry.utils.deepClone(game.settings.get(MODULE, key));
   }
   return values;
@@ -220,6 +220,36 @@ async function runWorkflow(name, fixture) {
     await storeAffliction(m.store, target, value);
     await m.service.AfflictionService.handleInitialSave(target, value, 30, 20, 15);
     checks.push(assertion('successful initial save removes affliction', !m.store.getAffliction(target, value.id)));
+  } else if (name === 'poison-success-house-rule') {
+    const original = game.settings.get(MODULE, 'poisonSuccessStageOne');
+    try {
+      await game.settings.set(MODULE, 'poisonSuccessStageOne', true);
+      const value = { ...affliction(), currentStage: -1, needsInitialSave: true };
+      await storeAffliction(m.store, target, value);
+      await m.service.AfflictionService.handleInitialSave(target, value, 20, 20, 10);
+      let saved = m.store.getAffliction(target, value.id);
+      checks.push(assertion('initial success applies capped stage one', saved?.currentStage === 1 && saved.successStageLimit === 1, saved));
+      checks.push(assertion('stage-one PF2e effect exists', actor.items.some(item => item.flags?.[MODULE]?.afflictionId === value.id)));
+      await m.service.AfflictionService.handleStageSave(target, saved, 5, 20, false, 5);
+      saved = m.store.getAffliction(target, value.id);
+      checks.push(assertion('critical failure during recovery respects cap', saved?.currentStage === 1 && saved.successStageLimit === 1, saved));
+      const exposure = { ...affliction(), name: value.name, _isReExposure: true, _existingAfflictionId: value.id, needsInitialSave: true, currentStage: -1 };
+      await storeAffliction(m.store, target, exposure);
+      await m.service.AfflictionService.handleInitialSave(target, exposure, 20, 20, 10);
+      checks.push(assertion('successful re-exposure preserves cap', m.store.getAffliction(target, value.id)?.successStageLimit === 1 && !m.store.getAffliction(target, exposure.id)));
+      await storeAffliction(m.store, target, exposure);
+      await m.service.AfflictionService.handleInitialSave(target, exposure, 19, 20, 10);
+      saved = m.store.getAffliction(target, value.id);
+      checks.push(assertion('failed re-exposure removes cap and advances', saved?.currentStage === 2 && saved.successStageLimit === null, saved));
+      await m.service.AfflictionService.handleStageSave(target, saved, 30, 20, false, 15);
+      checks.push(assertion('normal recovery removes poison', !m.store.getAffliction(target, value.id)));
+      const resisted = { ...affliction(), currentStage: -1, needsInitialSave: true };
+      await storeAffliction(m.store, target, resisted);
+      await m.service.AfflictionService.handleInitialSave(target, resisted, 30, 20, 15);
+      checks.push(assertion('critical success still avoids poison', !m.store.getAffliction(target, resisted.id)));
+    } finally {
+      await game.settings.set(MODULE, 'poisonSuccessStageOne', original);
+    }
   } else if (name === 'stage-advance-and-recovery') {
     const value = await storeAffliction(m.store, target);
     await m.service.AfflictionService.handleStageSave(target, value, 10, 20, false, 8);

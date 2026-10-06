@@ -2,6 +2,7 @@
 // Adding a new *.test.js file requires adding it here, so the live coverage gate cannot
 // silently drift behind the shipped feature set.
 export const featureInventory = {
+  'AfflictionServicePoisonHouseRule.test.js': ['poison-success-house-rule'],
   'AfflictionChatRecoveryRestriction.test.js': ['recovery-restrictions'],
   'AfflictionChatVisibility.test.js': ['parser-advanced-syntax', 'chat-message-privacy'],
   'AfflictionDamageModifiers.test.js': ['advanced-stage-effects'],

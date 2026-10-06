@@ -215,6 +215,10 @@ export class AfflictionService {
 
     const isReExposure = affliction._isReExposure;
     const existingAfflictionId = affliction._existingAfflictionId;
+    const successStageLimit = degree === DEGREE_OF_SUCCESS.SUCCESS
+      && affliction.type === 'poison'
+      && !isReExposure
+      && game.settings.get(MODULE_ID, 'poisonSuccessStageOne') === true;
 
     if (degree === DEGREE_OF_SUCCESS.SUCCESS || degree === DEGREE_OF_SUCCESS.CRITICAL_SUCCESS) {
       // Pernicious Poison: on success (not crit success), deal flat poison damage = poison level
@@ -222,33 +226,41 @@ export class AfflictionService {
         await AfflictionChatService.promptPerniciousPoisonDamage(token, affliction);
       }
 
-      if (token) {
-        await AfflictionStore.removeAffliction(token, affliction.id);
-        await this.removeStageEffects(token, affliction, null, null);
-        const remainingAfflictions = AfflictionStore.getAfflictions(token);
-        if (Object.keys(remainingAfflictions).length === 0) {
-          const { VisualService } = await import('./VisualService.js');
-          await VisualService.removeAfflictionIndicator(token);
+      if (!successStageLimit) {
+        if (token) {
+          await AfflictionStore.removeAffliction(token, affliction.id);
+          await this.removeStageEffects(token, affliction, null, null);
+          const remainingAfflictions = AfflictionStore.getAfflictions(token);
+          if (Object.keys(remainingAfflictions).length === 0) {
+            const { VisualService } = await import('./VisualService.js');
+            await VisualService.removeAfflictionIndicator(token);
+          }
+        } else if (actor) {
+          await AfflictionStore.removeAfflictionForActor(actor, affliction.id);
         }
-      } else if (actor) {
-        await AfflictionStore.removeAfflictionForActor(actor, affliction.id);
-      }
 
-      ui.notifications.info(game.i18n.format('PF2E_AFFLICTIONER.NOTIFICATIONS.RESISTED', {
-        tokenName: entityName,
-        afflictionName: affliction.name
-      }));
-      return;
+        ui.notifications.info(game.i18n.format('PF2E_AFFLICTIONER.NOTIFICATIONS.RESISTED', {
+          tokenName: entityName,
+          afflictionName: affliction.name
+        }));
+        return;
+      }
     }
 
-    if (isReExposure && existingAfflictionId && affliction.type === 'poison' && token) {
-      const existingAffliction = AfflictionStore.getAffliction(token, existingAfflictionId);
+    if (isReExposure && existingAfflictionId && affliction.type === 'poison' && (token || actor)) {
+      const existingAffliction = token
+        ? AfflictionStore.getAffliction(token, existingAfflictionId)
+        : AfflictionStore.getAfflictionForActor(actor, existingAfflictionId);
       if (existingAffliction) {
-        await AfflictionStore.removeAffliction(token, affliction.id);
-        await this.removeStageEffects(token, affliction, null, null);
+        if (token) {
+          await AfflictionStore.removeAffliction(token, affliction.id);
+          await this.removeStageEffects(token, affliction, null, null);
+        } else {
+          await AfflictionStore.removeAfflictionForActor(actor, affliction.id);
+        }
 
         const stageIncrease = degree === DEGREE_OF_SUCCESS.CRITICAL_FAILURE ? 2 : 1;
-        await this.handlePoisonReExposure(token, existingAffliction, stageIncrease);
+        await this.handlePoisonReExposure(token, existingAffliction, stageIncrease, actor);
         return;
       }
     }
@@ -267,6 +279,7 @@ export class AfflictionService {
     }
 
     const updates = {
+      successStageLimit: successStageLimit ? 1 : null,
       currentStage: startingStage,
       needsInitialSave: false,
       inOnset: !!affliction.onset,
@@ -358,6 +371,12 @@ export class AfflictionService {
       tokenName: entityName,
       afflictionName: affliction.name
     }));
+    if (successStageLimit) {
+      ui.notifications.info(game.i18n.format('PF2E_AFFLICTIONER.NOTIFICATIONS.POISON_STAGE_ONE_CAP', {
+        tokenName: entityName,
+        afflictionName: affliction.name
+      }));
+    }
   }
 
   static async checkForScheduledSaves(token, combat, combatant = null) {
@@ -461,7 +480,11 @@ export class AfflictionService {
     actor = actor || token?.actor;
     const entityName = token?.name || actor?.name || 'Unknown';
     const combat = game.combat;
-    const minimumStage = RecoveryRestrictionService.getMinimumStage(affliction);
+    const minimumStage = Math.min(
+      RecoveryRestrictionService.getMinimumStage(affliction),
+      affliction.successStageLimit === 1 ? 1 : Infinity
+    );
+    if (affliction.successStageLimit === 1) newStage = Math.min(newStage, 1);
     if (newStage < minimumStage) {
       newStage = minimumStage;
       ui.notifications.warn(game.i18n.format('PF2E_AFFLICTIONER.NOTIFICATIONS.RECOVERY_RESTRICTION_PREVENTED', {
@@ -1060,7 +1083,7 @@ export class AfflictionService {
       existingAffliction.stages.length
     );
 
-    if (newStage === existingAffliction.currentStage) {
+    if (newStage === existingAffliction.currentStage && existingAffliction.successStageLimit !== 1) {
       ui.notifications.warn(game.i18n.format('PF2E_AFFLICTIONER.NOTIFICATIONS.MAX_STAGE', { tokenName: entityName, afflictionName: existingAffliction.name }));
       return;
     }
@@ -1069,6 +1092,7 @@ export class AfflictionService {
     const newStageData = existingAffliction.stages[newStage - 1];
 
     const updates = {
+      successStageLimit: null,
       currentStage: newStage
     };
 
@@ -1151,6 +1175,7 @@ export class AfflictionService {
     const combat = game.combat;
 
     const updates = {
+      successStageLimit: null,
       currentStage: newStage,
       durationElapsed: 0,
       currentStageResolvedDuration: null,

@@ -14,6 +14,7 @@ export const fullCases = [
   testCase('parser-structured-and-effect-only', 'parsing'),
   testCase('initial-save-failure', 'lifecycle', true),
   testCase('initial-save-resisted', 'lifecycle'),
+  testCase('poison-success-house-rule', 'lifecycle'),
   testCase('stage-advance-and-recovery', 'lifecycle'),
   testCase('manual-stage-and-incapacitation', 'lifecycle'),
   testCase('multiple-exposure-and-virulent', 'lifecycle'),
