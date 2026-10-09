@@ -69,7 +69,7 @@ export class AfflictionEffectBuilder {
     }
   }
 
-  static async updateEffect(token, _actor, affliction, stage, bonuses) {
+  static async updateEffect(token, actor, affliction, stage, bonuses) {
     try {
       const effect = await fromUuid(affliction.appliedEffectUuid);
       if (!effect) return null;
@@ -82,9 +82,8 @@ export class AfflictionEffectBuilder {
       const durationConfig = this._buildDurationConfig(affliction, stage);
 
       if (!shouldBeUnidentified && !affliction.hasBeenIdentified) {
-        await AfflictionStore.updateAffliction(token, affliction.id, {
-          hasBeenIdentified: true
-        });
+        if (token) await AfflictionStore.updateAffliction(token, affliction.id, { hasBeenIdentified: true });
+        else await AfflictionStore.updateAfflictionForActor(actor, affliction.id, { hasBeenIdentified: true });
       }
 
       const updateData = {
@@ -184,6 +183,7 @@ export class AfflictionEffectBuilder {
 
   static async _buildRulesFromStage(affliction, stage, bonuses) {
     const rules = [];
+    if (affliction.isAddiction && (affliction.inOnset || affliction.suppressedUntil > game.time.worldTime)) return rules;
 
     if (Array.isArray(stage.ruleElements)) {
       rules.push(...stage.ruleElements.map(rule => this._cloneRuleElement(rule)));
@@ -215,8 +215,8 @@ export class AfflictionEffectBuilder {
     if (stage.conditions && stage.conditions.length > 0) {
       for (const condition of stage.conditions) {
         if (condition.name === 'persistent damage' || condition.name === 'persistent-damage') continue;
-        if (condition.duration) continue;
-        if (PERSISTENT_CONDITIONS.includes(condition.name)) continue;
+        if (!affliction.isAddiction && condition.duration) continue;
+        if (!affliction.isAddiction && PERSISTENT_CONDITIONS.includes(condition.name)) continue;
 
         const conditionUuid = await this.getConditionUuid(condition.name);
         if (conditionUuid) {
@@ -413,6 +413,7 @@ export class AfflictionEffectBuilder {
   }
 
   static async applyPersistentConditions(actor, affliction, stage) {
+    if (affliction.isAddiction) return;
     if (!stage.conditions) return;
 
     for (const condition of stage.conditions) {

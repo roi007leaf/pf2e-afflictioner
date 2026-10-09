@@ -15,6 +15,19 @@ export const DEGREE_OF_SUCCESS = {
 };
 
 export const DEFAULT_SETTINGS = {
+  'enableAddictionRules': {
+    name: 'PF2E_AFFLICTIONER.SETTINGS.ENABLE_ADDICTION_RULES_NAME',
+    hint: 'PF2E_AFFLICTIONER.SETTINGS.ENABLE_ADDICTION_RULES_HINT',
+    scope: 'world',
+    type: Boolean,
+    default: false,
+    config: true,
+    restricted: true,
+    onChange: async () => {
+      const { AfflictionManager } = await import('./managers/AfflictionManager.js');
+      AfflictionManager.currentInstance?.render({ force: true });
+    }
+  },
   'poisonSuccessStageOne': {
     name: 'PF2E_AFFLICTIONER.SETTINGS.POISON_SUCCESS_STAGE_ONE_NAME',
     hint: 'PF2E_AFFLICTIONER.SETTINGS.POISON_SUCCESS_STAGE_ONE_HINT',

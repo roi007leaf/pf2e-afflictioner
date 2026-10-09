@@ -2,6 +2,7 @@
 // Adding a new *.test.js file requires adding it here, so the live coverage gate cannot
 // silently drift behind the shipped feature set.
 export const featureInventory = {
+  'AddictionService.test.js': ['legacy-addiction'],
   'AfflictionServicePoisonHouseRule.test.js': ['poison-success-house-rule'],
   'AfflictionChatRecoveryRestriction.test.js': ['recovery-restrictions'],
   'AfflictionChatVisibility.test.js': ['parser-advanced-syntax', 'chat-message-privacy'],
@@ -42,4 +43,3 @@ export const featureInventory = {
   'WeaponInjectionAttack.test.js': ['weapon-injection-lifecycle', 'double-poison-and-weapon-rules'],
   'WeaponInjectionStore.test.js': ['weapon-injection-lifecycle', 'unlinked-token-storage'],
 };
-

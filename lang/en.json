@@ -1,6 +1,21 @@
 {
   "PF2E_AFFLICTIONER": {
+    "ADDICTION": {
+      "NAME": "Addiction",
+      "ADD": "Add Addiction (Legacy)",
+      "DRUG": "Drug name",
+      "TAKE_DRUG": "Take drug / addiction save",
+      "MAXIMUM": "Highest stage: {stage}",
+      "SUPPRESSED": "Suppressed: {duration}",
+      "DROP_DRUG": "Drag a drug item here to record a dose and request an addiction save.",
+      "NO_DRUGS": "No drug items found. Drag a drug here or use Manual Entry.",
+      "INVALID_DRUG": "Choose an item with the drug trait.",
+      "MISSING_DC": "This drug has no readable Fortitude DC. Enter its addiction save DC.",
+      "HINT": "Drag a drug item or choose one below. Its name and Fortitude DC are read automatically. Manual Entry is available for custom drugs. Drug use suppresses addiction symptoms for one day and requests an addiction save. Track the drug’s poison separately. Use the same drug name for future doses. Inventory is not consumed."
+    },
     "SETTINGS": {
+      "ENABLE_ADDICTION_RULES_NAME": "Enable Legacy Addiction Rules",
+      "ENABLE_ADDICTION_RULES_HINT": "Enable per-drug addiction history, relapse, weekly recovery, and one-day symptom suppression. Disabled by default. Turning off pauses addiction automation and hides drug-use controls; existing records and effects remain until removed by the GM.",
       "POISON_SUCCESS_STAGE_ONE_NAME": "House Rule: Poison on Successful Initial Save",
       "POISON_SUCCESS_STAGE_ONE_HINT": "An initial success against a new poison applies it with a maximum stage of 1. Critical success avoids it. Failed re-exposure removes the cap and advances normally. Onset and recovery still apply.",
       "ADJUST_AFFLICTION_DAMAGE_NAME": "Apply Elite/Weak Affliction Damage",

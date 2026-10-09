@@ -15,6 +15,7 @@ export const fullCases = [
   testCase('initial-save-failure', 'lifecycle', true),
   testCase('initial-save-resisted', 'lifecycle'),
   testCase('poison-success-house-rule', 'lifecycle'),
+  testCase('legacy-addiction', 'lifecycle'),
   testCase('stage-advance-and-recovery', 'lifecycle'),
   testCase('manual-stage-and-incapacitation', 'lifecycle'),
   testCase('multiple-exposure-and-virulent', 'lifecycle'),

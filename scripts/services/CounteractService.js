@@ -3,6 +3,7 @@ import * as AfflictionStore from '../stores/AfflictionStore.js';
 import { AfflictionParser } from './AfflictionParser.js';
 import { DEGREE_OF_SUCCESS } from '../constants.js';
 import { RecoveryRestrictionService } from './RecoveryRestrictionService.js';
+import { AddictionService } from './AddictionService.js';
 
 export class CounteractService {
   static async calculateAfflictionRank(affliction) {
@@ -224,7 +225,9 @@ export class CounteractService {
       return true;
     }
 
-    if (token) {
+    if (affliction.isAddiction) {
+      await AddictionService.remove(token, actor, affliction);
+    } else if (token) {
       await AfflictionStore.removeAffliction(token, affliction.id);
 
       if (oldStageData) {
@@ -249,6 +252,7 @@ export class CounteractService {
 
   static async reduceAfflictionStage(token, affliction, actor = null) {
     actor = actor || token?.actor;
+    if (affliction.isAddiction) return AddictionService.changeStage(token, actor, affliction, Math.max(0, affliction.currentStage - 1));
     const newStage = Math.max(
       RecoveryRestrictionService.getMinimumStage(affliction),
       affliction.currentStage - 1,

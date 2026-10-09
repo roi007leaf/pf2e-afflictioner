@@ -8,8 +8,8 @@ export class AfflictionChatService {
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
-  static async promptInitialSave(token, affliction, afflictionData, afflictionId) {
-    const actor = token?.actor || affliction?.actor;
+  static async promptInitialSave(token, affliction, afflictionData, afflictionId, targetActor = null) {
+    const actor = targetActor || token?.actor || affliction?.actor;
     const showDCToPlayers = game.pf2e?.settings?.metagame?.dcs ?? true;
     const anonymizeSaves = game.settings.get(MODULE_ID, 'anonymizeSaveMessages') ?? false;
     const gmRollMysteriousSaves = game.settings.get(MODULE_ID, 'gmRollMysteriousSaves') ?? false;
@@ -405,7 +405,7 @@ export class AfflictionChatService {
   }
 
   static async postStageChange(token, affliction, oldStage, newStage, options = {}) {
-    const actor = token?.actor;
+    const actor = options.actor || token?.actor;
     const entityName = token?.name || actor?.name || affliction.name;
     const oldStageText = oldStage === 0 ? game.i18n.localize('PF2E_AFFLICTIONER.CHAT.INITIAL_EXPOSURE') : `${game.i18n.localize('PF2E_AFFLICTIONER.MANAGER.STAGE')} ${oldStage}`;
     const stageDirection = newStage > oldStage ? game.i18n.localize('PF2E_AFFLICTIONER.CHAT.STAGE_INCREASED') : game.i18n.localize('PF2E_AFFLICTIONER.CHAT.STAGE_DECREASED');

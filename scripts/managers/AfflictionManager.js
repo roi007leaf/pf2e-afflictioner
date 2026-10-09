@@ -10,6 +10,7 @@ import { WeaponCoatingService } from '../services/WeaponCoatingService.js';
 import { shouldSkipAffliction, shouldSkipPromptAffliction } from '../utils.js';
 import { AfflictionItemResolver } from '../services/AfflictionItemResolver.js';
 import * as ImmunityBypassRuleStore from '../stores/ImmunityBypassRuleStore.js';
+import { AddictionService } from '../services/AddictionService.js';
 export class AfflictionManager extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2
 ) {
@@ -68,6 +69,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     },
     actions: {
       addAffliction: AfflictionManager.addAffliction,
+      addAddiction: AfflictionManager.addAddiction,
+      takeDrug: AfflictionManager.takeDrug,
       removeAffliction: AfflictionManager.removeAffliction,
       clearAllAfflictions: AfflictionManager.clearAllAfflictions,
       editAffliction: AfflictionManager.editAffliction,
@@ -361,6 +364,11 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
 
       return {
         ...aff,
+        canTakeDrug: aff.isAddiction && AddictionService.isEnabled(),
+        canRollSave: !aff.isAddiction || AddictionService.isEnabled(),
+        addictionMaximum: aff.isAddiction ? game.i18n.format('PF2E_AFFLICTIONER.ADDICTION.MAXIMUM', { stage: aff.addictionMaximumStage || 0 }) : '',
+        addictionSuppression: aff.isAddiction && aff.suppressedUntil > game.time.worldTime
+          ? game.i18n.format('PF2E_AFFLICTIONER.ADDICTION.SUPPRESSED', { duration: AfflictionParser.formatDuration(aff.suppressedUntil - game.time.worldTime) }) : '',
         stageDisplay,
         nextSaveDisplay: this.formatNextSave(aff),
         treatmentDisplay: this.formatTreatment(aff),
@@ -370,8 +378,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
         isVirulent: aff.isVirulent || false,
         hasMultipleExposure: aff.multipleExposure?.enabled || false,
         multipleExposureIncrease: aff.multipleExposure?.stageIncrease || 0,
-        canProgressStage: stageNumber !== null && stageNumber < stageCount,
-        canRegressStage: stageNumber !== null && stageNumber > 1
+        canProgressStage: (!aff.isAddiction || AddictionService.isEnabled()) && stageNumber !== null && stageNumber < stageCount,
+        canRegressStage: (!aff.isAddiction || AddictionService.isEnabled()) && stageNumber !== null && stageNumber > 1
       };
     });
   }
@@ -393,6 +401,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       const afflictions = AfflictionStore.getAfflictions(token);
 
       for (const [id, affliction] of Object.entries(afflictions)) {
+        if (affliction.isAddiction && !AddictionService.isEnabled()) continue;
         if (!combat && !affliction.inOnset) {
           const needsMigration = !affliction.nextSaveTimestamp || affliction.nextSaveTimestamp > 1000000000000;
 
@@ -521,6 +530,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     return {
       playerCoatingOnly: this.playerCoatingOnly,
       canManageAfflictions,
+      addictionRulesEnabled: canManageAfflictions && AddictionService.isEnabled(),
       sourceRuleActor: sourceRuleActor ? { id: sourceRuleActor.id, name: sourceRuleActor.name } : null,
       sourceImmunityBypassRule,
       sourceRuleTraitOptions: this.constructor._getTraitOptions(),
@@ -567,7 +577,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       }
     }
 
-    if (!combat) {
+    if (!combat || affliction.isAddiction) {
       if (affliction.nextSaveTimestamp) {
         const remainingSeconds = Math.max(0, affliction.nextSaveTimestamp - game.time.worldTime);
 
@@ -733,6 +743,27 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     new AddAfflictionDialog(token).render(true);
   }
 
+  static async addAddiction() {
+    if (this.playerCoatingOnly || !game.user.isGM || !AddictionService.isEnabled()) return;
+    const actor = AfflictionManager._getTargetActor(this);
+    const token = this.filterActorId ? AfflictionStore.findTokenForActor(actor) : AfflictionManager._getTargetToken(this);
+    if (!actor) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.SELECT_TOKEN_FIRST'));
+      return;
+    }
+    const { AddAfflictionDialog } = await import('./AddAfflictionDialog.js');
+    new AddAfflictionDialog(token, { actor, addictionMode: true }).render(true);
+  }
+
+  static async takeDrug(_event, button) {
+    if (this.playerCoatingOnly || !game.user.isGM || !AddictionService.isEnabled()) return;
+    const { token, actor } = AfflictionManager._resolveTarget(button);
+    const affliction = AddictionService.get(token, actor, button.dataset.afflictionId);
+    if (!affliction?.isAddiction) return;
+    await AfflictionService.promptInitialSave(token, affliction, actor);
+    this.render({ force: true });
+  }
+
   /**
    * Resolve a token and/or actor from a button's dataset.
    * Returns { token, actor } where token may be null for off-scene actors.
@@ -791,7 +822,9 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
 
     const oldStageData = AfflictionManager._getCurrentStageData(affliction) ?? null;
 
-    if (token) {
+    if (affliction?.isAddiction) {
+      await AddictionService.remove(token, actor, affliction);
+    } else if (token) {
       await AfflictionStore.removeAffliction(token, afflictionId);
     } else {
       await AfflictionStore.removeAfflictionForActor(actor, afflictionId);
@@ -896,7 +929,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
         if (afflictionIds.length === 0) continue;
 
         for (const afflictionId of afflictionIds) {
-          await AfflictionStore.removeAfflictionForActor(actor, afflictionId);
+          if (afflictions[afflictionId].isAddiction) await AddictionService.remove(null, actor, afflictions[afflictionId]);
+          else await AfflictionStore.removeAfflictionForActor(actor, afflictionId);
           clearedCount++;
         }
         clearedNames.push(actor.name);

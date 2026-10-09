@@ -89,7 +89,7 @@ export function preflight() {
 
 export function settingsSnapshot() {
   const values = {};
-  for (const key of ['showVisualIndicators', 'allowPlayerWeaponCoatingAccess', 'anonymizeSaveMessages', 'editedAfflictions', 'poisonSuccessStageOne']) {
+  for (const key of ['showVisualIndicators', 'allowPlayerWeaponCoatingAccess', 'anonymizeSaveMessages', 'editedAfflictions', 'poisonSuccessStageOne', 'enableAddictionRules']) {
     values[key] = foundry.utils.deepClone(game.settings.get(MODULE, key));
   }
   return values;
@@ -220,6 +220,68 @@ async function runWorkflow(name, fixture) {
     await storeAffliction(m.store, target, value);
     await m.service.AfflictionService.handleInitialSave(target, value, 30, 20, 15);
     checks.push(assertion('successful initial save removes affliction', !m.store.getAffliction(target, value.id)));
+  } else if (name === 'legacy-addiction') {
+    const { AddictionService: addiction } = await import('../../scripts/services/AddictionService.js');
+    const api = game.modules.get(MODULE).api;
+    checks.push(assertion('addiction world setting defaults off', game.settings.settings.get(`${MODULE}.enableAddictionRules`)?.default === false));
+    await game.settings.set(MODULE, 'enableAddictionRules', false);
+    await api.takeDrug(target, 'QA Pesh', 20);
+    checks.push(assertion('disabled setting prevents new addiction', !Object.values(m.store.getAfflictions(target)).some(a => a.isAddiction)));
+    await game.settings.set(MODULE, 'enableAddictionRules', true);
+    const { AddAfflictionDialog } = await import('../../scripts/managers/AddAfflictionDialog.js');
+    const [drug] = await actor.createEmbeddedDocuments('Item', [{
+      name: 'QA Pesh', type: 'consumable', img: 'icons/consumables/potions/vial-cork-orange.webp',
+      system: { traits: { value: ['drug', 'poison', 'alchemical', 'consumable'] }, description: { value: '<p>Saving Throw @Check[fortitude|dc:20]</p>' } },
+    }]);
+    const picker = new AddAfflictionDialog(target, { addictionMode: true });
+    const completed = new Promise((resolve, reject) => {
+      const onDrop = picker._onDrop.bind(picker);
+      picker._onDrop = async event => { try { await onDrop(event); resolve(); } catch (error) { reject(error); } };
+    });
+    picker.render(true);
+    await waitFor(() => !!picker.element?.querySelector('.drop-zone'), 'drug drop dialog');
+    checks.push(assertion('addiction dialog shows drug picker and manual fallback', !!picker.element.querySelector(`[data-item-uuid="${drug.uuid}"]`) && !!picker.element.querySelector('[data-action="addManual"]')));
+    const drop = new Event('drop', { bubbles: true, cancelable: true });
+    Object.defineProperty(drop, 'dataTransfer', { value: { getData: () => JSON.stringify({ type: 'Item', uuid: drug.uuid }) } });
+    picker.element.querySelector('.drop-zone').dispatchEvent(drop);
+    await completed;
+    await picker.close();
+    const value = Object.values(m.store.getAfflictions(target)).find(a => a.isAddiction);
+    checks.push(assertion('drug drop reads name DC and icon', value?.drugName === drug.name && value.dc === 20 && value.img === drug.img));
+    await m.service.AfflictionService.handleInitialSave(target, value, 9, 20, 10);
+    let saved = m.store.getAffliction(target, value.id);
+    checks.push(assertion('critical failure starts stage two after onset', saved?.stageAdvancement === 2 && saved.inOnset));
+    // Move only disposable affliction timestamps; never advance campaign time.
+    await m.store.updateAffliction(target, value.id, { onsetEndsAt: game.time.worldTime, suppressedUntil: game.time.worldTime });
+    await addiction.processTime(target, actor, m.store.getAffliction(target, value.id));
+    saved = m.store.getAffliction(target, value.id);
+    checks.push(assertion('onset applies fatigued and sickened natively', actor.conditions.has('fatigued') && actor.conditions.has('sickened')));
+    await m.service.AfflictionService.handleStageSave(target, saved, 9, 20, false, 10);
+    checks.push(assertion('failed weekly save cannot worsen stage', m.store.getAffliction(target, value.id)?.currentStage === 2));
+    await m.service.AfflictionService.handleStageSave(target, m.store.getAffliction(target, value.id), 20, 20, false, 10);
+    checks.push(assertion('successful recovery preserves highest stage', m.store.getAffliction(target, value.id)?.currentStage === 1 && api.getAddictionMaximum(target, 'QA Pesh') === 2));
+    await api.takeDrug(target, 'QA Pesh', 20);
+    checks.push(assertion('drug use immediately suppresses native conditions', !actor.conditions.has('fatigued') && !actor.conditions.has('sickened')));
+    await m.service.AfflictionService.handleInitialSave(target, m.store.getAffliction(target, value.id), 19, 20, 10);
+    checks.push(assertion('relapse advances from maximum instead of current stage', m.store.getAffliction(target, value.id)?.currentStage === 3));
+    await m.store.updateAffliction(target, value.id, { suppressedUntil: game.time.worldTime });
+    await addiction.processTime(target, actor, m.store.getAffliction(target, value.id));
+    checks.push(assertion('suppression expiry restores fatigued sickened and drained', actor.conditions.has('fatigued') && actor.conditions.has('sickened') && actor.conditions.has('drained')));
+    const app = new m.manager.AfflictionManager({ filterTokenId: target.id });
+    app.render(true);
+    await waitFor(() => !!app.element?.querySelector('[data-action="takeDrug"]'), 'addiction controls');
+    checks.push(assertion('manager renders add and take-drug controls', !!app.element.querySelector('[data-action="addAddiction"]') && app.element.textContent.includes('Highest stage: 3')));
+    await app.close();
+    await api.removeAffliction(target, value.id);
+    checks.push(assertion('removal preserves history and clears addiction symptoms', api.getAddictionMaximum(target, 'QA Pesh') === 3 && !actor.conditions.has('fatigued') && !actor.conditions.has('drained')));
+    await api.takeDrug(target, 'QA Pesh', 20);
+    const relapse = Object.values(m.store.getAfflictions(target)).find(a => a.isAddiction);
+    await m.service.AfflictionService.handleInitialSave(target, relapse, 9, 20, 10);
+    checks.push(assertion('relapse after removal caps at stage four', m.store.getAffliction(target, relapse.id)?.stageAdvancement === 4));
+    await api.takeDrug(null, 'QA Flayleaf', 20, actor);
+    const other = Object.values(m.store.getAfflictionsForActor(actor)).find(a => a.drugName === 'QA Flayleaf');
+    await m.service.AfflictionService.handleInitialSave(null, other, 19, 20, 10, actor);
+    checks.push(assertion('other drug history starts independently through actor API', m.store.getAfflictionForActor(actor, other.id)?.stageAdvancement === 1));
   } else if (name === 'poison-success-house-rule') {
     const original = game.settings.get(MODULE, 'poisonSuccessStageOne');
     try {

@@ -10,6 +10,7 @@ import { RecoveryRestrictionService } from './RecoveryRestrictionService.js';
 import { FeatsService } from './FeatsService.js';
 import * as ImmunityBypassRuleStore from '../stores/ImmunityBypassRuleStore.js';
 import { VisionerIntegrationService } from './VisionerIntegrationService.js';
+import { AddictionService } from './AddictionService.js';
 
 export class AfflictionService {
   static async promptInitialSave(token, afflictionData, actor = null) {
@@ -48,6 +49,8 @@ export class AfflictionService {
       await AfflictionChatService.postImmunityNotice(token, actor, afflictionData, matchingImmunities);
       return;
     }
+
+    if (afflictionData.isAddiction) return AddictionService.promptDrugUse(token, afflictionData, actor);
 
     const existingAffliction = token
       ? this.findExistingAffliction(token, afflictionData.name)
@@ -201,6 +204,7 @@ export class AfflictionService {
     actor = actor || token?.actor;
     const entityName = token?.name || actor?.name || 'Unknown';
     let degree = this.calculateAfflictionDegreeOfSuccess(saveTotal, dc, dieValue, actor, affliction);
+    if (affliction.isAddiction) return AddictionService.handleDrugSave(token, affliction, degree, actor);
 
     if (affliction.blowgunPoisonerCrit) {
       const degraded = FeatsService.degradeDegree(degree);
@@ -384,6 +388,10 @@ export class AfflictionService {
   }
 
   static async promptSave(token, affliction, actor = null) {
+    if (affliction.isAddiction && !AddictionService.isEnabled()) return;
+    if (affliction.isAddiction && (affliction.needsInitialSave || affliction.drugSavePending)) {
+      return AfflictionChatService.promptInitialSave(token, affliction, affliction, affliction.id, actor || token?.actor);
+    }
     await AfflictionChatService.promptStageSave(token, affliction, actor);
   }
 
@@ -399,6 +407,7 @@ export class AfflictionService {
     }
 
     const degree = this.calculateAfflictionDegreeOfSuccess(saveTotal, dc, dieValue, actor, affliction);
+    if (affliction.isAddiction) return AddictionService.handleRecoverySave(token, affliction, degree, actor);
 
     let stageChange = 0;
     let newVirulentConsecutiveSuccesses = affliction.virulentConsecutiveSuccesses || 0;
@@ -480,6 +489,7 @@ export class AfflictionService {
     actor = actor || token?.actor;
     const entityName = token?.name || actor?.name || 'Unknown';
     const combat = game.combat;
+    if (affliction.isAddiction) return AddictionService.changeStage(token, actor, affliction, newStage);
     const minimumStage = Math.min(
       RecoveryRestrictionService.getMinimumStage(affliction),
       affliction.successStageLimit === 1 ? 1 : Infinity
@@ -628,6 +638,7 @@ export class AfflictionService {
   static async applyStageEffects(token, affliction, stage) {
     const actor = token?.actor;
     if (!actor || !stage) return;
+    if (affliction.isAddiction) return AddictionService.syncEffect(token, actor, affliction);
     stage = AfflictionParser.normalizeStageVisibility(stage);
 
     if (stage.requiresManualHandling) {

@@ -52,10 +52,17 @@
                   </span>
                   <span class="next-save">{{localize 'PF2E_AFFLICTIONER.MANAGER.NEXT_SAVE'}}: {{nextSaveDisplay}}</span>
                   <span class="treatment">{{treatmentDisplay}}</span>
+                  {{#if isAddiction}}<span>{{addictionMaximum}}</span>{{/if}}
+                  {{#if addictionSuppression}}<span>{{addictionSuppression}}</span>{{/if}}
                 </div>
               </div>
 
               <div class="affliction-actions">
+                {{#if canTakeDrug}}
+                <button type="button" data-action="takeDrug" data-affliction-id="{{id}}" data-token-id="{{../tokenId}}" data-actor-id="{{../actorId}}" data-tooltip="{{localize 'PF2E_AFFLICTIONER.ADDICTION.TAKE_DRUG'}}">
+                  <i class="fas fa-flask"></i>
+                </button>
+                {{/if}}
                 <button type="button" data-action="editAffliction"
                         data-affliction-id="{{id}}" data-token-id="{{../tokenId}}" data-actor-id="{{../actorId}}"
                         data-tooltip="{{localize 'PF2E_AFFLICTIONER.EDITOR.EDIT_AFFLICTION'}}">
@@ -63,7 +70,7 @@
                 </button>
                 <button type="button" data-action="rollSave"
                         data-affliction-id="{{id}}" data-token-id="{{../tokenId}}" data-actor-id="{{../actorId}}"
-                        data-tooltip="{{localize 'PF2E_AFFLICTIONER.MANAGER.ROLL_SAVE'}}">
+                        data-tooltip="{{localize 'PF2E_AFFLICTIONER.MANAGER.ROLL_SAVE'}}" {{#unless canRollSave}}disabled{{/unless}}>
                   <i class="fas fa-dice-d20"></i>
                 </button>
                 {{#if hasDamage}}
@@ -110,6 +117,11 @@
     {{/if}}
 
     <div class="manager-footer">
+      {{#if addictionRulesEnabled}}
+      <button type="button" data-action="addAddiction">
+        <i class="fas fa-flask"></i> {{localize 'PF2E_AFFLICTIONER.ADDICTION.ADD'}}
+      </button>
+      {{/if}}
       <button type="button" data-action="addAffliction" data-tooltip="{{localize 'PF2E_AFFLICTIONER.MANAGER.ADD_AFFLICTION'}}">
         <i class="fas fa-plus"></i> {{localize 'PF2E_AFFLICTIONER.MANAGER.ADD_AFFLICTION'}}
       </button>

@@ -2,9 +2,14 @@ import { AfflictionService } from '../services/AfflictionService.js';
 import { AfflictionParser } from '../services/AfflictionParser.js';
 import * as AfflictionStore from '../stores/AfflictionStore.js';
 import * as WeaponCoatingStore from '../stores/WeaponCoatingStore.js';
+import { AddictionService } from '../services/AddictionService.js';
 
 async function processAfflictionsForToken(token, afflictions, delta) {
   for (const [id, affliction] of Object.entries(afflictions)) {
+    if (affliction.isAddiction) {
+      await AddictionService.processTime(token, token.actor, affliction);
+      continue;
+    }
     if (game.combat && game.combat.started) {
       continue;
     }
@@ -74,6 +79,10 @@ async function processAfflictionsForToken(token, afflictions, delta) {
 
 async function processAfflictionsForOffSceneActor(actor, afflictions, delta) {
   for (const [id, affliction] of Object.entries(afflictions)) {
+    if (affliction.isAddiction) {
+      await AddictionService.processTime(null, actor, affliction);
+      continue;
+    }
     if (game.combat && game.combat.started) continue;
 
     if (affliction.inOnset && affliction.onsetRemaining > 0) {
@@ -175,13 +184,9 @@ export async function onWorldTimeUpdate(worldTime, delta) {
 
   if (delta < 1) return;
 
-  if (!canvas?.tokens) {
-    return;
-  }
-
   const seenActorIds = new Set();
 
-  for (const token of canvas.tokens.placeables) {
+  for (const token of canvas?.tokens?.placeables ?? []) {
     const afflictions = AfflictionStore.getAfflictions(token);
     if (Object.keys(afflictions).length === 0) continue;
     if (token.document.actorLink && token.actor) seenActorIds.add(token.actor.id);

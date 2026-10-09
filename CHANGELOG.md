@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.0] - 2026-10-09
+
+### Added
+
+- **Optional legacy addiction rules**: Added a GM world setting, disabled by default, for per-drug addiction tracking. Each drug retains its highest stage after recovery; failed drug-use saves advance from that maximum, while weekly recovery saves can improve the current stage without worsening it.
+- **Drug item picker**: Add addictions by dragging a drug item or selecting one from actor and compendium lists. The item's name, icon, and Fortitude DC are read automatically; missing DCs prompt for the DC only. Manual entry remains available for custom drugs.
+- **Addiction symptoms and timers**: Drug use suppresses symptoms for one day. World time drives onset, suppression expiry, and weekly saves, including off-scene actors. Symptoms stay bound to the addiction until suppression or recovery. Turning the setting off pauses automation while keeping records and effects available for GM removal. Drug inventory and separate poison effects are handled independently.
+
 ## [3.6.1] - 2026-10-06
 
 ### Added

@@ -1,6 +1,7 @@
 import { MODULE_ID } from '../constants.js';
 import * as AfflictionStore from '../stores/AfflictionStore.js';
 import { AfflictionService } from '../services/AfflictionService.js';
+import { AddictionService } from '../services/AddictionService.js';
 
 export async function onPreUpdateItem(item, changes, options, userId) {
   if (item.type === 'effect') {
@@ -16,6 +17,7 @@ export async function onPreUpdateItem(item, changes, options, userId) {
         const token = canvas.tokens.get(item.parent.token?.id) || canvas.tokens.placeables.find(t => t.actor?.id === item.parent.id);
         if (token) {
           const affliction = AfflictionStore.getAffliction(token, afflictionId);
+          if (affliction?.isAddiction && !AddictionService.isEnabled()) return false;
 
           if (affliction && affliction.needsInitialSave) {
             return true;

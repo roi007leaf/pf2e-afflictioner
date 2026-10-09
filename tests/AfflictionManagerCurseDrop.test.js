@@ -55,4 +55,20 @@ describe('AfflictionManager curse drops', () => {
       expect.objectContaining({ name: 'Linnorm Death Curse', type: 'curse' }),
     );
   });
+
+  test('ordinary add dialog still resolves dropped curses through the affliction parser', async () => {
+    const { AddAfflictionDialog } = await import('../scripts/managers/AddAfflictionDialog.js');
+    const { AfflictionService } = await import('../scripts/services/AfflictionService.js');
+    const promptSpy = jest.spyOn(AfflictionService, 'promptInitialSave').mockResolvedValue();
+    global.fromUuid = jest.fn(async () => ({
+      name: 'Curse', uuid: 'Item.curse', system: {
+        traits: { value: ['curse'] }, description: { value: '<p>Saving Throw @Check[will|dc:32]</p><p><strong>Stage 1</strong> doomed 1 (1 day)</p>' },
+      },
+    }));
+    const app = new AddAfflictionDialog(canvas.tokens.controlled[0]);
+    app.close = jest.fn();
+    await app._onDrop({ preventDefault: jest.fn(), dataTransfer: { getData: () => JSON.stringify({ type: 'Item', uuid: 'Item.curse' }) } });
+    expect(promptSpy).toHaveBeenCalledWith(canvas.tokens.controlled[0], expect.objectContaining({ name: 'Curse', dc: 32, type: 'curse', saveType: 'will' }));
+    expect(app.close).toHaveBeenCalledTimes(1);
+  });
 });

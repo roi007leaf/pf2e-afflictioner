@@ -4,8 +4,17 @@ import { TreatmentService } from './services/TreatmentService.js';
 import { AfflictionParser } from './services/AfflictionParser.js';
 import { AfflictionManager } from './managers/AfflictionManager.js';
 import { VisualService } from './services/VisualService.js';
+import { AddictionService } from './services/AddictionService.js';
 
 export class Pf2eAfflictionerApi {
+  /** Record drug use; prompt the addiction save without consuming inventory. */
+  static async takeDrug(token, drugName, dc, actor = null) {
+    return AfflictionService.promptInitialSave(token, AddictionService.createDefinition(drugName, dc), actor);
+  }
+
+  static getAddictionMaximum(token, drugName, actor = null) {
+    return AfflictionStore.getAddictionMaximum(token, actor, String(drugName).trim().normalize('NFKC').toLowerCase());
+  }
   static async openManager(options = {}) {
     if (AfflictionManager.currentInstance) {
       AfflictionManager.currentInstance.close();
@@ -29,6 +38,7 @@ export class Pf2eAfflictionerApi {
 
   static async removeAffliction(token, afflictionId) {
     const affliction = AfflictionStore.getAffliction(token, afflictionId);
+    if (affliction?.isAddiction) return AddictionService.remove(token, token.actor, affliction);
     const oldStageData = affliction?.stages?.[affliction.currentStage - 1];
     await AfflictionStore.removeAffliction(token, afflictionId);
     await AfflictionService.removeStageEffects(token, affliction, oldStageData, null);

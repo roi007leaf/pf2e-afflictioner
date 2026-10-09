@@ -8,6 +8,7 @@ export class AfflictionTimerService {
     const afflictions = AfflictionStore.getAfflictions(token);
 
     for (const [id, affliction] of Object.entries(afflictions)) {
+      if (affliction.isAddiction) continue;
       if (shouldSkipAffliction(affliction)) continue;
 
       if (affliction.inOnset && affliction.onsetRemaining > 0) {
@@ -84,6 +85,7 @@ export class AfflictionTimerService {
     const afflictions = AfflictionStore.getAfflictions(token);
 
     for (const [_id, affliction] of Object.entries(afflictions)) {
+      if (affliction.isAddiction) continue;
       if (!affliction.maxDuration) continue;
 
       if (affliction.inOnset) continue;
@@ -258,6 +260,7 @@ export class AfflictionTimerService {
     const triggerInitiative = combatant?.initiative ?? combat.combatant?.initiative;
 
     for (const [_id, affliction] of Object.entries(afflictions)) {
+      if (affliction.isAddiction) continue;
       if (affliction.inOnset) continue;
       if (shouldSkipAffliction(affliction)) continue;
       if (affliction.nextSaveRound == null) continue;

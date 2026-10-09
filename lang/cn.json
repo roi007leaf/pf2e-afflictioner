@@ -1,6 +1,21 @@
 {
   "PF2E_AFFLICTIONER": {
+    "ADDICTION": {
+      "NAME": "成瘾",
+      "ADD": "添加成瘾（旧版）",
+      "DRUG": "毒品名称",
+      "TAKE_DRUG": "服用毒品 / 成瘾豁免",
+      "MAXIMUM": "最高阶段：{stage}",
+      "SUPPRESSED": "症状抑制：{duration}",
+      "DROP_DRUG": "将毒品物品拖到此处，记录服用并请求成瘾豁免。",
+      "NO_DRUGS": "未找到毒品物品。请拖入毒品或使用手动输入。",
+      "INVALID_DRUG": "请选择具有毒品（drug）特征的物品。",
+      "MISSING_DC": "无法读取该毒品的强韧豁免DC。请输入其成瘾豁免DC。",
+      "HINT": "拖入毒品物品或在下方选择，名称与强韧豁免DC会自动读取。自定义毒品可使用手动输入。服用会抑制成瘾症状一天，并请求成瘾豁免。毒品的毒素效果需单独追踪。后续服用请使用相同名称。不会消耗物品。"
+    },
     "SETTINGS": {
+      "ENABLE_ADDICTION_RULES_NAME": "启用旧版成瘾规则",
+      "ENABLE_ADDICTION_RULES_HINT": "启用各毒品的成瘾历史、复发、每周恢复及一天的症状抑制。默认关闭。关闭时暂停成瘾自动化并隐藏服用按钮；已有记录和效果保留，直到GM移除。",
       "POISON_SUCCESS_STAGE_ONE_NAME": "房规：初次豁免成功仍然中毒",
       "POISON_SUCCESS_STAGE_ONE_HINT": "首次接触新毒素时，豁免成功仍会中毒，但最高阶段为1。大成功避免中毒。再次接触时豁免失败会解除限制，并正常提高阶段。潜伏期和恢复规则仍然适用。",
       "ADJUST_AFFLICTION_DAMAGE_NAME": "应用精英/弱化生物的苦难伤害调整",

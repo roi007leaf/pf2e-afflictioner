@@ -57,6 +57,9 @@ export function generateDefinitionKey(afflictionData) {
     return null;
   }
 
+  // A drug's poison and its addiction have independent editable definitions.
+  if (afflictionData.isAddiction) return `addiction-${afflictionData.drugKey}`;
+
   if (afflictionData.sourceItemUuid) {
     return afflictionData.sourceItemUuid;
   }

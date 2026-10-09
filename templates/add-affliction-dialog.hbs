@@ -5,8 +5,13 @@
   </div>
 
   <div class="drop-zone">
-    <i class="fas fa-file-medical"></i>
-    <p>{{localize 'PF2E_AFFLICTIONER.DIALOG.DROP_ITEM'}}</p>
+    {{#if addictionMode}}
+      <i class="fas fa-flask"></i>
+      <p>{{localize 'PF2E_AFFLICTIONER.ADDICTION.DROP_DRUG'}}</p>
+    {{else}}
+      <i class="fas fa-file-medical"></i>
+      <p>{{localize 'PF2E_AFFLICTIONER.DIALOG.DROP_ITEM'}}</p>
+    {{/if}}
   </div>
 
   {{#if hasItems}}
@@ -51,7 +56,7 @@
       {{/if}}
     </div>
   {{else}}
-    <p class="no-items">{{localize 'PF2E_AFFLICTIONER.DIALOG.NO_ITEMS'}}</p>
+    <p class="no-items">{{#if addictionMode}}{{localize 'PF2E_AFFLICTIONER.ADDICTION.NO_DRUGS'}}{{else}}{{localize 'PF2E_AFFLICTIONER.DIALOG.NO_ITEMS'}}{{/if}}</p>
   {{/if}}
 
   <div class="dialog-buttons">

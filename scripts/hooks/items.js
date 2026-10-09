@@ -1,5 +1,7 @@
 import { MODULE_ID } from '../constants.js';
 import * as WeaponCoatingStore from '../stores/WeaponCoatingStore.js';
+import * as AfflictionStore from '../stores/AfflictionStore.js';
+import { AddictionService } from '../services/AddictionService.js';
 
 function getPotentialStorageTargets(actor) {
   const targets = [];
@@ -19,6 +21,18 @@ function getPotentialStorageTargets(actor) {
 export async function onDeleteItem(item, _options, _userId) {
   if (!game.user.isGM) return;
   if (item.type !== 'effect') return;
+  const afflictionId = item.flags?.[MODULE_ID]?.afflictionId;
+  if (afflictionId && item.parent && (!game.users?.activeGM || game.users.activeGM.id === game.user.id)) {
+    const actor = item.parent;
+    const token = actor.token ? actor.token.object || { actor, document: actor.token } : AfflictionStore.findTokenForActor(actor);
+    const affliction = AddictionService.get(token, actor, afflictionId);
+    if (affliction?.isAddiction) {
+      // Symptoms cannot be removed independently of the addiction. Disease removal
+      // clears storage first, so intentional recovery/removal will not recreate it.
+      await AddictionService.syncEffect(token, actor, affliction);
+      return;
+    }
+  }
   const isCoatingEffect = item.flags?.[MODULE_ID]?.isCoatingEffect;
   const isInjectionEffect = item.flags?.[MODULE_ID]?.isInjectionEffect;
   if (!isCoatingEffect && !isInjectionEffect) return;

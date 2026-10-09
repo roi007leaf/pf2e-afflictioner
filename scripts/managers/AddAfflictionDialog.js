@@ -4,6 +4,7 @@ import * as AfflictionDefinitionStore from '../stores/AfflictionDefinitionStore.
 import { shouldSkipPromptAffliction } from '../utils.js';
 import { AfflictionItemResolver } from '../services/AfflictionItemResolver.js';
 import { DEFAULT_AFFLICTION_ICON } from '../constants.js';
+import { AddictionService } from '../services/AddictionService.js';
 
 export class AddAfflictionDialog extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2
@@ -38,23 +39,26 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
     }
   };
 
-  constructor(token, options = {}) {
+  constructor(token, { addictionMode = false, actor = token?.actor, ...options } = {}) {
+    if (addictionMode) options.window = { ...options.window, title: 'PF2E_AFFLICTIONER.ADDICTION.ADD' };
     super(options);
     this.token = token;
+    this.actor = actor;
+    this.addictionMode = addictionMode;
     this.selectedItem = null;
   }
 
   async _prepareContext(_options) {
     const afflictionItems = [];
-    if (this.token?.actor) {
-      for (const item of this.token.actor.items) {
+    if (this.actor) {
+      for (const item of this.actor.items) {
         const afflictionType = AfflictionParser.getAfflictionType(item);
-        if (afflictionType || AfflictionItemResolver.hasDirectOrReferencedAfflictionText(item)) {
+        if (this.addictionMode ? AddictionService.isDrugItem(item) : afflictionType || AfflictionItemResolver.hasDirectOrReferencedAfflictionText(item)) {
           afflictionItems.push({
             id: item.id,
             uuid: item.uuid,
             name: item.name,
-            type: afflictionType || 'referenced',
+            type: this.addictionMode ? 'drug' : afflictionType || 'referenced',
             img: item.img
           });
         }
@@ -62,13 +66,14 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
     }
 
     const compendiumItems = await this.getCompendiumAfflictions();
-    const savedCustomAfflictions = this.getSavedCustomAfflictions();
+    const savedCustomAfflictions = this.addictionMode ? [] : this.getSavedCustomAfflictions();
 
     return {
       token: {
-        name: this.token.name,
-        img: this.token.document.texture.src
+        name: this.token?.name || this.actor?.name,
+        img: this.token?.document?.texture?.src || this.actor?.img
       },
+      addictionMode: this.addictionMode,
       actorItems: afflictionItems,
       compendiumItems: compendiumItems,
       savedCustomAfflictions,
@@ -102,13 +107,13 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
       );
 
       for (const pack of packs) {
-        const index = await pack.getIndex();
+        const index = this.addictionMode ? await pack.getIndex({ fields: ['system.traits.value'] }) : await pack.getIndex();
         for (const entry of index) {
-          if (entry.type === 'affliction') {
+          if (this.addictionMode ? AddictionService.isDrugItem(entry) : entry.type === 'affliction') {
             afflictions.push({
               uuid: entry.uuid,
               name: entry.name,
-              type: 'affliction',
+              type: this.addictionMode ? 'drug' : 'affliction',
               img: entry.img,
               pack: pack.metadata.label
             });
@@ -131,6 +136,8 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
         ui.notifications.error(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.COULD_NOT_LOAD_ITEM'));
         return;
       }
+
+      if (this.addictionMode) return await this._addDrugFromItem(item);
 
       const afflictionData = await AfflictionItemResolver.resolveFromItem(item);
       if (shouldSkipPromptAffliction(afflictionData)) {
@@ -155,6 +162,7 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
   }
 
   static async addManual(_event, _button) {
+    if (this.addictionMode) return this._addManualDrug();
     const template = `
       <form>
         <div class="form-group">
@@ -253,7 +261,8 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
     super._onRender(context, options);
 
     const element = this.element;
-    if (!element) return;
+    if (!element || this._dropElement === element) return;
+    this._dropElement = element;
 
     element.addEventListener('drop', this._onDrop.bind(this));
     element.addEventListener('dragover', this._onDragOver.bind(this));
@@ -274,10 +283,12 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
       return;
     }
 
-    if (data.type !== 'Item') return;
+    if (data?.type !== 'Item') return;
 
     const item = await fromUuid(data.uuid);
     if (!item) return;
+
+    if (this.addictionMode) return this._addDrugFromItem(item);
 
     if (!AfflictionItemResolver.hasDirectOrReferencedAfflictionText(item)) {
       ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.ITEM_MUST_HAVE_TRAIT_FULL'));
@@ -299,6 +310,44 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
 
     await AfflictionService.promptInitialSave(this.token, afflictionData);
 
+    this.close();
+  }
+
+  async _addDrugFromItem(item) {
+    if (!game.user.isGM || !AddictionService.isEnabled()) return;
+    if (!AddictionService.isDrugItem(item)) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.ADDICTION.INVALID_DRUG'));
+      return;
+    }
+    let dc = AddictionService.getDrugDC(item);
+    if (dc === null) {
+      const result = await foundry.applications.api.DialogV2.prompt({
+        window: { title: item.name },
+        content: `<p>${game.i18n.localize('PF2E_AFFLICTIONER.ADDICTION.MISSING_DC')}</p>
+          <div class="form-group"><label>${game.i18n.localize('PF2E_AFFLICTIONER.DIALOG.MANUAL_DC')}</label><input name="dc" type="number" min="1" step="1" required></div>`,
+        ok: { label: game.i18n.localize('PF2E_AFFLICTIONER.ADDICTION.TAKE_DRUG'), callback: (_event, button) => new FormDataExtended(button.form).object },
+      });
+      if (!result) return;
+      dc = Number(result.dc);
+    }
+    if (!Number.isInteger(dc) || dc < 1) return;
+    if (!game.user.isGM || !AddictionService.isEnabled()) return;
+    await AfflictionService.promptInitialSave(this.token, AddictionService.createDefinitionFromItem(item, dc), this.actor);
+    this.close();
+  }
+
+  async _addManualDrug() {
+    if (!game.user.isGM || !AddictionService.isEnabled()) return;
+    const i = game.i18n;
+    const result = await foundry.applications.api.DialogV2.prompt({
+      window: { title: i.localize('PF2E_AFFLICTIONER.ADDICTION.ADD') },
+      content: `<p>${i.localize('PF2E_AFFLICTIONER.ADDICTION.HINT')}</p>
+        <div class="form-group"><label>${i.localize('PF2E_AFFLICTIONER.ADDICTION.DRUG')}</label><input name="drugName" type="text" required></div>
+        <div class="form-group"><label>${i.localize('PF2E_AFFLICTIONER.DIALOG.MANUAL_DC')}</label><input name="dc" type="number" min="1" step="1" value="15" required></div>`,
+      ok: { label: i.localize('PF2E_AFFLICTIONER.ADDICTION.TAKE_DRUG'), callback: (_event, button) => new FormDataExtended(button.form).object },
+    });
+    if (!result || !game.user.isGM || !AddictionService.isEnabled()) return;
+    await AfflictionService.promptInitialSave(this.token, AddictionService.createDefinition(result.drugName, result.dc), this.actor);
     this.close();
   }
 }
