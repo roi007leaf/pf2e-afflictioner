@@ -11,6 +11,8 @@ import { shouldSkipAffliction, shouldSkipPromptAffliction } from '../utils.js';
 import { AfflictionItemResolver } from '../services/AfflictionItemResolver.js';
 import * as ImmunityBypassRuleStore from '../stores/ImmunityBypassRuleStore.js';
 import { AddictionService } from '../services/AddictionService.js';
+import { FeatModifierService } from '../services/FeatModifierService.js';
+import { FeatsService } from '../services/FeatsService.js';
 export class AfflictionManager extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2
 ) {
@@ -80,6 +82,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       rollDamage: AfflictionManager.rollDamage,
       treatAffliction: AfflictionManager.treatAffliction,
       counteractAffliction: AfflictionManager.counteractAffliction,
+      specialSave: AfflictionManager.specialSave,
       removeCoating: AfflictionManager.removeCoating,
       addCoating: AfflictionManager.addCoating,
       removeInjection: AfflictionManager.removeInjection,
@@ -348,8 +351,15 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     return super.close(options);
   }
 
-  _enrichAfflictions(afflictions) {
+  static _isVirulentStrikeAvailable() {
+    const actors = game.actors?.contents ?? [];
+    return actors.some(actor => FeatsService.hasFeat(actor, 'virulent-strike'));
+  }
+
+  _enrichAfflictions(afflictions, actor = null) {
+    const virulentStrikeAvailable = this.constructor._isVirulentStrikeAvailable();
     return Object.values(afflictions).map(aff => {
+      const specialSaveOptions = FeatModifierService.getSpecialSaveOptions(actor, aff, { virulentStrikeAvailable });
       const stageNumber = this.constructor._getStageNumber(aff);
       const stageCount = this.constructor._getStageCount(aff);
       const currentStage = this.constructor._getCurrentStageData(aff);
@@ -379,7 +389,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
         hasMultipleExposure: aff.multipleExposure?.enabled || false,
         multipleExposureIncrease: aff.multipleExposure?.stageIncrease || 0,
         canProgressStage: (!aff.isAddiction || AddictionService.isEnabled()) && stageNumber !== null && stageNumber < stageCount,
-        canRegressStage: (!aff.isAddiction || AddictionService.isEnabled()) && stageNumber !== null && stageNumber > 1
+        canRegressStage: (!aff.isAddiction || AddictionService.isEnabled()) && stageNumber !== null && stageNumber > 1,
+        hasSpecialSaves: specialSaveOptions.length > 0
       };
     });
   }
@@ -429,7 +440,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
           actorId,
           name: token.name,
           img: token.document.texture.src,
-          afflictions: this._enrichAfflictions(updatedAfflictions)
+          afflictions: this._enrichAfflictions(updatedAfflictions, token.actor)
         });
       }
     }
@@ -451,7 +462,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
           actorId: actor.id,
           name: actor.name,
           img: actor.img,
-          afflictions: this._enrichAfflictions(afflictions)
+          afflictions: this._enrichAfflictions(afflictions, actor)
         });
       }
     }
@@ -1026,6 +1037,36 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     }
 
     await AfflictionService.promptSave(token, affliction, actor);
+  }
+
+  /** Feat-granted saves and stage reductions (Coral Detoxification, Virulent Strike, Purge System...). */
+  static async specialSave(_event, button) {
+    if (this.playerCoatingOnly) return;
+
+    const afflictionId = button.dataset.afflictionId;
+    const { token, actor } = AfflictionManager._resolveTarget(button);
+    const affliction = token
+      ? AfflictionStore.getAffliction(token, afflictionId)
+      : actor ? AfflictionStore.getAfflictionForActor(actor, afflictionId) : null;
+    if (!affliction) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.ERRORS.AFFLICTION_NOT_FOUND'));
+      return;
+    }
+
+    const options = FeatModifierService.getSpecialSaveOptions(token?.actor || actor, affliction, {
+      virulentStrikeAvailable: AfflictionManager._isVirulentStrikeAvailable(),
+    });
+    if (options.length === 0) return;
+
+    const kind = await foundry.applications.api.DialogV2.wait({
+      window: { title: game.i18n.localize('PF2E_AFFLICTIONER.FEATS.SPECIAL_SAVE_TITLE') },
+      content: `<p>${game.i18n.format('PF2E_AFFLICTIONER.FEATS.SPECIAL_SAVE_PROMPT', { afflictionName: affliction.name })}</p>`,
+      buttons: options.map(option => ({ action: option.kind, label: option.label })),
+      rejectClose: false,
+    }).catch(() => null);
+    if (!kind || !options.some(option => option.kind === kind)) return;
+
+    await AfflictionService.startSpecialSave(token, affliction, kind, token?.actor || actor);
   }
 
   static async rollDamage(_event, button) {

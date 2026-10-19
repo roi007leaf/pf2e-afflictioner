@@ -80,6 +80,13 @@
                   <i class="fas fa-heart-broken"></i>
                 </button>
                 {{/if}}
+                {{#if hasSpecialSaves}}
+                <button type="button" data-action="specialSave"
+                        data-affliction-id="{{id}}" data-token-id="{{../tokenId}}" data-actor-id="{{../actorId}}"
+                        data-tooltip="{{localize 'PF2E_AFFLICTIONER.FEATS.SPECIAL_SAVE_TITLE'}}">
+                  <i class="fas fa-star"></i>
+                </button>
+                {{/if}}
                 <button type="button" data-action="treatAffliction"
                         data-affliction-id="{{id}}" data-token-id="{{../tokenId}}" data-actor-id="{{../actorId}}"
                         data-tooltip="{{localize 'PF2E_AFFLICTIONER.MANAGER.TREAT'}}">

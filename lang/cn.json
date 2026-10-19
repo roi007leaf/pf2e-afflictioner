@@ -274,8 +274,8 @@
     "FEATS": {
       "BLOWGUN_POISONER_APPLIED": "吹箭投毒者：{targetName} 对 {afflictionName} 的初始豁免被降低一个等级。",
       "BLOWGUN_POISONER_DEGRADED_TOOLTIP": "吹箭投毒者：豁免结果视为 {to}（实际骰出 {from}）",
-      "FAST_RECOVERY_STAGE_CHANGE": "快速恢复：{tokenName} 的豁免使 {afflictionName} 减少了 {stages} 个阶段。",
-      "FAST_RECOVERY_BUTTON_TOOLTIP": "快速恢复：阶段将减少 {stages} 级"
+      "FAST_RECOVERY_STAGE_CHANGE": "{feature}：{tokenName} 的豁免使 {afflictionName} 减少了 {stages} 个阶段。",
+      "FAST_RECOVERY_BUTTON_TOOLTIP": "{feature}：阶段将减少 {stages} 级"
     },
     "DEGREES": {
       "CRITICAL_SUCCESS": "大成功",

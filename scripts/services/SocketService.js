@@ -88,13 +88,15 @@ export class SocketService {
       }
     }
 
-    if (saveType === 'stage' && FeatsService.hasFastRecovery(actor)) {
+    const recoveryFeature = saveType === 'stage' ? FeatsService.getImprovedRecoveryFeature(actor, affliction) : null;
+    if (recoveryFeature) {
       const fastRecoveryChange = FeatsService.getFastRecoveryStageChange(degreeResult.degree, affliction.isVirulent);
       if (fastRecoveryChange !== null) {
         notices.push(this.saveModifierNoticeHtml(
           'fa-bolt',
           '#90ee90',
           game.i18n.format('PF2E_AFFLICTIONER.FEATS.FAST_RECOVERY_STAGE_CHANGE', {
+            feature: recoveryFeature.name,
             tokenName: actor?.name || 'Unknown',
             afflictionName: affliction.name,
             stages: Math.abs(fastRecoveryChange)
@@ -286,10 +288,11 @@ export class SocketService {
       const message = game.messages.get(rollMessageId);
       const saveTotal = await this.getCurrentRollTotal(rollMessageId);
       const dieValue = AfflictionService.getDieValue(message);
+      const systemDegree = AfflictionService.getSystemSaveDegree(message, dc);
       if (saveTotal !== null) {
-        const degreeResult = AfflictionService.calculateAfflictionDegreeResult(saveTotal, dc, dieValue, actor, affliction);
+        const degreeResult = AfflictionService.calculateAfflictionDegreeResult(saveTotal, dc, dieValue, actor, affliction, systemDegree);
         await this.postImmediateSaveModifierNotice(token, actor, affliction, degreeResult, 'stage');
-        await AfflictionService.handleStageSave(token, affliction, saveTotal, dc, false, dieValue, actor);
+        await AfflictionService.handleStageSave(token, affliction, saveTotal, dc, false, dieValue, actor, systemDegree);
       } else {
         console.error('PF2e Afflictioner | Failed to read save result for immediate application');
       }
@@ -341,21 +344,22 @@ export class SocketService {
       const message = game.messages.get(rollMessageId);
       const saveTotal = await this.getCurrentRollTotal(rollMessageId);
       const dieValue = AfflictionService.getDieValue(message);
+      const systemDegree = AfflictionService.getSystemSaveDegree(message, dc);
       if (saveTotal !== null) {
-        const degreeResult = AfflictionService.calculateAfflictionDegreeResult(saveTotal, dc, dieValue, actor, affliction);
+        const degreeResult = AfflictionService.calculateAfflictionDegreeResult(saveTotal, dc, dieValue, actor, affliction, systemDegree);
         await this.postImmediateSaveModifierNotice(token, actor, affliction, degreeResult, 'initial');
-        await AfflictionService.handleInitialSave(token, affliction, saveTotal, dc, dieValue, actor);
+        await AfflictionService.handleInitialSave(token, affliction, saveTotal, dc, dieValue, actor, systemDegree);
       } else {
         console.error('PF2e Afflictioner | Failed to read save result for immediate application');
       }
     }
   }
 
-  static async requestHandleTreatment(tokenId, afflictionId, total, dc, actorId = null) {
+  static async requestHandleTreatment(tokenId, afflictionId, total, dc, actorId = null, treaterActorId = null) {
     if (!this.socket) return false;
 
     try {
-      await this.socket.executeAsGM('gmHandleTreatment', tokenId, afflictionId, total, dc, actorId);
+      await this.socket.executeAsGM('gmHandleTreatment', tokenId, afflictionId, total, dc, actorId, treaterActorId);
       return true;
     } catch (error) {
       console.error('PF2e Afflictioner | Error requesting treatment handling:', error);
@@ -363,7 +367,7 @@ export class SocketService {
     }
   }
 
-  static async gmHandleTreatment(tokenId, afflictionId, total, dc, actorId) {
+  static async gmHandleTreatment(tokenId, afflictionId, total, dc, actorId, treaterActorId = null) {
     if (!game.user.isGM) return;
 
     const token = this._resolveToken(tokenId, actorId);
@@ -377,7 +381,8 @@ export class SocketService {
       : AfflictionStore.getAfflictionForActor(actor, afflictionId);
     if (!affliction) return;
 
-    await TreatmentService.handleTreatmentResult(token, affliction, total, dc, actor);
+    const treater = treaterActorId ? game.actors.get(treaterActorId) : null;
+    await TreatmentService.handleTreatmentResult(token, affliction, total, dc, actor, treater);
   }
 
   static async requestHandleCounteract(tokenId, afflictionId, counteractRank, afflictionRank, degree, actorId = null) {
@@ -425,8 +430,9 @@ export class SocketService {
     }
 
     const dieValue = AfflictionService.getDieValue(message);
+    const systemDegree = AfflictionService.getSystemSaveDegree(message, dc);
 
-    const degreeResult = AfflictionService.calculateAfflictionDegreeResult(saveTotal, dc, dieValue, actor, affliction);
+    const degreeResult = AfflictionService.calculateAfflictionDegreeResult(saveTotal, dc, dieValue, actor, affliction, systemDegree);
     const degree = this.degreeToString(degreeResult.degree);
     const degreeText = this.degreeLabel(degree);
     const degreeColor = this.degreeColor(degree);
@@ -562,11 +568,12 @@ export class SocketService {
 
     const message = game.messages.get(rollMessageId);
     const dieValue = AfflictionService.getDieValue(message);
+    const systemDegree = AfflictionService.getSystemSaveDegree(message, dc);
 
     if (saveType === 'initial') {
-      await AfflictionService.handleInitialSave(token, affliction, saveTotal, dc, dieValue, actor);
+      await AfflictionService.handleInitialSave(token, affliction, saveTotal, dc, dieValue, actor, systemDegree);
     } else {
-      await AfflictionService.handleStageSave(token, affliction, saveTotal, dc, false, dieValue, actor);
+      await AfflictionService.handleStageSave(token, affliction, saveTotal, dc, false, dieValue, actor, systemDegree);
     }
   }
 
@@ -757,6 +764,7 @@ export class SocketService {
     }
 
     const dieValue = AfflictionService.getDieValue(rollMessage);
+    const systemDegree = AfflictionService.getSystemSaveDegree(rollMessage, dc);
 
     const flagActorId = flags.actorId;
     const token = this._resolveToken(tokenId, flagActorId);
@@ -765,7 +773,7 @@ export class SocketService {
       ? AfflictionStore.getAffliction(token, afflictionId)
       : (actor ? AfflictionStore.getAfflictionForActor(actor, afflictionId) : null);
 
-    const degreeResult = AfflictionService.calculateAfflictionDegreeResult(saveTotal, dc, dieValue, actor, affliction);
+    const degreeResult = AfflictionService.calculateAfflictionDegreeResult(saveTotal, dc, dieValue, actor, affliction, systemDegree);
     const degree = this.degreeToString(degreeResult.degree);
     const degreeText = this.degreeLabel(degree);
     const degreeColor = this.degreeColor(degree);

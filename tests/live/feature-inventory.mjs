@@ -41,5 +41,12 @@ export const featureInventory = {
   'WeaponCoatingServiceDoublePoison.test.js': ['double-poison-and-weapon-rules'],
   'WeaponCoatingStoreRemoval.test.js': ['weapon-coating-lifecycle'],
   'WeaponInjectionAttack.test.js': ['weapon-injection-lifecycle', 'double-poison-and-weapon-rules'],
+  'ToxicologistService.test.js': ['toxicologist-infused-poison'],
+  'AfflictionServiceSystemDegree.test.js': ['pf2e-save-outcome'],
+  'FeatsServiceImprovedRecovery.test.js': ['improved-recovery-heritage'],
+  'TreatmentRobustRecovery.test.js': ['robust-recovery-treatment'],
+  'FeatModifierService.test.js': ['feat-exposure-modifiers', 'special-feat-saves'],
+  'FeatIntegration.test.js': ['feat-save-notes', 'special-feat-saves', 'stronger-debilitating-venom'],
+  'SaveRollModifiers.test.js': ['feat-exposure-modifiers'],
   'WeaponInjectionStore.test.js': ['weapon-injection-lifecycle', 'unlinked-token-storage'],
 };

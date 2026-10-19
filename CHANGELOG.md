@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.1] - 2026-10-19
+
+### Added
+
+- **Toxicologist infused poisons**: Infused poisons from an alchemist with the Toxicologist research field now affect poison-immune creatures and deal acid damage instead. Against other creatures, poison damage links offer poison or acid for the GM to choose. This replaces the old weapon-coating acid choice, which applied to any Toxicologist poison, not just infused ones.
+- **Fast Recovery variants**: Strong-Blooded Dwarf, Venom-Resistant Vishkanya, Wash Out, Inoculation Subroutine, and Inured to Alchemy now reduce stages like Fast Recovery for the affliction types they cover. Heritages are detected too. The chat note and button tooltip name the feature that applied.
+- **Robust Recovery**: Successful Treat Poison or Treat Disease grants +4 instead of +2 when the healer or the patient has the feat, and the patient's next successful save becomes a critical success.
+- **Exposure feats**: Potent Poisoner (+4 DC, up to class DC), Deadly Poison Weapon (+2 DC for injury poisons delivered by a Strike), Tenacious Toxins (longer maximum duration), Pinpoint Poisoner (–2 initial save vs off-guard targets), and the Stronggut Shisk heritage (50% longer onset and stages).
+- **Save notes**: Greater Field Discovery and Chemical Contagion post a button to spray the poison onto an adjacent creature after a failed initial save. Combustible Poison posts a persistent fire link. Poison Drinker posts a healing link on a critical success.
+- **Feat actions in the manager**: A star button offers Coral Detoxification (+2 save), Resilient Physiology (save where the stage can't increase), Virulent Strike (save where the stage can't decrease, –4 on a critical hit), and Purge System (reduce stage by 1 or 2).
+- **Stronger Debilitating Venom**: The Debilitating Venom picker adds Bungling, Devitalizing, Nauseating, and Weakening.
+
+### Fixed
+
+- **PF2e save adjustments**: Affliction saves now use the result PF2e computed. Rule elements that change the degree of success (Affliction Resistance, Divine Health, Lab Rat, Juggernaut, and similar) now apply. Falls back to the total when the roll used a different DC.
+- **Treat Poison/Disease roll options**: The module's Medicine roll is tagged as Treat Poison or Treat Disease, so PF2e bonuses tied to those actions apply.
+- **Live test harness**: Login works with Foundry 14.369's renamed join form. The addiction case checks conditions with `hasCondition` for PF2e 8.6.1. Slow dialog and ownership waits get longer timeouts, and a missing test icon was replaced. Added 8 live cases for the integrations above.
+
 ## [3.7.0] - 2026-10-09
 
 ### Added

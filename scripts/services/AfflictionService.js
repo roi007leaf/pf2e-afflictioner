@@ -1,4 +1,5 @@
 import { DEGREE_OF_SUCCESS, MODULE_ID } from '../constants.js';
+import { getSystemFlags } from '../systemCompat.js';
 import * as AfflictionStore from '../stores/AfflictionStore.js';
 import { AfflictionParser } from './AfflictionParser.js';
 import * as AfflictionDefinitionStore from '../stores/AfflictionDefinitionStore.js';
@@ -11,6 +12,8 @@ import { FeatsService } from './FeatsService.js';
 import * as ImmunityBypassRuleStore from '../stores/ImmunityBypassRuleStore.js';
 import { VisionerIntegrationService } from './VisionerIntegrationService.js';
 import { AddictionService } from './AddictionService.js';
+import { ToxicologistService } from './ToxicologistService.js';
+import { FeatModifierService } from './FeatModifierService.js';
 
 export class AfflictionService {
   static async promptInitialSave(token, afflictionData, actor = null) {
@@ -40,6 +43,9 @@ export class AfflictionService {
       afflictionData = AfflictionEditorService.applyEditedDefinition(afflictionData, editedDef);
     }
 
+    const sourceActor = await this.resolveSourceActor(afflictionData);
+    afflictionData = FeatModifierService.applyExposureFeats(afflictionData, { sourceActor, targetActor: actor });
+
     const immunityResult = await this.getActorAfflictionImmunityResult(actor, afflictionData);
     const matchingImmunities = immunityResult.remaining;
     if (immunityResult.bypassed.length > 0) {
@@ -51,6 +57,13 @@ export class AfflictionService {
     }
 
     if (afflictionData.isAddiction) return AddictionService.promptDrugUse(token, afflictionData, actor);
+
+    const toxicologistDamage = ToxicologistService.getDamageMode(
+      actor,
+      immunityResult.sourceActor || sourceActor,
+      afflictionData
+    );
+    if (toxicologistDamage) afflictionData.toxicologistDamage = toxicologistDamage;
 
     const existingAffliction = token
       ? this.findExistingAffliction(token, afflictionData.name)
@@ -130,7 +143,10 @@ export class AfflictionService {
     const sourceActor = await this.resolveSourceActor(afflictionData);
     if (!sourceActor) return { remaining: matchingImmunities, bypassed: [], sourceActor: null };
 
-    const bypassed = this.getBypassedImmunityTraits(sourceActor, afflictionData, matchingImmunities);
+    const bypassed = [...new Set([
+      ...this.getBypassedImmunityTraits(sourceActor, afflictionData, matchingImmunities),
+      ...ToxicologistService.getBypassedImmunities(sourceActor, afflictionData, matchingImmunities),
+    ])];
     if (bypassed.length === 0) return { remaining: matchingImmunities, bypassed: [], sourceActor };
 
     const bypassedSet = new Set(bypassed);
@@ -200,10 +216,10 @@ export class AfflictionService {
       .filter(type => type && afflictionTraits.has(type));
   }
 
-  static async handleInitialSave(token, affliction, saveTotal, dc, dieValue = null, actor = null) {
+  static async handleInitialSave(token, affliction, saveTotal, dc, dieValue = null, actor = null, systemDegree = null) {
     actor = actor || token?.actor;
     const entityName = token?.name || actor?.name || 'Unknown';
-    let degree = this.calculateAfflictionDegreeOfSuccess(saveTotal, dc, dieValue, actor, affliction);
+    let degree = this.calculateAfflictionDegreeOfSuccess(saveTotal, dc, dieValue, actor, affliction, systemDegree);
     if (affliction.isAddiction) return AddictionService.handleDrugSave(token, affliction, degree, actor);
 
     if (affliction.blowgunPoisonerCrit) {
@@ -216,6 +232,8 @@ export class AfflictionService {
         }));
       }
     }
+
+    await this.postPoisonDrinkerHealing(token, actor, affliction, degree);
 
     const isReExposure = affliction._isReExposure;
     const existingAfflictionId = affliction._existingAfflictionId;
@@ -249,6 +267,11 @@ export class AfflictionService {
         }));
         return;
       }
+    }
+
+    if (degree === DEGREE_OF_SUCCESS.FAILURE || degree === DEGREE_OF_SUCCESS.CRITICAL_FAILURE) {
+      if (affliction.sprayOnFailedInitialSave) await AfflictionChatService.postPoisonSpray(token, actor, affliction);
+      if (affliction.combustiblePoison) await AfflictionChatService.postCombustiblePoison(token, actor, affliction);
     }
 
     if (isReExposure && existingAfflictionId && affliction.type === 'poison' && (token || actor)) {
@@ -292,7 +315,8 @@ export class AfflictionService {
       nextSaveRound: combat ? combat.round : null,
       nextSaveInitiative: (combat && token) ? combat.combatants.find(c => c.tokenId === token.id)?.initiative : null,
       stageStartRound: combat ? combat.round : null,
-      nextSaveTimestamp: null
+      nextSaveTimestamp: null,
+      saveModifiers: []
     };
 
     if (affliction.onset) {
@@ -399,22 +423,25 @@ export class AfflictionService {
     await AfflictionChatService.promptDamage(token, affliction, actor);
   }
 
-  static async handleStageSave(token, affliction, saveTotal, dc, isManual = false, dieValue = null, actor = null) {
+  static async handleStageSave(token, affliction, saveTotal, dc, isManual = false, dieValue = null, actor = null, systemDegree = null) {
     actor = actor || token?.actor;
     if (isManual) {
       const stageDelta = saveTotal < dc ? 1 : -1;
       return this.adjustStageManually(token, affliction, stageDelta, actor);
     }
 
-    const degree = this.calculateAfflictionDegreeOfSuccess(saveTotal, dc, dieValue, actor, affliction);
+    const degree = this.calculateAfflictionDegreeOfSuccess(saveTotal, dc, dieValue, actor, affliction, systemDegree);
     if (affliction.isAddiction) return AddictionService.handleRecoverySave(token, affliction, degree, actor);
+    await this.postPoisonDrinkerHealing(token, actor, affliction, degree);
 
     let stageChange = 0;
     let newVirulentConsecutiveSuccesses = affliction.virulentConsecutiveSuccesses || 0;
     let showVirulentMessage = false;
 
     const fastRecoveryChange = FeatsService.getFastRecoveryStageChange(degree, affliction.isVirulent);
-    const fastRecoveryApplied = fastRecoveryChange !== null && FeatsService.hasFastRecovery(actor);
+    const recoveryFeature = fastRecoveryChange !== null ? FeatsService.getImprovedRecoveryFeature(actor, affliction) : null;
+    // Feature name (truthy) when a Fast Recovery-style feature applied, for the stage change note
+    const fastRecoveryApplied = recoveryFeature ? recoveryFeature.name : false;
     if (fastRecoveryApplied) {
       stageChange = fastRecoveryChange;
       newVirulentConsecutiveSuccesses = 0;
@@ -460,6 +487,8 @@ export class AfflictionService {
       }
     }
 
+    // Special saves (Virulent Strike, Resilient Physiology) limit which way the stage can move
+    stageChange = FeatModifierService.applySaveRule(stageChange, affliction.pendingSaveRule);
     const newStage = Math.max(0, affliction.currentStage + stageChange);
 
     return this._applyStageChange(token, affliction, newStage, {
@@ -468,6 +497,37 @@ export class AfflictionService {
       showVirulentMessage,
       fastRecoveryApplied,
     });
+  }
+
+  /**
+   * Starts a feat-granted save (Coral Detoxification, Resilient Physiology, Virulent Strike)
+   * or applies a direct stage reduction (Purge System).
+   */
+  static async startSpecialSave(token, affliction, kind, actor = null) {
+    actor = actor || token?.actor;
+    const effect = FeatModifierService.getSpecialSaveEffect(kind);
+    if (!effect) return;
+
+    if (effect.stageReduction) {
+      return this._applyStageChange(token, affliction, Math.max(0, affliction.currentStage - effect.stageReduction), { actor });
+    }
+
+    const updates = { saveModifiers: effect.saveModifiers || [], pendingSaveRule: effect.pendingSaveRule || null };
+    if (token) {
+      await AfflictionStore.updateAffliction(token, affliction.id, updates);
+    } else if (actor) {
+      await AfflictionStore.updateAfflictionForActor(actor, affliction.id, updates);
+    }
+    await AfflictionChatService.promptStageSave(token, { ...affliction, ...updates }, actor);
+  }
+
+  /** Poison Drinker: a critical Fortitude success against a poison heals HP equal to its level. */
+  static async postPoisonDrinkerHealing(token, actor, affliction, degree) {
+    if (degree !== DEGREE_OF_SUCCESS.CRITICAL_SUCCESS) return;
+    if ((affliction.saveType || 'fortitude') !== 'fortitude') return;
+    const traits = [affliction.type, ...(Array.isArray(affliction.traits) ? affliction.traits : [])];
+    if (!traits.includes('poison') || !FeatsService.hasFeat(actor, 'poison-drinker')) return;
+    await AfflictionChatService.postPoisonDrinker(token, actor, affliction);
   }
 
   static async adjustStageManually(token, affliction, stageDelta, actor = null) {
@@ -545,6 +605,9 @@ export class AfflictionService {
       currentStageResolvedDuration: null,
       treatmentBonus: 0,
       treatedThisStage: false,
+      treatmentRobustRecovery: false,
+      saveModifiers: [],
+      pendingSaveRule: null,
       virulentConsecutiveSuccesses: newVirulentConsecutiveSuccesses
     };
 
@@ -1288,21 +1351,39 @@ export class AfflictionService {
     return degree;
   }
 
-  static calculateAfflictionDegreeOfSuccess(total, dc, dieValue = null, actor = null, affliction = null) {
-    return this.calculateAfflictionDegreeResult(total, dc, dieValue, actor, affliction).degree;
+  /**
+   * The degree of success PF2e computed for a save roll message, including its
+   * AdjustDegreeOfSuccess rule elements (e.g. success -> critical success vs poison).
+   * Returns null when unavailable or when the roll targeted a different DC.
+   */
+  static getSystemSaveDegree(message, dc) {
+    const context = getSystemFlags(message)?.context;
+    const outcome = context?.outcome;
+    if (!Object.values(DEGREE_OF_SUCCESS).includes(outcome)) return null;
+
+    const rollDc = Number(context.dc?.value);
+    if (!Number.isFinite(rollDc) || rollDc !== Number(dc)) return null;
+    return outcome;
   }
 
-  static calculateAfflictionDegreeResult(total, dc, dieValue = null, actor = null, affliction = null) {
-    const rawDegree = this.calculateDegreeOfSuccess(total, dc, dieValue);
-    if (!this.shouldApplyIncapacitationUpgrade(actor, affliction)) {
-      return { degree: rawDegree, rawDegree, incapacitationApplied: false };
+  static calculateAfflictionDegreeOfSuccess(total, dc, dieValue = null, actor = null, affliction = null, systemDegree = null) {
+    return this.calculateAfflictionDegreeResult(total, dc, dieValue, actor, affliction, systemDegree).degree;
+  }
+
+  static calculateAfflictionDegreeResult(total, dc, dieValue = null, actor = null, affliction = null, systemDegree = null) {
+    const rawDegree = systemDegree || this.calculateDegreeOfSuccess(total, dc, dieValue);
+    const incapacitationApplied = this.shouldApplyIncapacitationUpgrade(actor, affliction);
+    let degree = incapacitationApplied ? this.upgradeDegree(rawDegree) : rawDegree;
+
+    // Robust Recovery: a successful save after a successful treatment becomes a critical success
+    if (affliction?.treatmentRobustRecovery && degree === DEGREE_OF_SUCCESS.SUCCESS) {
+      degree = DEGREE_OF_SUCCESS.CRITICAL_SUCCESS;
     }
 
-    const degree = this.upgradeDegree(rawDegree);
     return {
       degree,
       rawDegree,
-      incapacitationApplied: degree !== rawDegree
+      incapacitationApplied: incapacitationApplied && this.upgradeDegree(rawDegree) !== rawDegree
     };
   }
 

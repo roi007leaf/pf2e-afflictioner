@@ -163,8 +163,7 @@ export class WeaponCoatingService {
     const expirationMode = await this.promptCoatingDuration();
     if (expirationMode === null) return;
 
-    // Apply Toxicologist acid swap if applicable
-    const finalAfflictionData = this._withOriginActor(actor, this._applyToxicologistSwap(actor, afflictionData));
+    const finalAfflictionData = this._withOriginActor(actor, afflictionData);
 
     const applied = await this._applyCoatingWithPermission(storageTarget, selected.weaponId, {
       poisonItemUuid: itemUuid,
@@ -507,7 +506,7 @@ export class WeaponCoatingService {
    * @param {string} speakerActorId
    * @param {string} speakerTokenId
    * @param {string[]} targetTokenIds
-   * @param {{ hasDebilitatingVenom?: boolean }} options
+   * @param {{ hasDebilitatingVenom?: boolean, hasStrongerDebilitatingVenom?: boolean }} options
    * @returns {Promise<boolean|undefined>}
    */
   static async openCoatDialogWithData(afflictionData, speakerActorId, speakerTokenId, targetTokenIds = [], options = {}) {
@@ -517,7 +516,7 @@ export class WeaponCoatingService {
     let finalAfflictionData = afflictionData;
 
     if (options.hasDebilitatingVenom) {
-      const choice = await this._promptDebilitation();
+      const choice = await this._promptDebilitation({ stronger: !!options.hasStrongerDebilitatingVenom });
       if (choice === null) return; // User cancelled
       finalAfflictionData = VishkanyaService.applyDebilitation(afflictionData, choice);
     }
@@ -620,8 +619,7 @@ export class WeaponCoatingService {
     const expirationMode = await this.promptCoatingDuration();
     if (expirationMode === null) return;
 
-    // Apply Toxicologist acid swap if applicable
-    finalAfflictionData = this._withOriginActor(actor, this._applyToxicologistSwap(actor, finalAfflictionData));
+    finalAfflictionData = this._withOriginActor(actor, finalAfflictionData);
 
     const applied = await this._applyCoatingWithPermission(storageTarget, selected.weaponId, {
       poisonItemUuid: null,
@@ -833,37 +831,6 @@ export class WeaponCoatingService {
     return combatant?.id ?? null;
   }
 
-  /**
-   * If the actor has the Toxicologist feat, marks poison damage entries as choices
-   * between poison and acid damage types.
-   * @param {Actor} actor
-   * @param {object} afflictionData
-   * @returns {object} Modified affliction data (deep-copied if changed)
-   */
-  static _applyToxicologistSwap(actor, afflictionData) {
-    if (!FeatsService.hasToxicologistFieldVenom(actor)) return afflictionData;
-
-    const modified = JSON.parse(JSON.stringify(afflictionData));
-    let applied = false;
-
-    for (const stage of modified.stages) {
-      if (!stage.damage) continue;
-      stage.damage = stage.damage.map(d => {
-        if (d.type === 'poison' && !d.isChoice) {
-          applied = true;
-          return { ...d, isChoice: true, alternativeType: 'acid' };
-        }
-        return d;
-      });
-    }
-
-    if (applied) {
-      ui.notifications.info(game.i18n.localize(`${K}.TOXICOLOGIST_APPLIED`));
-    }
-
-    return modified;
-  }
-
   static _withOriginActor(actor, afflictionData) {
     if (!actor || !afflictionData) return afflictionData;
     const withOrigin = {
@@ -921,7 +888,7 @@ export class WeaponCoatingService {
   static _getPreparedCoatingAfflictionData(actor, item) {
     const afflictionData = AfflictionParser.parseFromItem(item);
     if (!afflictionData) return null;
-    return this._withOriginActor(actor, this._applyToxicologistSwap(actor, afflictionData));
+    return this._withOriginActor(actor, afflictionData);
   }
 
   static async createInjectionEffect(actor, weaponName, poisonName, poisonImg = null) {
@@ -1178,9 +1145,18 @@ export class WeaponCoatingService {
    * Prompts the GM to choose a Debilitating Venom debilitation before coating.
    * @returns {Promise<'none'|'hampering'|'stumbling'|null>} null means the dialog was cancelled
    */
-  static async _promptDebilitation() {
+  static async _promptDebilitation({ stronger = false } = {}) {
     const i = game.i18n;
     const V = 'PF2E_AFFLICTIONER.VISHKANYA';
+    const strongerCards = stronger
+      ? [['bungling', 'fa-hand-sparkles'], ['devitalizing', 'fa-heart-crack'], ['nauseating', 'fa-face-dizzy'], ['weakening', 'fa-hand-fist']]
+        .map(([value, icon]) => `
+        <div class="dv-card" data-value="${value}">
+          <div class="dv-card-icon"><i class="fas ${icon}"></i></div>
+          <div class="dv-card-label">${i.localize(`${V}.DEBILITATION_${value.toUpperCase()}`)}</div>
+          <div class="dv-card-hint">${i.localize(`${V}.DEBILITATION_${value.toUpperCase()}_HINT`)}</div>
+        </div>`).join('')
+      : '';
 
     const content = `
       <p class="dv-prompt">${i.localize(`${V}.DEBILITATION_PROMPT`)}</p>
@@ -1200,6 +1176,7 @@ export class WeaponCoatingService {
           <div class="dv-card-label">${i.localize(`${V}.DEBILITATION_STUMBLING`)}</div>
           <div class="dv-card-hint">${i.localize(`${V}.DEBILITATION_STUMBLING_HINT`)}</div>
         </div>
+        ${strongerCards}
       </div>
     `;
 

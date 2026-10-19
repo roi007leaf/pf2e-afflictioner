@@ -289,8 +289,8 @@
     "FEATS": {
       "BLOWGUN_POISONER_APPLIED": "Отравитель с духовой трубкой: степень успеха первичного спасброска {targetName} против {afflictionName} снижена на одну степень.",
       "BLOWGUN_POISONER_DEGRADED_TOOLTIP": "Отравитель с духовой трубкой: результат спасброска считается как {to}",
-      "FAST_RECOVERY_STAGE_CHANGE": "Быстрое восстановление: спасбросок {tokenName} уменьшил стадию {afflictionName} на {stages}.",
-      "FAST_RECOVERY_BUTTON_TOOLTIP": "Быстрое восстановление: стадия будет уменьшена на {stages}",
+      "FAST_RECOVERY_STAGE_CHANGE": "{feature}: спасбросок {tokenName} уменьшил стадию {afflictionName} на {stages}.",
+      "FAST_RECOVERY_BUTTON_TOOLTIP": "{feature}: стадия будет уменьшена на {stages}",
       "PERNICIOUS_POISON_APPLIED": "Губительный яд: {targetName} получает {damage} урона ядом от {afflictionName}",
       "PERNICIOUS_POISON_BUTTON_TOOLTIP": "Губительный яд: цель получает урон ядом, равный уровню яда если успешно проходит первичный спасбросок от него"
     },

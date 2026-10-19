@@ -4,6 +4,7 @@ import { getParserLocale } from '../locales/parser-locales.js';
 import { getConditionPack, getConditionUuidFromEntry } from '../systemCompat.js';
 import { RecoveryRestrictionService } from './RecoveryRestrictionService.js';
 import { AfflictionDamageService } from './AfflictionDamageService.js';
+import { ToxicologistService } from './ToxicologistService.js';
 
 export class AfflictionEffectBuilder {
   static async createOrUpdateEffect(token, actor, affliction, stage) {
@@ -379,7 +380,7 @@ export class AfflictionEffectBuilder {
       if (condition.name !== 'persistent damage' && condition.name !== 'persistent-damage') continue;
 
       const formula = AfflictionDamageService.adjustFormula(condition.persistentFormula || '1d6', affliction);
-      const damageType = condition.persistentType || 'untyped';
+      const damageType = ToxicologistService.resolveDamageType(condition.persistentType || 'untyped', affliction);
       const dc = affliction.dc || 15;
 
       const baseCondition = game.pf2e.ConditionManager.getCondition('persistent-damage');

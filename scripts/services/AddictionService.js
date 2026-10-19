@@ -128,7 +128,7 @@ export class AddictionService {
 
   static async handleRecoverySave(token, affliction, degree, actor = token?.actor) {
     if (!this.isEnabled() || !actor || !game.user.isGM || affliction.needsInitialSave || affliction.inOnset) return;
-    const fastRecovery = FeatsService.hasFastRecovery(actor) ? FeatsService.getFastRecoveryStageChange(degree, false) : null;
+    const fastRecovery = FeatsService.getImprovedRecoveryFeature(actor, affliction) ? FeatsService.getFastRecoveryStageChange(degree, false) : null;
     const reduction = fastRecovery !== null ? -fastRecovery : degree === DEGREE_OF_SUCCESS.CRITICAL_SUCCESS ? 2 : degree === DEGREE_OF_SUCCESS.SUCCESS ? 1 : 0;
     return this.changeStage(token, actor, affliction, Math.max(0, affliction.currentStage - reduction));
   }

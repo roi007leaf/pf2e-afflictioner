@@ -24,6 +24,14 @@ function getAfflictionTraitRollOptions(affliction) {
   ];
 }
 
+/** One-shot feat modifiers stored on the affliction (Pinpoint Poisoner, Coral Detoxification...). */
+export function buildSaveRollModifiers(affliction) {
+  const Modifier = game.pf2e?.Modifier;
+  const stored = Array.isArray(affliction?.saveModifiers) ? affliction.saveModifiers : [];
+  if (!Modifier || stored.length === 0) return [];
+  return stored.map(m => new Modifier({ label: m.label, modifier: m.value, type: m.type || 'circumstance' }));
+}
+
 function getCheckDialogRollOptions(event) {
   const skipDefault = !(game.user?.settings?.showCheckDialogs ?? true);
   return {
@@ -97,6 +105,8 @@ function registerInitialSaveButtons(root) {
       if (isBlindRoll) {
         rollOptions.messageMode = BLIND_MESSAGE_MODE;
       }
+      const saveModifiers = buildSaveRollModifiers(affliction);
+      if (saveModifiers.length > 0) rollOptions.modifiers = saveModifiers;
 
       const saveKey = affliction.saveType || 'fortitude';
       await actor.saves[saveKey].roll(rollOptions);
@@ -211,6 +221,8 @@ function registerStageSaveButtons(root) {
       if (actor.type === 'npc') {
         stageRollOptions.messageMode = BLIND_MESSAGE_MODE;
       }
+      const stageSaveModifiers = buildSaveRollModifiers(affliction);
+      if (stageSaveModifiers.length > 0) stageRollOptions.modifiers = stageSaveModifiers;
 
       const saveKey = affliction.saveType || 'fortitude';
       await actor.saves[saveKey].roll(stageRollOptions);
@@ -329,7 +341,8 @@ function registerReferencedSaveButtons(root) {
       if (!roll) return;
 
       const dieValue = AfflictionService.getDieValue(roll);
-      const degree = AfflictionService.calculateDegreeOfSuccess(roll.total, dc, dieValue);
+      const degree = AfflictionService.getSystemSaveDegree(rollMessage, dc)
+        || AfflictionService.calculateDegreeOfSuccess(roll.total, dc, dieValue);
 
       await AfflictionService.applyEffectOnlyResult(token, refData, degree);
 
@@ -367,7 +380,8 @@ export async function injectConfirmationButton(message, root) {
   const affliction = token
     ? AfflictionStore.getAffliction(token, afflictionId)
     : (actor ? AfflictionStore.getAfflictionForActor(actor, afflictionId) : null);
-  const degreeResult = AfflictionService.calculateAfflictionDegreeResult(saveTotal, dc, dieValue, actor, affliction);
+  const systemDegree = AfflictionService.getSystemSaveDegree(message, dc);
+  const degreeResult = AfflictionService.calculateAfflictionDegreeResult(saveTotal, dc, dieValue, actor, affliction, systemDegree);
   const degreeConstant = degreeResult.degree;
 
   const { DEGREE_OF_SUCCESS } = await import('../constants.js');
@@ -428,10 +442,12 @@ export async function injectConfirmationButton(message, root) {
 
   // Fast Recovery: show extra stage-reduction indicator on stage saves
   let fastRecoveryStages = 0;
+  let recoveryFeature = null;
   if (saveType === 'stage') {
     if (affliction) {
       const { FeatsService } = await import('../services/FeatsService.js');
-      if (FeatsService.hasFastRecovery(actor)) {
+      recoveryFeature = FeatsService.getImprovedRecoveryFeature(actor, affliction);
+      if (recoveryFeature) {
         const frChange = FeatsService.getFastRecoveryStageChange(degree, affliction.isVirulent);
         if (frChange !== null) fastRecoveryStages = Math.abs(frChange);
       }
@@ -484,7 +500,7 @@ export async function injectConfirmationButton(message, root) {
     ? ` <i class="fas fa-arrow-up" style="margin-left:5px;font-size:12px;opacity:0.9;pointer-events:all;color:#ffd166;" data-tooltip="${game.i18n.format('PF2E_AFFLICTIONER.SAVE_CONFIRMATION.INCAPACITATION_UPGRADED', { from: degreeLabels[degreeResult.rawDegree], to: degreeLabels[degreeResult.degree] })}"></i>`
     : '';
   const frInfoHtml = fastRecoveryStages > 0
-    ? ` <i class="fas fa-bolt" style="margin-left:5px;font-size:12px;opacity:0.9;pointer-events:all;color:#90ee90;" data-tooltip="${game.i18n.format('PF2E_AFFLICTIONER.FEATS.FAST_RECOVERY_BUTTON_TOOLTIP', { stages: fastRecoveryStages })}"></i>`
+    ? ` <i class="fas fa-bolt" style="margin-left:5px;font-size:12px;opacity:0.9;pointer-events:all;color:#90ee90;" data-tooltip="${game.i18n.format('PF2E_AFFLICTIONER.FEATS.FAST_RECOVERY_BUTTON_TOOLTIP', { feature: recoveryFeature?.name, stages: fastRecoveryStages })}"></i>`
     : '';
   const ppInfoHtml = perniciousPoisonActive
     ? ` <i class="fas fa-skull-crossbones" style="margin-left:5px;font-size:12px;opacity:0.9;pointer-events:all;color:#b19cd9;" data-tooltip="${game.i18n.localize('PF2E_AFFLICTIONER.FEATS.PERNICIOUS_POISON_BUTTON_TOOLTIP')}"></i>`

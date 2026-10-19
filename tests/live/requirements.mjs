@@ -11,6 +11,7 @@ export const requirements = [
   ['Immunity and edited definitions', ['actor-immunity', 'source-immunity-bypass', 'edited-definition', 'custom-icon-and-stage-editor']],
   ['Treatment and counteract recovery', ['treatment-result', 'counteract-result', 'recovery-restrictions']],
   ['Feat and ancestry rules', ['feat-adjustments', 'vishkanya-venom']],
+  ['Class feature, feat, and heritage integrations', ['toxicologist-infused-poison', 'pf2e-save-outcome', 'improved-recovery-heritage', 'robust-recovery-treatment', 'feat-exposure-modifiers', 'feat-save-notes', 'special-feat-saves', 'stronger-debilitating-venom']],
   ['Weapon coatings and injections', ['weapon-coating-lifecycle', 'weapon-injection-lifecycle', 'double-poison-and-weapon-rules', 'unlinked-token-storage']],
   ['Combat scheduling', ['combat-scheduled-save']],
   ['Chat privacy', ['chat-message-privacy']],

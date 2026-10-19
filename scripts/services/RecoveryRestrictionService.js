@@ -1,6 +1,7 @@
 import { MODULE_ID } from '../constants.js';
 import { getSystemFlags } from '../systemCompat.js';
 import { AfflictionDamageService } from './AfflictionDamageService.js';
+import { ToxicologistService } from './ToxicologistService.js';
 
 const DAMAGE_OPTION_PREFIX = `${MODULE_ID}:unhealable-damage:`;
 const DEBT_RULE_SLUG = `${MODULE_ID}-unhealable-damage`;
@@ -42,6 +43,12 @@ export class RecoveryRestrictionService {
   }
 
   static buildDamageLink(formula, type, affliction, adjustDamage = true) {
+    if (ToxicologistService.offersAcidChoice(type, affliction)) {
+      const poisonLink = this.buildDamageLink(formula, 'poison', { ...affliction, toxicologistDamage: null }, adjustDamage);
+      const acidLink = this.buildDamageLink(formula, 'acid', affliction, adjustDamage);
+      return `${poisonLink} ${game.i18n.localize('PF2E_AFFLICTIONER.CHAT.OR')} ${acidLink}`;
+    }
+    type = ToxicologistService.resolveDamageType(type, affliction);
     const typedFormula = type && type !== 'untyped' ? `${formula}[${type}]` : formula;
     const option = this.getDamageRollOption(affliction);
     // Damage is suffered by the speaker, not dealt using their damage bonuses.

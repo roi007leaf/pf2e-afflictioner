@@ -31,6 +31,7 @@ export function onRenderChatMessage(message, html) {
   registerDeathConfirmationHandler(root);
   registerApplyWeaponPoisonHandler(root);
   registerApplyWeaponInjectionHandler(root);
+  registerPoisonSprayHandler(root);
 
   injectCoatWeaponButton(message, root);
   scheduleChatLayoutDiagnostics(message, root);
@@ -315,7 +316,8 @@ function registerApplyWeaponPoisonHandler(root) {
     const targetTokenId = btn.dataset.targetTokenId;
     const actorId = btn.dataset.actorId;
     const weaponId = btn.dataset.weaponId;
-    const afflictionData = JSON.parse(decodeURIComponent(btn.dataset.afflictionData));
+    // Delivered by a Strike: enables Deadly Poison Weapon, Pinpoint Poisoner, Greater Field Discovery
+    const afflictionData = { ...JSON.parse(decodeURIComponent(btn.dataset.afflictionData)), deliveredByStrike: true };
 
     const target = canvas.tokens.get(targetTokenId);
     if (!target) {
@@ -351,6 +353,26 @@ function registerApplyWeaponPoisonHandler(root) {
   });
 }
 
+function registerPoisonSprayHandler(root) {
+  const btn = root.querySelector('.affliction-spray-exposure');
+  if (!btn || !game.user.isGM) return;
+
+  btn.addEventListener('click', async () => {
+    const targets = Array.from(game.user.targets ?? []);
+    if (targets.length === 0) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.FEATS.SPRAY_NO_TARGET'));
+      return;
+    }
+
+    const afflictionData = JSON.parse(decodeURIComponent(btn.dataset.afflictionData));
+    const { AfflictionService } = await import('../services/AfflictionService.js');
+    for (const target of targets) {
+      await AfflictionService.promptInitialSave(target, { ...afflictionData });
+    }
+    btn.disabled = true;
+  });
+}
+
 function registerApplyWeaponInjectionHandler(root) {
   const btn = root.querySelector('.pf2e-afflictioner-inject-weapon-poison');
   if (!btn) return;
@@ -359,7 +381,8 @@ function registerApplyWeaponInjectionHandler(root) {
     const targetTokenId = btn.dataset.targetTokenId;
     const actorId = btn.dataset.actorId;
     const weaponId = btn.dataset.weaponId;
-    const afflictionData = JSON.parse(decodeURIComponent(btn.dataset.afflictionData));
+    // Delivered by a Strike: enables Deadly Poison Weapon, Pinpoint Poisoner, Greater Field Discovery
+    const afflictionData = { ...JSON.parse(decodeURIComponent(btn.dataset.afflictionData)), deliveredByStrike: true };
 
     const target = canvas.tokens.get(targetTokenId);
     if (!target) {
@@ -448,9 +471,10 @@ async function injectCoatWeaponButton(message, root) {
     btn.addEventListener('click', async () => {
       const targetTokenIds = [...game.user.targets].map(t => t.id);
       const hasDebilitatingVenom = VishkanyaService.hasDebilitatingVenom(actor);
+      const hasStrongerDebilitatingVenom = VishkanyaService.hasStrongerDebilitatingVenom(actor);
       const data = JSON.parse(decodeURIComponent(btn.dataset.envenomData));
       const { WeaponCoatingService } = await import('../services/WeaponCoatingService.js');
-      const coated = await WeaponCoatingService.openCoatDialogWithData(data, speakerActorId, speakerTokenId, targetTokenIds, { hasDebilitatingVenom });
+      const coated = await WeaponCoatingService.openCoatDialogWithData(data, speakerActorId, speakerTokenId, targetTokenIds, { hasDebilitatingVenom, hasStrongerDebilitatingVenom });
       if (coated) {
         btn.disabled = true;
         btn.innerHTML = `<i class="fas fa-check"></i> ${game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.COAT_WEAPON_DONE')}`;

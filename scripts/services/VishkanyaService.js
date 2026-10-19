@@ -1,4 +1,5 @@
 import { FeatsService } from './FeatsService.js';
+import { FeatModifierService } from './FeatModifierService.js';
 
 const VENOM_TIERS = {
   base: {
@@ -37,6 +38,14 @@ const VENOM_TIERS = {
     ],
     maxDuration: { value: 6, unit: 'round' },
   },
+};
+
+// Stronger Debilitating Venom options: damage dice removed and condition value per stage
+export const STRONGER_DEBILITATIONS = {
+  bungling: { diceReduction: 1, condition: 'clumsy', values: [null, 1, 2] },
+  devitalizing: { diceReduction: 3, condition: 'drained', values: [null, 1, 2] },
+  nauseating: { diceReduction: 2, condition: 'sickened', values: [null, 1, 2] },
+  weakening: { diceReduction: 1, condition: 'enfeebled', values: [1, 1, 2] },
 };
 
 export class VishkanyaService {
@@ -121,6 +130,7 @@ export class VishkanyaService {
    */
   static applyDebilitation(afflictionData, choice) {
     if (!choice || choice === 'none') return afflictionData;
+    if (STRONGER_DEBILITATIONS[choice]) return this._applyStrongerDebilitation(afflictionData, STRONGER_DEBILITATIONS[choice]);
 
     const stages = afflictionData.stages.map((stage, index) => {
       const stageNum = index + 1;
@@ -148,6 +158,30 @@ export class VishkanyaService {
       }
 
       return s;
+    });
+
+    return { ...afflictionData, stages };
+  }
+
+  /** Returns true if the actor has Stronger Debilitating Venom (adds four more debilitations). */
+  static hasStrongerDebilitatingVenom(actor) {
+    return FeatsService.hasFeat(actor, 'stronger-debilitating-venom');
+  }
+
+  /**
+   * Stronger Debilitating Venom: fewer damage dice at every stage, plus a condition per stage.
+   * @param {object} afflictionData
+   * @param {{ diceReduction: number, condition: string, values: (number|null)[] }} debilitation
+   */
+  static _applyStrongerDebilitation(afflictionData, { diceReduction, condition, values }) {
+    const stages = afflictionData.stages.map((stage, index) => {
+      const damage = (stage.damage ?? [])
+        .map(d => ({ ...d, formula: FeatModifierService.reduceDamageDice(d.formula, diceReduction) }))
+        .filter(d => d.formula);
+      const conditions = (stage.conditions ?? []).filter(c => c.name !== condition);
+      const value = values[index];
+      if (value) conditions.push({ name: condition, value });
+      return { ...stage, damage, conditions };
     });
 
     return { ...afflictionData, stages };

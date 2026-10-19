@@ -404,6 +404,61 @@ export class AfflictionChatService {
     });
   }
 
+  static async postFeatNote(token, actor, { icon, heading, body }) {
+    await ChatMessage.create({
+      content: `
+        <div class="pf2e-afflictioner-save-request">
+          <h3><i class="fas ${icon}"></i> ${heading}</h3>
+          ${body}
+        </div>
+      `,
+      speaker: token ? ChatMessage.getSpeaker({ token }) : ChatMessage.getSpeaker({ actor }),
+      whisper: game.users.filter(u => u.isGM).map(u => u.id)
+    });
+  }
+
+  /** Greater Field Discovery: the wound sprays the poison onto an adjacent creature. */
+  static async postPoisonSpray(token, actor, affliction) {
+    const sprayData = { ...affliction, sprayOnFailedInitialSave: false };
+    for (const key of ['id', 'currentStage', 'needsInitialSave', '_isReExposure', '_existingAfflictionId', 'saveModifiers']) {
+      delete sprayData[key];
+    }
+    const entityName = token?.name || actor?.name || 'Unknown';
+    await this.postFeatNote(token, actor, {
+      icon: 'fa-spray-can',
+      heading: game.i18n.format('PF2E_AFFLICTIONER.FEATS.SPRAY_HEADING', { afflictionName: affliction.name }),
+      body: `
+        <p>${game.i18n.format('PF2E_AFFLICTIONER.FEATS.SPRAY_NOTE', { tokenName: entityName })}</p>
+        <button class="affliction-spray-exposure" data-affliction-data="${encodeURIComponent(JSON.stringify(sprayData))}" style="width: 100%; padding: 8px; margin-top: 6px;">
+          <i class="fas fa-biohazard"></i> ${game.i18n.localize('PF2E_AFFLICTIONER.FEATS.SPRAY_BUTTON')}
+        </button>`
+    });
+  }
+
+  /** Combustible Poison additive: failing the initial save also deals persistent fire. */
+  static async postCombustiblePoison(token, actor, affliction) {
+    await this.postFeatNote(token, actor, {
+      icon: 'fa-fire',
+      heading: game.i18n.format('PF2E_AFFLICTIONER.FEATS.COMBUSTIBLE_HEADING', { afflictionName: affliction.name }),
+      body: `
+        <p>${game.i18n.localize('PF2E_AFFLICTIONER.FEATS.COMBUSTIBLE_NOTE')}</p>
+        <p>@Damage[1d4[persistent,fire]]</p>`
+    });
+  }
+
+  /** Poison Drinker: regain HP equal to the poison's level. */
+  static async postPoisonDrinker(token, actor, affliction) {
+    const level = Math.max(1, Number(affliction.level) || 0);
+    const entityName = token?.name || actor?.name || 'Unknown';
+    await this.postFeatNote(token, actor, {
+      icon: 'fa-wine-glass',
+      heading: game.i18n.format('PF2E_AFFLICTIONER.FEATS.POISON_DRINKER_HEADING', { afflictionName: affliction.name }),
+      body: `
+        <p>${game.i18n.format('PF2E_AFFLICTIONER.FEATS.POISON_DRINKER_NOTE', { tokenName: entityName })}</p>
+        <p>@Damage[${level}[healing]]</p>`
+    });
+  }
+
   static async postStageChange(token, affliction, oldStage, newStage, options = {}) {
     const actor = options.actor || token?.actor;
     const entityName = token?.name || actor?.name || affliction.name;
@@ -441,7 +496,7 @@ export class AfflictionChatService {
     }
 
     const fastRecoveryNote = (options.fastRecovery && newStage < oldStage)
-      ? `<div class="pf2e-afflictioner-stage-change__note" style="margin-top:6px;padding:5px 8px;background:rgba(0,0,0,0.3);border-left:3px solid #4a9c2a;border-radius:3px;font-size:0.85em;color:#f5f5f5;"><i class="fas fa-bolt" style="margin-right:4px;"></i>${game.i18n.format('PF2E_AFFLICTIONER.FEATS.FAST_RECOVERY_STAGE_CHANGE', { tokenName: entityName, afflictionName: affliction.name, stages: oldStage - newStage })}</div>`
+      ? `<div class="pf2e-afflictioner-stage-change__note" style="margin-top:6px;padding:5px 8px;background:rgba(0,0,0,0.3);border-left:3px solid #4a9c2a;border-radius:3px;font-size:0.85em;color:#f5f5f5;"><i class="fas fa-bolt" style="margin-right:4px;"></i>${game.i18n.format('PF2E_AFFLICTIONER.FEATS.FAST_RECOVERY_STAGE_CHANGE', { feature: typeof options.fastRecovery === 'string' ? options.fastRecovery : 'Fast Recovery', tokenName: entityName, afflictionName: affliction.name, stages: oldStage - newStage })}</div>`
       : '';
 
     const hasDamage = (newStageData?.damage?.length > 0) ||

@@ -158,6 +158,30 @@ async function storeAffliction(store, target, value = affliction()) {
   return store.getAffliction(target, value.id);
 }
 
+// Character actor + token carrying real feat/heritage items (NPCs can't hold feats).
+async function featCharacter(fixture, { feats = [], heritage = null, name = 'Feat Holder', x = 1200 } = {}) {
+  const flag = { [MODULE]: { [MARKER]: fixture.runId } };
+  const [character] = await globalThis.Actor.createDocuments([{ name: `Afflictioner QA ${name}`, type: 'character', flags: flag,
+    prototypeToken: { actorLink: true } }]);
+  const items = feats.map(slug => ({ name: slug, type: 'feat', system: { slug, category: 'skill', level: { value: 1 } }, flags: flag }));
+  if (heritage) items.push({ name: heritage, type: 'heritage', system: { slug: heritage }, flags: flag });
+  if (items.length) await character.createEmbeddedDocuments('Item', items);
+  const [tokenDoc] = await canvas.scene.createEmbeddedDocuments('Token', [{ name: character.name, actorId: character.id, actorLink: true, x, y: 500, flags: flag }]);
+  await waitFor(() => canvas.tokens.get(tokenDoc.id), 'feat character token');
+  return canvas.tokens.get(tokenDoc.id);
+}
+
+function featStage(number, formula) {
+  return { ...stage(number), duration: { value: 1, unit: 'round' }, damage: [{ formula, type: 'poison' }] };
+}
+
+async function rollSave(actor, dc, extra = {}) {
+  const before = new Set(game.messages.map(message => message.id));
+  await actor.saves.fortitude.roll({ dc: { value: dc }, skipDialog: true, ...extra });
+  await waitFor(() => game.messages.some(message => !before.has(message.id) && message.flags?.pf2e?.context?.type === 'saving-throw'), 'save roll message');
+  return game.messages.contents.findLast(message => !before.has(message.id) && message.flags?.pf2e?.context?.type === 'saving-throw');
+}
+
 async function runWorkflow(name, fixture) {
   const m = await modules();
   const { target, actor } = documents(fixture);
@@ -230,7 +254,7 @@ async function runWorkflow(name, fixture) {
     await game.settings.set(MODULE, 'enableAddictionRules', true);
     const { AddAfflictionDialog } = await import('../../scripts/managers/AddAfflictionDialog.js');
     const [drug] = await actor.createEmbeddedDocuments('Item', [{
-      name: 'QA Pesh', type: 'consumable', img: 'icons/consumables/potions/vial-cork-orange.webp',
+      name: 'QA Pesh', type: 'consumable', img: 'icons/svg/biohazard.svg',
       system: { traits: { value: ['drug', 'poison', 'alchemical', 'consumable'] }, description: { value: '<p>Saving Throw @Check[fortitude|dc:20]</p>' } },
     }]);
     const picker = new AddAfflictionDialog(target, { addictionMode: true });
@@ -239,7 +263,7 @@ async function runWorkflow(name, fixture) {
       picker._onDrop = async event => { try { await onDrop(event); resolve(); } catch (error) { reject(error); } };
     });
     picker.render(true);
-    await waitFor(() => !!picker.element?.querySelector('.drop-zone'), 'drug drop dialog');
+    await waitFor(() => !!picker.element?.querySelector('.drop-zone'), 'drug drop dialog', 20000);
     checks.push(assertion('addiction dialog shows drug picker and manual fallback', !!picker.element.querySelector(`[data-item-uuid="${drug.uuid}"]`) && !!picker.element.querySelector('[data-action="addManual"]')));
     const drop = new Event('drop', { bubbles: true, cancelable: true });
     Object.defineProperty(drop, 'dataTransfer', { value: { getData: () => JSON.stringify({ type: 'Item', uuid: drug.uuid }) } });
@@ -255,25 +279,25 @@ async function runWorkflow(name, fixture) {
     await m.store.updateAffliction(target, value.id, { onsetEndsAt: game.time.worldTime, suppressedUntil: game.time.worldTime });
     await addiction.processTime(target, actor, m.store.getAffliction(target, value.id));
     saved = m.store.getAffliction(target, value.id);
-    checks.push(assertion('onset applies fatigued and sickened natively', actor.conditions.has('fatigued') && actor.conditions.has('sickened')));
+    checks.push(assertion('onset applies fatigued and sickened natively', actor.hasCondition('fatigued') && actor.hasCondition('sickened')));
     await m.service.AfflictionService.handleStageSave(target, saved, 9, 20, false, 10);
     checks.push(assertion('failed weekly save cannot worsen stage', m.store.getAffliction(target, value.id)?.currentStage === 2));
     await m.service.AfflictionService.handleStageSave(target, m.store.getAffliction(target, value.id), 20, 20, false, 10);
     checks.push(assertion('successful recovery preserves highest stage', m.store.getAffliction(target, value.id)?.currentStage === 1 && api.getAddictionMaximum(target, 'QA Pesh') === 2));
     await api.takeDrug(target, 'QA Pesh', 20);
-    checks.push(assertion('drug use immediately suppresses native conditions', !actor.conditions.has('fatigued') && !actor.conditions.has('sickened')));
+    checks.push(assertion('drug use immediately suppresses native conditions', !actor.hasCondition('fatigued') && !actor.hasCondition('sickened')));
     await m.service.AfflictionService.handleInitialSave(target, m.store.getAffliction(target, value.id), 19, 20, 10);
     checks.push(assertion('relapse advances from maximum instead of current stage', m.store.getAffliction(target, value.id)?.currentStage === 3));
     await m.store.updateAffliction(target, value.id, { suppressedUntil: game.time.worldTime });
     await addiction.processTime(target, actor, m.store.getAffliction(target, value.id));
-    checks.push(assertion('suppression expiry restores fatigued sickened and drained', actor.conditions.has('fatigued') && actor.conditions.has('sickened') && actor.conditions.has('drained')));
+    checks.push(assertion('suppression expiry restores fatigued sickened and drained', actor.hasCondition('fatigued') && actor.hasCondition('sickened') && actor.hasCondition('drained')));
     const app = new m.manager.AfflictionManager({ filterTokenId: target.id });
     app.render(true);
     await waitFor(() => !!app.element?.querySelector('[data-action="takeDrug"]'), 'addiction controls');
     checks.push(assertion('manager renders add and take-drug controls', !!app.element.querySelector('[data-action="addAddiction"]') && app.element.textContent.includes('Highest stage: 3')));
     await app.close();
     await api.removeAffliction(target, value.id);
-    checks.push(assertion('removal preserves history and clears addiction symptoms', api.getAddictionMaximum(target, 'QA Pesh') === 3 && !actor.conditions.has('fatigued') && !actor.conditions.has('drained')));
+    checks.push(assertion('removal preserves history and clears addiction symptoms', api.getAddictionMaximum(target, 'QA Pesh') === 3 && !actor.hasCondition('fatigued') && !actor.hasCondition('drained')));
     await api.takeDrug(target, 'QA Pesh', 20);
     const relapse = Object.values(m.store.getAfflictions(target)).find(a => a.isAddiction);
     await m.service.AfflictionService.handleInitialSave(target, relapse, 9, 20, 10);
@@ -454,6 +478,112 @@ async function runWorkflow(name, fixture) {
     const stumbling = m.vishkanya.VishkanyaService.applyDebilitation(venom, 'stumbling');
     checks.push(assertion('Vishkanya tier, DC, and virulent trait derive from actor', venom.name === 'Moderate Vishkanyan Venom' && venom.dc === 27 && venom.isVirulent === true, venom));
     checks.push(assertion('Debilitating Venom adds off-guard at later stages', stumbling.stages[1].conditions.some(condition => condition.name === 'off-guard')));
+  } else if (name === 'toxicologist-infused-poison') {
+    const alchemist = await featCharacter(fixture, { feats: ['toxicologist'], name: 'Toxicologist' });
+    await actor.createEmbeddedDocuments('Item', [{ name: 'QA Poison Immunity', type: 'effect', system: { duration: { value: -1, unit: 'unlimited' }, rules: [{ key: 'Immunity', type: 'poison' }] }, flags: { [MODULE]: { [MARKER]: fixture.runId } } }]);
+    await waitFor(() => actor.system.attributes.immunities.some(entry => entry.type === 'poison'), 'poison immunity');
+    const infused = { ...affliction(), name: 'QA Infused Venom', traits: ['alchemical', 'infused', 'injury', 'poison'], stages: [featStage(1, '2d6'), featStage(2, '3d6')], originActorId: alchemist.actor.id, originActorUuid: alchemist.actor.uuid };
+    delete infused.id; delete infused.currentStage;
+    await m.service.AfflictionService.promptInitialSave(target, { ...infused });
+    const stored = Object.values(m.store.getAfflictions(target)).find(entry => entry.name === 'QA Infused Venom');
+    checks.push(assertion('infused poison from a real Toxicologist bypasses PF2e poison immunity', !!stored, Object.values(m.store.getAfflictions(target)).map(entry => entry.name)));
+    checks.push(assertion('poison-immune target takes acid instead', stored?.toxicologistDamage === 'acid' && m.recovery.RecoveryRestrictionService.buildDamageLink('2d6', 'poison', stored).includes('[acid]'), stored?.toxicologistDamage));
+    const plain = { ...infused, name: 'QA Plain Venom', traits: ['alchemical', 'injury', 'poison'] };
+    await m.service.AfflictionService.promptInitialSave(target, plain);
+    checks.push(assertion('non-infused poison still respects immunity', !Object.values(m.store.getAfflictions(target)).some(entry => entry.name === 'QA Plain Venom')));
+  } else if (name === 'pf2e-save-outcome') {
+    await actor.createEmbeddedDocuments('Item', [{
+      name: 'QA Poison Hardiness', type: 'effect', flags: { [MODULE]: { [MARKER]: fixture.runId } },
+      system: { duration: { value: -1, unit: 'unlimited' }, rules: [{ key: 'AdjustDegreeOfSuccess', selector: 'saving-throw', predicate: ['item:trait:poison'], adjustment: { success: 'one-degree-better', failure: 'one-degree-better', criticalFailure: 'one-degree-better' } }] },
+    }]);
+    const value = affliction();
+    const dc = 15;
+    const message = await rollSave(actor, dc, { extraRollOptions: ['poison', 'item:trait:poison'] });
+    const roll = message.rolls[0];
+    const raw = m.service.AfflictionService.calculateDegreeOfSuccess(roll.total, dc, m.service.AfflictionService.getDieValue(message));
+    const systemDegree = m.service.AfflictionService.getSystemSaveDegree(message, dc);
+    const expected = raw === 'criticalSuccess' ? 'criticalSuccess' : m.service.AfflictionService.upgradeDegree(raw);
+    checks.push(assertion('PF2e applied the poison save adjustment through our roll options', systemDegree === expected, { total: roll.total, raw, systemDegree }));
+    checks.push(assertion('affliction save handling uses the PF2e outcome', m.service.AfflictionService.calculateAfflictionDegreeResult(roll.total, dc, null, actor, value, systemDegree).degree === systemDegree));
+    checks.push(assertion('outcome for a different DC is ignored', m.service.AfflictionService.getSystemSaveDegree(message, dc + 1) === null));
+  } else if (name === 'improved-recovery-heritage') {
+    const dwarf = await featCharacter(fixture, { heritage: 'strong-blooded-dwarf', name: 'Dwarf' });
+    const value = { ...affliction(), currentStage: 3, stages: [stage(1), stage(2), stage(3)] };
+    await storeAffliction(m.store, dwarf, value);
+    checks.push(assertion('real heritage item is detected for poisons only', m.feats.FeatsService.getImprovedRecoveryFeature(dwarf.actor, value)?.slug === 'strong-blooded-dwarf' && !m.feats.FeatsService.getImprovedRecoveryFeature(dwarf.actor, { ...value, type: 'disease', traits: ['disease'] })));
+    await m.service.AfflictionService.handleStageSave(dwarf, m.store.getAffliction(dwarf, value.id), 25, 20, false, 10, dwarf.actor);
+    checks.push(assertion('successful save drops a poison by two stages', m.store.getAffliction(dwarf, value.id)?.currentStage === 1, m.store.getAffliction(dwarf, value.id)?.currentStage));
+  } else if (name === 'robust-recovery-treatment') {
+    const healer = await featCharacter(fixture, { feats: ['robust-recovery'], name: 'Healer' });
+    const value = await storeAffliction(m.store, target, { ...affliction(), currentStage: 2 });
+    await m.treatment.TreatmentService.handleTreatmentResult(target, value, 22, 20, actor, healer.actor);
+    const saved = m.store.getAffliction(target, value.id);
+    checks.push(assertion('Robust Recovery healer turns a successful treatment into +4', saved?.treatmentBonus === 4 && saved.treatmentRobustRecovery === true, saved));
+    checks.push(assertion('next successful save becomes a critical success', m.service.AfflictionService.calculateAfflictionDegreeResult(22, 20, 10, actor, saved).degree === 'criticalSuccess'));
+    const effect = actor.items.find(item => item.flags?.[MODULE]?.isTreatmentBonus);
+    checks.push(assertion('treatment effect carries the +4 circumstance bonus', effect?.system?.rules?.[0]?.value === 4, effect?.system?.rules));
+  } else if (name === 'feat-exposure-modifiers') {
+    const { FeatModifierService } = await import('../../scripts/services/FeatModifierService.js');
+    await actor.increaseCondition('off-guard');
+    await waitFor(() => actor.hasCondition('off-guard'), 'off-guard condition');
+    const poisoner = { classDC: { dc: { value: 30 } }, items: ['potent-poisoner', 'deadly-poison-weapon', 'pinpoint-poisoner', 'tenacious-toxins'].map(slug => ({ type: 'feat', system: { slug } })) };
+    const base = { ...affliction(), traits: ['alchemical', 'injury', 'poison'], dc: 20, maxDuration: { value: 6, unit: 'round' }, stages: [featStage(1, '2d6'), featStage(2, '3d6')], deliveredByStrike: true };
+    const result = FeatModifierService.applyExposureFeats(base, { sourceActor: poisoner, targetActor: actor });
+    checks.push(assertion('Potent Poisoner and Deadly Poison Weapon raise DC up to class DC', result.dc === 26, result.dc));
+    checks.push(assertion('Pinpoint Poisoner reads the real PF2e off-guard condition', result.saveModifiers?.some(entry => entry.value === -2)));
+    checks.push(assertion('Tenacious Toxins extends maximum duration', result.maxDuration.value === 7, result.maxDuration));
+    const shisk = await featCharacter(fixture, { heritage: 'stronggut-shisk', name: 'Shisk' });
+    const slowed = FeatModifierService.applyExposureFeats({ ...base, onset: { value: 1, unit: 'minute' }, stages: [{ ...featStage(1, '1d6'), duration: { value: 2, unit: 'hour' } }] }, { targetActor: shisk.actor });
+    checks.push(assertion('Stronggut Shisk heritage lengthens onset and stages', slowed.onset.value === 15 && slowed.onset.unit === 'round' && slowed.stages[0].duration.value === 3, { onset: slowed.onset, duration: slowed.stages[0].duration }));
+    const { buildSaveRollModifiers } = await import('../../scripts/handlers/saveButtons.js');
+    const message = await rollSave(actor, 20, { modifiers: buildSaveRollModifiers(result) });
+    const modifiers = message.flags?.pf2e?.modifiers ?? [];
+    checks.push(assertion('stored save modifier reaches a real PF2e save roll', modifiers.some(entry => entry.modifier === -2 && entry.type === 'circumstance' && entry.enabled !== false), modifiers.map(entry => [entry.label, entry.modifier])));
+  } else if (name === 'feat-save-notes') {
+    const drinker = await featCharacter(fixture, { feats: ['poison-drinker'], name: 'Drinker' });
+    const spray = { ...affliction(), needsInitialSave: true, currentStage: -1, sprayOnFailedInitialSave: true, combustiblePoison: true, traits: ['alchemical', 'infused', 'injury', 'poison'] };
+    await storeAffliction(m.store, target, spray);
+    await m.service.AfflictionService.handleInitialSave(target, m.store.getAffliction(target, spray.id), 5, 20, 5, actor);
+    await waitFor(() => document.querySelector('#chat .affliction-spray-exposure, #chat-log .affliction-spray-exposure'), 'spray button render', 8000);
+    const contents = game.messages.contents.slice(-6).map(message => message.content).join('\n');
+    checks.push(assertion('combustible note offers persistent fire', contents.includes('1d4[persistent,fire]')));
+    const sourceToken = canvas.tokens.get(fixture.source);
+    sourceToken.setTarget(true, { releaseOthers: true });
+    const button = [...document.querySelectorAll('.affliction-spray-exposure')].at(-1);
+    button.click();
+    await waitFor(() => Object.keys(m.store.getAfflictions(sourceToken)).length > 0, 'spray exposure', 8000);
+    checks.push(assertion('clicking the spray button exposes the targeted creature', Object.values(m.store.getAfflictions(sourceToken))[0]?.needsInitialSave === true));
+    sourceToken.setTarget(false);
+    const drink = { ...affliction(), needsInitialSave: true, currentStage: -1, level: 5 };
+    await storeAffliction(m.store, drinker, drink);
+    await m.service.AfflictionService.handleInitialSave(drinker, m.store.getAffliction(drinker, drink.id), 40, 20, 15, drinker.actor);
+    checks.push(assertion('Poison Drinker posts a healing link on a critical success', game.messages.contents.slice(-3).some(message => message.content.includes('5[healing]'))));
+  } else if (name === 'special-feat-saves') {
+    const holder = await featCharacter(fixture, { feats: ['coral-detoxification', 'purge-system'], name: 'Athamaru' });
+    const value = await storeAffliction(m.store, holder, { ...affliction(), currentStage: 2 });
+    await game.modules.get(MODULE).api.openManager({ filterTokenId: holder.id });
+    await waitFor(() => document.querySelector('#pf2e-afflictioner-manager [data-action="specialSave"]'), 'feat actions button');
+    checks.push(assertion('manager shows the feat actions button for a qualifying actor', !!document.querySelector('#pf2e-afflictioner-manager [data-action="specialSave"]')));
+    await m.manager.AfflictionManager.currentInstance?.close();
+    await m.service.AfflictionService.startSpecialSave(holder, m.store.getAffliction(holder, value.id), 'coral-detoxification', holder.actor);
+    checks.push(assertion('Coral Detoxification stores +2 for the next save', m.store.getAffliction(holder, value.id)?.saveModifiers?.[0]?.value === 2));
+    await m.service.AfflictionService.startSpecialSave(holder, m.store.getAffliction(holder, value.id), 'virulent-strike', holder.actor);
+    await m.service.AfflictionService.handleStageSave(holder, m.store.getAffliction(holder, value.id), 25, 20, false, 10, holder.actor);
+    const afterStrike = m.store.getAffliction(holder, value.id);
+    checks.push(assertion('Virulent Strike save success keeps the stage and clears the rule', afterStrike?.currentStage === 2 && !afterStrike.pendingSaveRule && afterStrike.saveModifiers?.length === 0, afterStrike));
+    await m.service.AfflictionService.startSpecialSave(holder, afterStrike, 'purge-system', holder.actor);
+    checks.push(assertion('Purge System lowers the stage by one', m.store.getAffliction(holder, value.id)?.currentStage === 1));
+  } else if (name === 'stronger-debilitating-venom') {
+    const vishActor = { classDC: { dc: { value: 27 } }, items: [{ type: 'feat', system: { slug: 'greater-enhance-venom' } }, { type: 'feat', system: { slug: 'debilitating-venom' } }, { type: 'feat', system: { slug: 'stronger-debilitating-venom' } }] };
+    checks.push(assertion('Stronger Debilitating Venom is detected', m.vishkanya.VishkanyaService.hasStrongerDebilitatingVenom(vishActor)));
+    const venom = m.vishkanya.VishkanyaService.buildVenomAfflictionData(vishActor);
+    const devitalized = m.vishkanya.VishkanyaService.applyDebilitation(venom, 'devitalizing');
+    checks.push(assertion('Devitalizing removes 3 dice and adds drained', devitalized.stages[2].damage[0]?.formula === '8d6' && devitalized.stages[2].conditions.some(c => c.name === 'drained' && c.value === 2), devitalized.stages[2]));
+    const pending = m.weapon.WeaponCoatingService._promptDebilitation({ stronger: true });
+    await waitFor(() => document.querySelectorAll('.dv-grid .dv-card').length > 0, 'debilitation dialog');
+    checks.push(assertion('debilitation dialog shows all seven options', document.querySelectorAll('.dv-grid .dv-card').length === 7));
+    document.querySelector('.dv-card[data-value="weakening"]').click();
+    checks.push(assertion('picking a stronger option returns it', await pending === 'weakening'));
   } else if (name === 'weapon-coating-lifecycle') {
     const [weapon] = await actor.createEmbeddedDocuments('Item', [{ name: 'QA Blade', type: 'weapon', system: { category: 'martial', group: 'sword', baseItem: 'longsword', damage: { dice: 1, die: 'd8', damageType: 'slashing' }, traits: { value: [] } } }]);
     await m.coating.addCoating(target, weapon.id, { poisonName: 'QA Venom', weaponName: weapon.name, expirationMode: '1-minute', appliedTimestamp: game.time.worldTime });
@@ -617,7 +747,7 @@ export async function runPlayerCase({ name, fixture, allowed }) {
   await view(fixture);
   const { target } = documents(fixture);
   if (name !== 'player-coating-access') throw Error(`Unknown player workflow: ${name}`);
-  if (allowed) await waitFor(() => target.actor?.isOwner === true, 'player actor ownership');
+  if (allowed) await waitFor(() => target.actor?.isOwner === true, 'player actor ownership', 15000);
   const { AfflictionManager } = await import('../../scripts/managers/AfflictionManager.js');
   const actual = AfflictionManager.canOpenLimitedCoatingView({ filterTokenId: target.id });
   return [{ label: allowed ? 'owning player is allowed when enabled' : 'player is denied when disabled', status: actual === allowed ? 'passed' : 'failed' }];

@@ -58,9 +58,9 @@ async function login(context, url, accountValue, isGM) {
   const page = await context.newPage();
   page.setDefaultTimeout(20000);
   await page.goto(`${url}/join`);
-  await page.locator('select[name="userid"], input[name="username"]').first().waitFor();
+  await page.locator('select[name="userid"], select[name="userId"], input[name="username"]').first().waitFor();
   assertQaWorld(await page.evaluate(() => globalThis.game?.world?.id), expectedWorld);
-  const select = page.locator('select[name="userid"]');
+  const select = page.locator('select[name="userid"], select[name="userId"]');
   if (await select.count()) {
     const options = await select.locator('option').evaluateAll(nodes => nodes.map(node => ({ label: node.textContent.trim(), value: node.value })));
     const match = options.find(option => option.label.toLowerCase() === accountValue.username.trim().toLowerCase());

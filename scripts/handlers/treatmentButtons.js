@@ -38,10 +38,15 @@ export function registerTreatmentButtonHandlers(root) {
         return;
       }
 
-      const roll = await treatingActor.skills.medicine.roll({ dc: { value: dc } });
+      // Tag the roll as the Treat action so PF2e rule elements predicated on it apply
+      const action = affliction.type === 'poison' ? 'treat-poison' : 'treat-disease';
+      const roll = await treatingActor.skills.medicine.roll({
+        dc: { value: dc },
+        extraRollOptions: [`action:${action}`],
+      });
 
       const { SocketService } = await import('../services/SocketService.js');
-      await SocketService.requestHandleTreatment(tokenId, afflictionId, roll.total, dc, actorId);
+      await SocketService.requestHandleTreatment(tokenId, afflictionId, roll.total, dc, actorId, treatingActor.id);
 
       btn.disabled = true;
     });
@@ -113,7 +118,7 @@ export async function addTreatmentAfflictionSelection(message, htmlElement) {
       button.addEventListener('click', async () => {
         try {
           const { TreatmentService } = await import('../services/TreatmentService.js');
-          await TreatmentService.handleTreatmentResult(token, affliction, rollTotal, affliction.dc);
+          await TreatmentService.handleTreatmentResult(token, affliction, rollTotal, affliction.dc, null, actor);
 
           button.disabled = true;
           button.style.opacity = '0.5';

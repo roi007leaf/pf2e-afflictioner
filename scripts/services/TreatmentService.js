@@ -1,6 +1,7 @@
 import { AfflictionService } from './AfflictionService.js';
 import * as AfflictionStore from '../stores/AfflictionStore.js';
 import { DEGREE_OF_SUCCESS } from '../constants.js';
+import { FeatsService } from './FeatsService.js';
 
 export class TreatmentService {
   static async promptTreatment(token, affliction, actor = null) {
@@ -30,10 +31,12 @@ export class TreatmentService {
     });
   }
 
-  static async handleTreatmentResult(token, affliction, total, dc, actor = null) {
+  static async handleTreatmentResult(token, affliction, total, dc, actor = null, treater = null) {
     const degree = AfflictionService.calculateDegreeOfSuccess(total, dc);
     actor = actor || token?.actor;
     const entityName = token?.name || actor?.name || 'Unknown';
+    // Robust Recovery applies whether the healer or the patient has it
+    const robustRecovery = FeatsService.hasRobustRecovery(treater) || FeatsService.hasRobustRecovery(actor);
 
     let bonus = 0;
     switch (degree) {
@@ -41,7 +44,7 @@ export class TreatmentService {
         bonus = 4;
         break;
       case DEGREE_OF_SUCCESS.SUCCESS:
-        bonus = 2;
+        bonus = robustRecovery ? 4 : 2;
         break;
       case DEGREE_OF_SUCCESS.FAILURE:
         bonus = 0;
@@ -54,6 +57,7 @@ export class TreatmentService {
     const updates = bonus !== 0
       ? { treatmentBonus: bonus, treatedThisStage: true, treatmentEffectUuid: actor ? await this.createTreatmentEffect(actor, affliction, bonus, degree) : null }
       : { treatmentBonus: 0, treatedThisStage: true };
+    updates.treatmentRobustRecovery = robustRecovery && bonus > 0;
 
     if (token) {
       await AfflictionStore.updateAffliction(token, affliction.id, updates);

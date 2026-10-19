@@ -70,7 +70,7 @@ describe('SocketService immediate save modifier notices', () => {
       name: 'Test Actor',
       items: [{ type: 'feat', system: { slug: 'fast-recovery' } }],
     };
-    const affliction = { name: 'Test Disease', isVirulent: false };
+    const affliction = { name: 'Test Disease', type: 'disease', isVirulent: false };
 
     await SocketService.postImmediateSaveModifierNotice(token, actor, affliction, {
       degree: DEGREE_OF_SUCCESS.SUCCESS,

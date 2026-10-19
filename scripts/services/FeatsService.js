@@ -1,5 +1,29 @@
 import { DEGREE_OF_SUCCESS } from '../constants.js';
 
+function afflictionTraits(affliction) {
+  return [affliction?.type, ...(Array.isArray(affliction?.traits) ? affliction.traits : [])];
+}
+
+const isPoison = affliction => afflictionTraits(affliction).includes('poison');
+const isDisease = affliction => afflictionTraits(affliction).includes('disease');
+
+// Features with the Fast Recovery stage-reduction pattern, and what they cover.
+const IMPROVED_RECOVERY_FEATURES = [
+  { slug: 'fast-recovery', type: 'feat', applies: a => isPoison(a) || isDisease(a) || !!a.isAddiction },
+  { slug: 'strong-blooded-dwarf', type: 'heritage', applies: isPoison },
+  { slug: 'venom-resistant-vishkanya', type: 'heritage', applies: isPoison },
+  { slug: 'wash-out', type: 'feat', applies: isPoison },
+  { slug: 'inoculation-subroutine', type: 'feat', applies: isDisease },
+  {
+    slug: 'inured-to-alchemy',
+    type: 'feat',
+    applies: a => {
+      const traits = afflictionTraits(a);
+      return !!a.isAddiction || traits.includes('drug') || (isPoison(a) && traits.includes('alchemical'));
+    },
+  },
+];
+
 export class FeatsService {
   /**
    * Returns true if the actor has a feat with the given slug.
@@ -12,9 +36,27 @@ export class FeatsService {
     return actor.items.some(item => item.type === 'feat' && item.system?.slug === slug);
   }
 
-  /** Fast Recovery — Constitution +2 general feat */
-  static hasFastRecovery(actor) {
-    return this.hasFeat(actor, 'fast-recovery');
+  /**
+   * Returns the actor's feat or heritage that speeds recovery from this affliction
+   * (successful saves reduce the stage by 2, critical successes by 3), or null.
+   * @param {Actor|null} actor
+   * @param {object|null} affliction
+   * @returns {{slug: string, name: string}|null}
+   */
+  static getImprovedRecoveryFeature(actor, affliction) {
+    if (!actor?.items || !affliction) return null;
+
+    for (const feature of IMPROVED_RECOVERY_FEATURES) {
+      if (!feature.applies(affliction)) continue;
+      const item = actor.items.find(i => i.type === feature.type && i.system?.slug === feature.slug);
+      if (item) return { slug: feature.slug, name: item.name || feature.slug };
+    }
+    return null;
+  }
+
+  /** Robust Recovery — skill feat; better Treat Disease/Poison results */
+  static hasRobustRecovery(actor) {
+    return this.hasFeat(actor, 'robust-recovery');
   }
 
   /** Blowgun Poisoner — Alchemist class feat */
@@ -35,14 +77,6 @@ export class FeatsService {
   /** Double Poison — Alchemist class feat */
   static hasDoublePoison(actor) {
     return this.hasFeat(actor, 'double-poison');
-  }
-
-  /** Toxicologist — Alchemist research field that allows poison → acid damage swap */
-  static hasToxicologistFieldVenom(actor) {
-    if (!actor?.items) return false;
-    return actor.items.some(item =>
-      item.type === 'feat' && item.system?.slug?.includes('toxicologist')
-    );
   }
 
   /**
