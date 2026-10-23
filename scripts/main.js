@@ -85,32 +85,9 @@ Hooks.once('ready', async () => {
   }
 
   if (game.user.isGM) {
-    const { default: indicator } = await import('./ui/AfflictionMonitorIndicator.js');
+    const { default: indicator, registerAfflictionMonitorHooks } = await import('./ui/AfflictionMonitorIndicator.js');
     game.modules.get(MODULE_ID).indicator = indicator;
-
-    Hooks.on('canvasReady', () => {
-      indicator.refresh();
-    });
-
-    Hooks.on('updateToken', () => {
-      indicator.refresh();
-    });
-
-    Hooks.on('updateActor', () => {
-      indicator.refresh();
-    });
-
-    Hooks.on('updateCombat', () => {
-      indicator.refresh();
-    });
-
-    Hooks.on('updateWorldTime', () => {
-      indicator.refresh();
-    });
-
-    Hooks.on('controlToken', () => {
-      indicator.refresh();
-    });
+    registerAfflictionMonitorHooks(indicator);
 
     indicator.refresh();
   }

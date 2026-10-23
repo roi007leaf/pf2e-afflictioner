@@ -61,8 +61,8 @@ export function onRenderSceneControls() {
 }
 
 export function onUpdateToken(tokenDocument, changes) {
-  if (!game.settings.get(MODULE_ID, 'useTokenToolsButton')) return;
   if (!foundry.utils.hasProperty(changes, `flags.${MODULE_ID}`)) return;
+  if (!game.settings.get(MODULE_ID, 'useTokenToolsButton')) return;
 
   const controlled = canvas?.tokens?.controlled ?? [];
   if (!controlled.some(t => t.document.id === tokenDocument.id)) return;
@@ -70,7 +70,16 @@ export function onUpdateToken(tokenDocument, changes) {
   ui.controls?.render();
 }
 
-export function onControlToken() {
+let controlsRenderQueued = false;
+
+function renderControlsForSelection() {
+  controlsRenderQueued = false;
   if (!game.settings.get(MODULE_ID, 'useTokenToolsButton')) return;
   ui.controls?.render();
+}
+
+export function onControlToken() {
+  if (controlsRenderQueued) return;
+  controlsRenderQueued = true;
+  queueMicrotask(renderControlsForSelection);
 }

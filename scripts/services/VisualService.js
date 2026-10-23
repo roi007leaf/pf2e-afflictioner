@@ -68,8 +68,8 @@ export class VisualService {
     }
   }
 
-  static async refreshTokenIndicator(token) {
-    if (!game.settings.get(MODULE_ID, 'showVisualIndicators')) {
+  static async refreshTokenIndicator(token, showIndicators = game.settings.get(MODULE_ID, 'showVisualIndicators')) {
+    if (!showIndicators) {
       await this.removeIndicatorElement(token);
       return;
     }
@@ -87,7 +87,9 @@ export class VisualService {
   static async addIndicatorElement(token) {
     if (!canModifyToken(token)) return;
 
-    await token.document.setFlag(MODULE_ID, 'hasAffliction', true);
+    if (token.document.getFlag?.(MODULE_ID, 'hasAffliction') !== true) {
+      await token.document.setFlag(MODULE_ID, 'hasAffliction', true);
+    }
 
     const tint = getStoredTint(token);
     if (!tint || String(tint) === '#ffffff') {
@@ -98,7 +100,9 @@ export class VisualService {
   static async removeIndicatorElement(token) {
     if (!canModifyToken(token)) return;
 
-    await token.document.unsetFlag(MODULE_ID, 'hasAffliction');
+    if (token.document.getFlag?.(MODULE_ID, 'hasAffliction') !== undefined) {
+      await token.document.unsetFlag(MODULE_ID, 'hasAffliction');
+    }
 
     if (String(getStoredTint(token)) === AFFLICTION_TINT) {
       await token.document.update({ 'texture.tint': null });
@@ -108,7 +112,8 @@ export class VisualService {
   static async refreshAllIndicators() {
     if (!canvas.tokens) return;
 
-    await Promise.all(canvas.tokens.placeables.map(token => this.refreshTokenIndicator(token)));
+    const showIndicators = game.settings.get(MODULE_ID, 'showVisualIndicators');
+    await Promise.all(canvas.tokens.placeables.map(token => this.refreshTokenIndicator(token, showIndicators)));
   }
 }
 

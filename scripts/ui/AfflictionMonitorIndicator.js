@@ -565,3 +565,39 @@ class AfflictionMonitorIndicator {
 const afflictionMonitorIndicator = AfflictionMonitorIndicator.getInstance();
 export default afflictionMonitorIndicator;
 export { AfflictionMonitorIndicator };
+
+const MONITOR_REFRESH_DELAY_MS = 50;
+const TOKEN_KEYS_AFFECTING_MONITOR = ['name', 'actorLink', 'actorId', 'delta'];
+
+function afflictionFlagsChanged(changes) {
+  return foundry.utils.hasProperty(changes ?? {}, `flags.${MODULE_ID}`);
+}
+
+function tokenChangeAffectsMonitor(changes = {}) {
+  return afflictionFlagsChanged(changes) || TOKEN_KEYS_AFFECTING_MONITOR.some((key) => key in changes);
+}
+
+function actorChangeAffectsMonitor(changes = {}) {
+  return afflictionFlagsChanged(changes) || 'name' in changes;
+}
+
+export function registerAfflictionMonitorHooks(indicator) {
+  let refreshTimer = null;
+  const requestRefresh = () => {
+    if (refreshTimer !== null) return;
+    refreshTimer = setTimeout(() => {
+      refreshTimer = null;
+      indicator.refresh();
+    }, MONITOR_REFRESH_DELAY_MS);
+  };
+
+  for (const hook of ['canvasReady', 'updateCombat', 'updateWorldTime', 'controlToken']) {
+    Hooks.on(hook, requestRefresh);
+  }
+  Hooks.on('updateToken', (_tokenDocument, changes) => {
+    if (tokenChangeAffectsMonitor(changes)) requestRefresh();
+  });
+  Hooks.on('updateActor', (_actor, changes) => {
+    if (actorChangeAffectsMonitor(changes)) requestRefresh();
+  });
+}
