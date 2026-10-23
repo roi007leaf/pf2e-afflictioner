@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.2] - 2026-10-23
+
+### Fixed
+
+- **Smoother token movement and selection on big scenes**: Loading a scene no longer tries to rewrite the affliction marker on every token. The GM affliction monitor no longer rescans every token and actor each time a token moves, and selecting many tokens at once now refreshes the monitor and the scene controls once instead of once per token.
+
 ## [3.7.1] - 2026-10-19
 
 ### Added
